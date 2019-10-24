@@ -14,6 +14,7 @@ Where `[pkg]` is the name of hte package you want to use in your project. Note t
 
 This is single repository that stores many, independent small subpackages. This list changes often as common code gets moved from specific projects into this repository.
 
+- [out](out/): hierarchical logger to manage logging verbosity to stdout
 - [noplog](noplog/): no operation logger to capture internal logging with no output
 
 ## About
