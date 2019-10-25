@@ -63,6 +63,66 @@ func TestMultiStringSet(t *testing.T) {
 	require.EqualError(t, err, ErrEmptySet.Error())
 }
 
+func TestNullEmptySets(t *testing.T) {
+	require.True(t, IsNull(nil))
+	require.True(t, IsNull(New()))
+	require.True(t, New().IsEmpty())
+
+	require.False(t, IsNull(New("a", "b", "c")))
+	require.False(t, New("a", "b", "c").IsEmpty())
+}
+
+func TestSetComparisons(t *testing.T) {
+	a := New("a", "b", "c", "d", "e")
+	b := New("f", "g", "h", "i", "j")
+	c := New("d", "e")
+
+	require.True(t, a.IsDisjoint(b))
+	require.True(t, b.IsDisjoint(a))
+	require.False(t, a.IsDisjoint(c))
+	require.False(t, c.IsDisjoint(a))
+
+	require.True(t, c.IsSubset(a))
+	require.False(t, c.IsSubset(b))
+	require.False(t, a.IsSubset(c))
+	require.False(t, a.IsSubset(b))
+
+	require.True(t, a.IsSuperset(c))
+	require.False(t, a.IsSuperset(b))
+	require.False(t, c.IsSuperset(a))
+}
+
+func TestSetMath(t *testing.T) {
+	a := New("a", "b", "c", "d", "e")
+	b := New("f", "g", "h", "i", "j")
+	c := New("d", "e", "f", "g")
+	d := New("d")
+
+	abc := a.Union(b, c)
+	require.Len(t, abc, 10)
+
+	require.True(t, a.Intersection(b, c).IsEmpty())
+
+	acd := a.Intersection(c, d)
+	require.Len(t, acd, 1)
+	require.Contains(t, acd, "d")
+
+	ac := a.Difference(c, b)
+	require.Len(t, ac, 3)
+	require.Contains(t, ac, "a")
+	require.Contains(t, ac, "b")
+	require.Contains(t, ac, "c")
+
+	acs := a.SymmetricDifference(c)
+	require.Len(t, acs, 5)
+	require.Contains(t, acs, "a")
+	require.Contains(t, acs, "b")
+	require.Contains(t, acs, "c")
+	require.Contains(t, acs, "f")
+	require.Contains(t, acs, "g")
+
+}
+
 // Ensure the Set is a map and can be used with standard map operations
 func TestSetIsMap(t *testing.T) {
 	// Can directly make a set
