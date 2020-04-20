@@ -24,6 +24,7 @@ func ExampleOutput() {
 
 	// Output:
 	// [test] listening on 127.0.0.1
+	// [test] could not reach uptime.robot -- connection is down
 	// [test] completed 42 out of 121 tasks
 	// [test] limit of 21 queries reached
 	// [test] something bad happened
