@@ -17,6 +17,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [assert](assert/): simple test assertions for no-dependency testing
 - [out](out/): hierarchical logger to manage logging verbosity to stdout
 - [noplog](noplog/): no operation logger to capture internal logging with no output
+- [probez](probez/): http handlers for kubernetes probes (livez, healthz, and readyz).
 
 ## About
 
