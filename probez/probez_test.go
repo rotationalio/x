@@ -188,3 +188,37 @@ func TestHandlerServeHTTP(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, reply.StatusCode)
 	})
 }
+
+func TestZeroValuedHandler(t *testing.T) {
+	t.Run("Ready", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsReady())
+
+		h.Ready()
+		assert.True(t, h.IsReady())
+	})
+
+	t.Run("NotReady", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsReady())
+
+		h.NotReady()
+		assert.False(t, h.IsReady())
+	})
+
+	t.Run("Healthy", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsHealthy())
+
+		h.Healthy()
+		assert.True(t, h.IsHealthy())
+	})
+
+	t.Run("Unhealthy", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsHealthy())
+
+		h.Unhealthy()
+		assert.False(t, h.IsHealthy())
+	})
+}

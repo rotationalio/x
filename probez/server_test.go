@@ -126,7 +126,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				srv.Ready()
 			}
 		}()
@@ -135,7 +135,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				srv.NotReady()
 			}
 		}()
@@ -144,7 +144,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				srv.Healthy()
 			}
 		}()
@@ -153,7 +153,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				srv.Unhealthy()
 			}
 		}()
@@ -162,7 +162,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				probe.Healthy(context.Background())
 			}
 		}()
@@ -171,7 +171,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				probe.Live(context.Background())
 			}
 		}()
@@ -180,7 +180,7 @@ func TestServerConcurrency(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < 16; i++ {
-				randSleep(10 * time.Millisecond)
+				randSleep(4 * time.Millisecond)
 				probe.Ready(context.Background())
 			}
 		}()
