@@ -1,0 +1,75 @@
+name: Tests
+on:
+  push:
+    branches:
+      - main
+      - "v*"
+    tags:
+      - "v*"
+  pull_request:
+
+jobs:
+  lint:
+    name: Go Lint
+    runs-on: ubuntu-latest
+    env:
+      GOPATH: ${{ github.workspace }}/go
+      GOBIN: ${{ github.workspace }}/go/bin
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/go.rtnl.ai/x
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.x
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.GOPATH }}/src/go.rtnl.ai/x
+
+      - name: Install Staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@2024.1.1
+
+      - name: Lint Go Code
+        run: staticcheck ./...
+
+  test:
+    name: Go Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        go-version: [1.22.x, 1.23.x]
+    env:
+      GOPATH: ${{ github.workspace }}/go
+      GOBIN: ${{ github.workspace }}/go/bin
+    defaults:
+      run:
+        working-directory: ${{ env.GOPATH }}/src/go.rtnl.ai/x
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Cache Speedup
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.GOPATH }}/src/go.rtnl.ai/x
+
+      - name: Install Dependencies
+        run: |
+          go version
+
+      - name: Run Unit Tests
+        run: go test -v -coverprofile=coverage.txt -covermode=atomic --race ./...
