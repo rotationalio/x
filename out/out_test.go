@@ -3,7 +3,7 @@ package out_test
 import (
 	"errors"
 
-	"github.com/kansaslabs/x/out"
+	"go.rtnl.ai/x/out"
 )
 
 func ExampleOutput() {

@@ -3,8 +3,8 @@ package set_test
 import (
 	"testing"
 
-	. "github.com/kansaslabs/x/set"
 	"github.com/stretchr/testify/require"
+	. "go.rtnl.ai/x/set"
 )
 
 // Ensure the Set works as expected with string types
