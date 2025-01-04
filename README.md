@@ -14,11 +14,12 @@ Where `[pkg]` is the name of the package you want to use in your project. Note t
 
 This is single repository that stores many, independent small subpackages. This list changes often as common code gets moved from specific projects into this repository.
 
-- [assert](assert/): simple test assertions for no-dependency testing
-- [out](out/): hierarchical logger to manage logging verbosity to stdout
-- [noplog](noplog/): no operation logger to capture internal logging with no output
-- [probez](probez/): http handlers for kubernetes probes (livez, healthz, and readyz).
-- [gravatar](gravatar/): helper to create Gravatar urls from email addresses.
+- [assert](https://go.rtnl.ai/x/assert): simple test assertions for no-dependency testing
+- [out](https://go.rtnl.ai/x/out): hierarchical logger to manage logging verbosity to stdout
+- [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
+- [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
+- [gravatar](https://go.rtnl.ai/x/gravatar): helper to create Gravatar urls from email addresses
+- [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
 
 ## About
 
