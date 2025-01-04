@@ -18,6 +18,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [out](out/): hierarchical logger to manage logging verbosity to stdout
 - [noplog](noplog/): no operation logger to capture internal logging with no output
 - [probez](probez/): http handlers for kubernetes probes (livez, healthz, and readyz).
+- [gravatar](gravatar/): helper to create Gravatar urls from email addresses.
 
 ## About
 
