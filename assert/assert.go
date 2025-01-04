@@ -24,7 +24,7 @@ func Assert(tb testing.TB, condition bool, msg string, v ...interface{}) {
 	}
 }
 
-type BoolAssertion func(testing.TB, bool)
+type BoolAssertion func(testing.TB, bool, ...interface{})
 
 // True asserts that the condition is true.
 func True(tb testing.TB, condition bool, msgAndArgs ...interface{}) {
