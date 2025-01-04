@@ -110,7 +110,7 @@ func TestZeroServer(t *testing.T) {
 
 func TestServerConcurrency(t *testing.T) {
 	// Ensure there are no races setting the state of the probe server.
-	srv := &probez.Server{}
+	srv := probez.NewServer()
 	err := srv.Serve(":0")
 	assert.Ok(t, err)
 	defer srv.Shutdown(context.Background())

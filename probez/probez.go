@@ -10,6 +10,7 @@ package probez
 import (
 	"io"
 	"net/http"
+	"sync"
 	"sync/atomic"
 )
 
@@ -35,16 +36,15 @@ const (
 type Handler struct {
 	healthy *atomic.Value
 	ready   *atomic.Value
+	init    sync.Once
 }
 
 var _ http.Handler = &Handler{}
 
 // Create a new Handler that is healthy but not ready.
 func New() *Handler {
-	srv := &Handler{
-		healthy: &atomic.Value{},
-		ready:   &atomic.Value{},
-	}
+	srv := &Handler{}
+	srv.initialize()
 
 	srv.Healthy()
 	srv.NotReady()
@@ -54,49 +54,37 @@ func New() *Handler {
 
 // Healthy sets the probe state to healthy so that it responds 200 Ok to liveness probes.
 func (h *Handler) Healthy() {
-	if h.healthy == nil {
-		h.healthy = &atomic.Value{}
-	}
+	h.initialize()
 	h.healthy.Store(true)
 }
 
 // NotHealthy sets the probe state to unhealthy so that it responds 503 Unavailable to liveness probes.
 func (h *Handler) Unhealthy() {
-	if h.healthy == nil {
-		h.healthy = &atomic.Value{}
-	}
+	h.initialize()
 	h.healthy.Store(false)
 }
 
 // IsHealthy returns if the Handler is healthy or not
 func (h *Handler) IsHealthy() bool {
-	if h.healthy == nil {
-		return false
-	}
+	h.initialize()
 	return h.healthy.Load().(bool)
 }
 
 // Ready sets the probe state to ready so that it responses 200 Ok to readiness probes.
 func (h *Handler) Ready() {
-	if h.ready == nil {
-		h.ready = &atomic.Value{}
-	}
+	h.initialize()
 	h.ready.Store(true)
 }
 
 // NotReady sets the probe state to not ready so that it responses 503 Unavailable to readiness probes.
 func (h *Handler) NotReady() {
-	if h.ready == nil {
-		h.ready = &atomic.Value{}
-	}
+	h.initialize()
 	h.ready.Store(false)
 }
 
 // IsHealthy returns if the Handler is ready or not
 func (h *Handler) IsReady() bool {
-	if h.ready == nil {
-		return false
-	}
+	h.initialize()
 	return h.ready.Load().(bool)
 }
 
@@ -114,7 +102,7 @@ func (h *Handler) Healthz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.healthy == nil || !h.healthy.Load().(bool) {
+	if !h.IsHealthy() {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
@@ -131,7 +119,7 @@ func (h *Handler) Readyz(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if h.ready == nil || !h.ready.Load().(bool) {
+	if !h.IsReady() {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
@@ -152,4 +140,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
 	}
+}
+
+func (h *Handler) initialize() {
+	h.init.Do(func() {
+		h.healthy = &atomic.Value{}
+		h.healthy.Store(false)
+
+		h.ready = &atomic.Value{}
+		h.ready.Store(false)
+	})
 }
