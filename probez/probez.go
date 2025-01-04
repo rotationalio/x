@@ -54,31 +54,49 @@ func New() *Handler {
 
 // Healthy sets the probe state to healthy so that it responds 200 Ok to liveness probes.
 func (h *Handler) Healthy() {
+	if h.healthy == nil {
+		h.healthy = &atomic.Value{}
+	}
 	h.healthy.Store(true)
 }
 
 // NotHealthy sets the probe state to unhealthy so that it responds 503 Unavailable to liveness probes.
 func (h *Handler) Unhealthy() {
+	if h.healthy == nil {
+		h.healthy = &atomic.Value{}
+	}
 	h.healthy.Store(false)
 }
 
 // IsHealthy returns if the Handler is healthy or not
 func (h *Handler) IsHealthy() bool {
+	if h.healthy == nil {
+		return false
+	}
 	return h.healthy.Load().(bool)
 }
 
 // Ready sets the probe state to ready so that it responses 200 Ok to readiness probes.
 func (h *Handler) Ready() {
+	if h.ready == nil {
+		h.ready = &atomic.Value{}
+	}
 	h.ready.Store(true)
 }
 
 // NotReady sets the probe state to not ready so that it responses 503 Unavailable to readiness probes.
 func (h *Handler) NotReady() {
+	if h.ready == nil {
+		h.ready = &atomic.Value{}
+	}
 	h.ready.Store(false)
 }
 
 // IsHealthy returns if the Handler is ready or not
 func (h *Handler) IsReady() bool {
+	if h.ready == nil {
+		return false
+	}
 	return h.ready.Load().(bool)
 }
 

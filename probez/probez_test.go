@@ -36,7 +36,7 @@ func TestHealthz(t *testing.T) {
 		handler.Healthz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusMethodNotAllowed, result.StatusCode)
+		assert.Equal(t, http.StatusMethodNotAllowed, result.StatusCode)
 	})
 
 	t.Run("Unhealthy", func(t *testing.T) {
@@ -47,7 +47,7 @@ func TestHealthz(t *testing.T) {
 		handler.Healthz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusServiceUnavailable, result.StatusCode)
+		assert.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
 	})
 
 	t.Run("Healthy", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestHealthz(t *testing.T) {
 		handler.Healthz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusOK, result.StatusCode)
+		assert.Equal(t, http.StatusOK, result.StatusCode)
 
 		data, err := io.ReadAll(result.Body)
 		assert.Ok(t, err)
@@ -76,7 +76,7 @@ func TestReadyz(t *testing.T) {
 		handler.Readyz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusMethodNotAllowed, result.StatusCode)
+		assert.Equal(t, http.StatusMethodNotAllowed, result.StatusCode)
 	})
 
 	t.Run("NotReady", func(t *testing.T) {
@@ -87,7 +87,7 @@ func TestReadyz(t *testing.T) {
 		handler.Readyz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusServiceUnavailable, result.StatusCode)
+		assert.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
 	})
 
 	t.Run("Ready", func(t *testing.T) {
@@ -98,7 +98,7 @@ func TestReadyz(t *testing.T) {
 		handler.Readyz(w, r)
 
 		result := w.Result()
-		assert.Equals(t, http.StatusOK, result.StatusCode)
+		assert.Equal(t, http.StatusOK, result.StatusCode)
 
 		data, err := io.ReadAll(result.Body)
 		assert.Ok(t, err)
@@ -123,7 +123,7 @@ func TestHandlerMux(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusOK, reply.StatusCode)
+		assert.Equal(t, http.StatusOK, reply.StatusCode)
 	})
 
 	t.Run("Healthz", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestHandlerMux(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusOK, reply.StatusCode)
+		assert.Equal(t, http.StatusOK, reply.StatusCode)
 	})
 
 	t.Run("Readyz", func(t *testing.T) {
@@ -141,7 +141,7 @@ func TestHandlerMux(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusServiceUnavailable, reply.StatusCode)
+		assert.Equal(t, http.StatusServiceUnavailable, reply.StatusCode)
 	})
 }
 
@@ -158,7 +158,7 @@ func TestHandlerServeHTTP(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusOK, reply.StatusCode)
+		assert.Equal(t, http.StatusOK, reply.StatusCode)
 	})
 
 	t.Run("Healthz", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestHandlerServeHTTP(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusOK, reply.StatusCode)
+		assert.Equal(t, http.StatusOK, reply.StatusCode)
 	})
 
 	t.Run("Readyz", func(t *testing.T) {
@@ -176,7 +176,7 @@ func TestHandlerServeHTTP(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusServiceUnavailable, reply.StatusCode)
+		assert.Equal(t, http.StatusServiceUnavailable, reply.StatusCode)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -185,6 +185,40 @@ func TestHandlerServeHTTP(t *testing.T) {
 
 		reply, err := client.Do(r)
 		assert.Ok(t, err)
-		assert.Equals(t, http.StatusNotFound, reply.StatusCode)
+		assert.Equal(t, http.StatusNotFound, reply.StatusCode)
+	})
+}
+
+func TestZeroValuedHandler(t *testing.T) {
+	t.Run("Ready", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsReady())
+
+		h.Ready()
+		assert.True(t, h.IsReady())
+	})
+
+	t.Run("NotReady", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsReady())
+
+		h.NotReady()
+		assert.False(t, h.IsReady())
+	})
+
+	t.Run("Healthy", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsHealthy())
+
+		h.Healthy()
+		assert.True(t, h.IsHealthy())
+	})
+
+	t.Run("Unhealthy", func(t *testing.T) {
+		h := &probez.Handler{}
+		assert.False(t, h.IsHealthy())
+
+		h.Unhealthy()
+		assert.False(t, h.IsHealthy())
 	})
 }

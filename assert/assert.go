@@ -50,11 +50,21 @@ func Ok(tb testing.TB, err error, msgAndArgs ...interface{}) {
 	}
 }
 
-// Equals fails the test if exp (expected) is not equal to act (actual).
-func Equals(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+// Equal fails the test if exp (expected) is not equal to act (actual).
+func Equal(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
 	tb.Helper()
 	if !reflect.DeepEqual(exp, act) {
 		tb.Logf("\nactual value did not match expected:\n\n\t- exp: %#v\n\t- got: %#v\n", exp, act)
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
+// NotEqual fails the text if exp (expected) is equal to act (actual).
+func NotEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	if reflect.DeepEqual(exp, act) {
+		tb.Logf("\nactual value equals expected:\n\n\t- exp: %#v\n\t- got: %#v\n", exp, act)
 		makeLogf(tb, msgAndArgs...)
 		tb.FailNow()
 	}
