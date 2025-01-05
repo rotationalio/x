@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"testing"
 )
 
@@ -77,6 +78,29 @@ func ErrorIs(tb testing.TB, err, target error, msgAndArgs ...interface{}) {
 	Assert(tb, errors.Is(err, target), msg)
 }
 
+// Len asserts that the specified container has specific length.
+func Len(tb testing.TB, container interface{}, length int, msgAndArgs ...interface{}) {
+	tb.Helper()
+	l, ok := getLen(container)
+	if !ok {
+		tb.Logf("\n\"%v\" could not be applied to builtin len()\n", container)
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+	if l != length {
+		tb.Logf("\n\"%v\" should have %d item(s) but has %d\n", container, length, l)
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
+// Regexp asserts that a specified regular expression matches a string.
+func Regexp(tb testing.TB, rx *regexp.Regexp, str string, msgAndArgs ...interface{}) {
+	tb.Helper()
+	msg := makeMessage("regular expression did not match target string", msgAndArgs...)
+	Assert(tb, rx.MatchString(str), msg)
+}
+
 func makeMessage(msg string, msgAndArgs ...interface{}) string {
 	switch len(msgAndArgs) {
 	case 0:
@@ -97,4 +121,14 @@ func makeLogf(tb testing.TB, msgAndArgs ...interface{}) {
 	default:
 		tb.Logf("\n"+msgAndArgs[0].(string)+"\n", msgAndArgs[1:]...)
 	}
+}
+
+// getLen tries to get the length of an object.
+// It returns (0, false) if impossible.
+func getLen(x interface{}) (length int, ok bool) {
+	v := reflect.ValueOf(x)
+	defer func() {
+		ok = recover() == nil
+	}()
+	return v.Len(), true
 }
