@@ -20,6 +20,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
 - [gravatar](https://go.rtnl.ai/x/gravatar): helper to create Gravatar urls from email addresses
 - [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
+- [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
 
 ## About
 
