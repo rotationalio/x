@@ -23,6 +23,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run.
+- [dsn](https://go.rtnl.ai/x/dsn): parses data source names in order to connect to both server and embedded databases easily.
 
 ## About
 
