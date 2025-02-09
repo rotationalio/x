@@ -101,6 +101,20 @@ func Regexp(tb testing.TB, rx *regexp.Regexp, str string, msgAndArgs ...interfac
 	Assert(tb, rx.MatchString(str), msg)
 }
 
+// Nil asserts that the specified object is nil.
+func Nil(tb testing.TB, object interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	msg := makeMessage("expected nil, but got non-nil", msgAndArgs...)
+	Assert(tb, object == nil || reflect.ValueOf(object).IsNil(), msg)
+}
+
+// NotNil asserts that the specified object is not nil.
+func NotNil(tb testing.TB, object interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	msg := makeMessage("expected non-nil, but got nil", msgAndArgs...)
+	Assert(tb, object != nil && !reflect.ValueOf(object).IsNil(), msg)
+}
+
 func makeMessage(msg string, msgAndArgs ...interface{}) string {
 	switch len(msgAndArgs) {
 	case 0:
