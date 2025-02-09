@@ -86,6 +86,10 @@ func (v Version) IsZero() bool {
 	return v.Major == 0 && v.Minor == 0 && v.Patch == 0 && v.PreRelease == "" && v.BuildMeta == ""
 }
 
+func (v Version) Satisfies(spec Specifies) bool {
+	return spec(v)
+}
+
 //===========================================================================
 // Comparison
 //===========================================================================

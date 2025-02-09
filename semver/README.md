@@ -36,12 +36,22 @@ a.Compare(b)
 A `Range` is a a specification of semantic version boundaries, and are used to check if a semantic version is part of a range or not. For example:
 
 ```go
-rng := semver.Range(">=1.3.1")
-rng.Contains("1.4.8")
+spec := semver.Range(">=1.3.1")
+spec("1.4.8")
 // true
-rng.Contains("1.2.9")
+spec("1.2.9")
 // false
 ```
+
+Alternatively, you can check to see if a version satisifies a range:
+
+```go
+v := semver.MustParse("1.3.0")
+v.Satisfies(spec)
+// false
+```
+
+> **NOTE**: The range functionality described below is currently only partially implemented.
 
 Ranges are denoted by an operator:
 

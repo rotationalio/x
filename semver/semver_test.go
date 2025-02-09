@@ -119,6 +119,23 @@ func TestIsZero(t *testing.T) {
 	assert.False(t, Version{Major: 1}.IsZero(), "expected non-zero value to not be zero")
 }
 
+func TestSpecifies(t *testing.T) {
+	// This test is covered more extensively in range tests.
+	ver := MustParse("1.2.3")
+
+	t.Run("True", func(t *testing.T) {
+		assert.True(t, ver.Satisfies(Specifies(func(v Version) bool {
+			return true
+		})))
+	})
+
+	t.Run("False", func(t *testing.T) {
+		assert.False(t, ver.Satisfies(Specifies(func(v Version) bool {
+			return false
+		})))
+	})
+}
+
 func TestMarshal(t *testing.T) {
 	t.Run("Text", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
