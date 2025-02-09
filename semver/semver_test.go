@@ -152,6 +152,39 @@ func TestMarshal(t *testing.T) {
 	})
 }
 
+func TestCompare(t *testing.T) {
+	tests := []struct {
+		a, b     string
+		expected int
+	}{
+		{"1.0.0", "1.0.0", 0},
+		{"2.3.0", "2.3.0", 0},
+		{"3.1.4", "3.1.4", 0},
+		{"1.0.0", "1.0.1", -1},
+		{"1.0.0", "1.1.0", -1},
+		{"2.1.1", "2.1.0", 1},
+		{"2.1.0", "2.0.0", 1},
+		{"2.0.0", "1.0.0", 1},
+		{"1.0.0-alpha", "1.0.0", -1},
+		{"1.0.0-alpha", "1.0.0-alpha.1", -1},
+		{"1.0.0-alpha.1", "1.0.0-alpha.beta", -1},
+		{"1.0.0-alpha.beta", "1.0.0-beta", -1},
+		{"1.0.0-beta", "1.0.0-beta.2", -1},
+		{"1.0.0-beta.2", "1.0.0-beta.11", -1},
+		{"1.0.0-beta.11", "1.0.0-rc.1", -1},
+		{"1.0.0-rc.1", "1.0.0", -1},
+		{"1.0.0", "1.0.0+20130313144700", 0},
+		{"1.0.0+20130313144700", "1.0.0+exp.sha.5114f85", 0},
+	}
+
+	for i, tc := range tests {
+		a := MustParse(tc.a)
+		b := MustParse(tc.b)
+		assert.Equal(t, tc.expected, a.Compare(b), "test case %d failed", i)
+		assert.Equal(t, -1*tc.expected, Compare(b, a), "test case %d failed", i)
+	}
+}
+
 func TestSQL(t *testing.T) {
 	t.Run("Scan", func(t *testing.T) {
 		a := Version{}
