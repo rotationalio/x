@@ -6,9 +6,31 @@ import (
 	"unicode"
 )
 
-func Range(s string) (_ Specifies, err error) {
-	return parseRange(s)
+func Range(s string) (_ Specification, err error) {
+	var fn Specifies
+	if fn, err = parseRange(s); err != nil {
+		return nil, err
+	}
+
+	return func(t any) bool {
+		switch v := t.(type) {
+		case string:
+			ver, err := Parse(v)
+			if err != nil {
+				return false
+			}
+			return fn(ver)
+		case Version:
+			return fn(v)
+		case *Version:
+			return fn(*v)
+		default:
+			return false
+		}
+	}, nil
 }
+
+type Specification func(any) bool
 
 type Specifies func(Version) bool
 
