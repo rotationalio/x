@@ -119,6 +119,12 @@ func TestIsZero(t *testing.T) {
 	assert.False(t, Version{Major: 1}.IsZero(), "expected non-zero value to not be zero")
 }
 
+func TestShort(t *testing.T) {
+	v := Version{Major: 1, Minor: 2, Patch: 3, PreRelease: "alpha.4", BuildMeta: "exp.sha.5114f85"}
+	assert.Equal(t, "1.2.3-alpha.4+exp.sha.5114f85", v.String(), "expected string representation to match")
+	assert.Equal(t, "1.2.3", v.Short(), "expected short string representation to match")
+}
+
 func TestSpecifies(t *testing.T) {
 	// This test is covered more extensively in range tests.
 	ver := MustParse("1.2.3")

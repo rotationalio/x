@@ -82,6 +82,10 @@ func (v Version) String() string {
 	return vers
 }
 
+func (v Version) Short() string {
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
+}
+
 func (v Version) IsZero() bool {
 	return v.Major == 0 && v.Minor == 0 && v.Patch == 0 && v.PreRelease == "" && v.BuildMeta == ""
 }
