@@ -25,6 +25,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run.
 - [dsn](https://go.rtnl.ai/x/dsn): parses data source names in order to connect to both server and embedded databases easily.
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
+- [typecase](https://go.rtnl.ai/x/semver): converst strings to different variable cases such as camel or snake case.
 
 ## About
 
