@@ -12,7 +12,7 @@ import "go.rtnl.ai/x/vero"
 // byte slice.
 newRecordId := []bytes("1234567890abcdef") // in this example, we have a record ID to verify
 expiration := time.Now().Add(1 * time.Hour)
-token, err := vero.NewToken(newRecordId, expiration)
+token, err := vero.New(newRecordId, expiration)
 
 // Sign the vero `token`, creating the `verification` token and the `signature`
 // token. You should keep the `signature` token a secret and only share the
@@ -51,7 +51,7 @@ verificationTokenString = "MTIzNDU2Nzg5MGFiY2RlZvRoC07KOs375xDclKlFe2gKk3TUcxj7-
 
 // Parse the verification token string into a VerificationToken.
 var verification *vero.VerificationToken
-if verification, err = vero.ParseVerification(verificationTokenString); err != nil {
+if verification, err = vero.Parse(verificationTokenString); err != nil {
     panic(err) // something went wrong
 }
 

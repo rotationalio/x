@@ -12,7 +12,7 @@ import (
 
 func TestVerification(t *testing.T) {
 	// Generate verification token and signature
-	token, err := vero.NewToken(makeRecordId(), time.Now().Add(1*time.Hour))
+	token, err := vero.New(makeRecordId(), time.Now().Add(1*time.Hour))
 	assert.Nil(t, err, "could not create token")
 	verify, signature, err := token.Sign()
 	assert.Nil(t, err, "could not sign token")
@@ -25,7 +25,7 @@ func TestVerification(t *testing.T) {
 	assert.Nil(t, err, "could not marshal signature")
 
 	// Parse the incoming token from the user
-	parsed_token, err := vero.ParseVerification(tks)
+	parsed_token, err := vero.Parse(tks)
 	assert.Nil(t, err, "could not parse verification token")
 
 	// Pretend to load the signature from the database by unmarshaling it
@@ -39,15 +39,15 @@ func TestVerification(t *testing.T) {
 	assert.True(t, secure, "verification returned false")
 }
 
-func TestNewToken(t *testing.T) {
+func TestNew(t *testing.T) {
 	t.Run("RequiresExpiration", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Time{})
+		token, err := vero.New(makeRecordId(), time.Time{})
 		assert.ErrorIs(t, err, vero.ErrInvalidExpiration, "no error for zero value expiration")
 		assert.Nil(t, token, "token should be nil")
 	})
 
 	t.Run("NonceGeneration", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Now().Add(1*time.Minute))
+		token, err := vero.New(makeRecordId(), time.Now().Add(1*time.Minute))
 		assert.Nil(t, err, "could not create token")
 		data, err := token.MarshalBinary()
 		assert.Nil(t, err, "could not marshal binary")
@@ -63,7 +63,7 @@ func TestNewToken(t *testing.T) {
 		// Generate 16 tokens with the same recordID and expiration timestamp
 		tokens := make([]*vero.Token, 0, 16)
 		for i := 0; i < 16; i++ {
-			token, err := vero.NewToken(recordID, expiration)
+			token, err := vero.New(recordID, expiration)
 			assert.Nil(t, err, "could not create token")
 			tokens = append(tokens, token)
 		}
@@ -91,19 +91,19 @@ func TestNewToken(t *testing.T) {
 
 func TestTokenExpiration(t *testing.T) {
 	t.Run("Happy", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Now().Add(1*time.Minute))
+		token, err := vero.New(makeRecordId(), time.Now().Add(1*time.Minute))
 		assert.Nil(t, err, "could not create token")
 		assert.False(t, token.IsExpired(), "token should not be expired")
 	})
 
 	t.Run("ExpirationInPast", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Now().Add(-1*time.Minute))
+		token, err := vero.New(makeRecordId(), time.Now().Add(-1*time.Minute))
 		assert.ErrorIs(t, err, vero.ErrInvalidExpiration, "expiration in past should return an error")
 		assert.Nil(t, token, "token should be nil")
 	})
 
 	t.Run("NoExpiration", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Time{})
+		token, err := vero.New(makeRecordId(), time.Time{})
 		assert.ErrorIs(t, err, vero.ErrInvalidExpiration, "lack of expiration should return an error")
 		assert.Nil(t, token, "token should be nil")
 	})
@@ -111,7 +111,7 @@ func TestTokenExpiration(t *testing.T) {
 
 func TestTokenSign(t *testing.T) {
 	t.Run("Happy", func(t *testing.T) {
-		token, err := vero.NewToken(makeRecordId(), time.Now().Add(1*time.Minute))
+		token, err := vero.New(makeRecordId(), time.Now().Add(1*time.Minute))
 		assert.Nil(t, err, "could not create token")
 		verification, signature, err := token.Sign()
 		assert.Nil(t, err, "could not sign token")
@@ -129,7 +129,7 @@ func TestTokenSign(t *testing.T) {
 
 	t.Run("VerificationToken", func(t *testing.T) {
 		recordID := makeRecordId()
-		token, err := vero.NewToken(recordID, time.Now().Add(1*time.Minute))
+		token, err := vero.New(recordID, time.Now().Add(1*time.Minute))
 		assert.Nil(t, err, "could not create token")
 		verify, _, err := token.Sign()
 		assert.Nil(t, err, "could not sign token")
@@ -154,7 +154,7 @@ func TestTokenSign(t *testing.T) {
 
 	t.Run("SecretRandomness", func(t *testing.T) {
 		// Create a token with constant nonce, record id, and expiration
-		token, err := vero.NewToken(makeRecordId(), time.Now().Add(1*time.Hour))
+		token, err := vero.New(makeRecordId(), time.Now().Add(1*time.Hour))
 		assert.Nil(t, err, "could not create token")
 
 		// Create 16 verification tokens from the same token
@@ -197,7 +197,7 @@ func TestTokenBinary(t *testing.T) {
 		}
 
 		for i, tc := range testCases {
-			token, err := vero.NewToken(tc.recordID, tc.expiration)
+			token, err := vero.New(tc.recordID, tc.expiration)
 			assert.Nil(t, err, "could not create token %d", i)
 
 			data, err := token.MarshalBinary()
@@ -304,7 +304,7 @@ func TestSignedTokenBinary(t *testing.T) {
 		}
 
 		for i, tc := range testCases {
-			token, err := vero.NewToken(tc.recordID, tc.expiration)
+			token, err := vero.New(tc.recordID, tc.expiration)
 			assert.Nil(t, err, "could not create token %d", i)
 
 			_, signed, err := token.Sign()
@@ -387,7 +387,7 @@ func TestSignedTokenBinary(t *testing.T) {
 func TestVerificationToken(t *testing.T) {
 	t.Run("Static", func(t *testing.T) {
 		tks := "MTIzNDU2Nzg5MGFiY2RlZvRoC07KOs375xDclKlFe2gKk3TUcxj7-ID9TlccbGtE3dAEFjzOE9o2B9e-y_lNqkTVJfEPm3n8Kt-9gPQbU-E"
-		token, err := vero.ParseVerification(tks)
+		token, err := vero.Parse(tks)
 		assert.Nil(t, err, "could not parse good verification token")
 		assert.Equal(t, token.RecordID(), []byte("1234567890abcdef"), "unexpected record id")
 
@@ -403,7 +403,7 @@ func TestVerificationToken(t *testing.T) {
 
 	t.Run("TooShort", func(t *testing.T) {
 		tks := "k0ZmbMJcQeyFtAtZ0_2EXMHwJ1ufcB4831ozVeHzAcVpyKybKzelG0l9qbJ4K5IUjaGSx5EdJ_"
-		token, err := vero.ParseVerification(tks)
+		token, err := vero.Parse(tks)
 		assert.ErrorIs(t, err, vero.ErrTokenSize, "expected size parsing error")
 		assert.Nil(t, token, "expected nil token returned")
 	})
@@ -411,7 +411,7 @@ func TestVerificationToken(t *testing.T) {
 	t.Run("BadDecode", func(t *testing.T) {
 		// '}' at char 19
 		tks := "k0ZmbMJcQeyFtAtZ0_2}XMHwJ1ufcB4831ozVeHzAcVpyKybKzelG0l9qbJ4K5IUjaGSx5EdJ_"
-		token, err := vero.ParseVerification(tks)
+		token, err := vero.Parse(tks)
 		assert.Equal(t, err.Error(), "illegal base64 data at input byte 19", "expected base64 parsing error")
 		assert.Nil(t, token, "expected nil token returned")
 	})
