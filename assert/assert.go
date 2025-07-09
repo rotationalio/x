@@ -71,11 +71,76 @@ func NotEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
 	}
 }
 
+// LessEqual fails the test if act (actual) is not less than or equal to exp (expected).
+func LessEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	expectedValue := reflect.ValueOf(exp)
+	actualValue := reflect.ValueOf(act)
+	if expectedValue.Kind() != actualValue.Kind() {
+		tb.Logf("\nexpected value type %s does not match actual value type %s\n", expectedValue.Kind(), actualValue.Kind())
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+
+	switch actualValue.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		Assert(tb, actualValue.Kind() == expectedValue.Kind(), "expected value type %s does not match actual value type %s", expectedValue.Kind(), actualValue.Kind())
+		Assert(tb, actualValue.Int() <= expectedValue.Int(), "expected %d to be less than or equal to %d", actualValue.Int(), expectedValue.Int())
+	case reflect.Float32, reflect.Float64:
+		Assert(tb, actualValue.Kind() == expectedValue.Kind(), "expected value type %s does not match actual value type %s", expectedValue.Kind(), actualValue.Kind())
+		Assert(tb, actualValue.Float() <= expectedValue.Float(), "expected %f to be less than or equal to %f", actualValue.Float(), expectedValue.Float())
+	default:
+		tb.Logf("\nunsupported kind for comparison: %s\n", actualValue.Kind())
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
+// GreaterEqual fails the test if act (actual) is not greater than or equal to exp (expected).
+func GreaterEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	expectedValue := reflect.ValueOf(exp)
+	actualValue := reflect.ValueOf(act)
+	if expectedValue.Kind() != actualValue.Kind() {
+		tb.Logf("\nexpected value type %s does not match actual value type %s\n", expectedValue.Kind(), actualValue.Kind())
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+
+	switch actualValue.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		Assert(tb, actualValue.Kind() == expectedValue.Kind(), "expected value type %s does not match actual value type %s", expectedValue.Kind(), actualValue.Kind())
+		Assert(tb, actualValue.Int() >= expectedValue.Int(), "expected %d to be greater than or equal to %d", actualValue.Int(), expectedValue.Int())
+	case reflect.Float32, reflect.Float64:
+		Assert(tb, actualValue.Kind() == expectedValue.Kind(), "expected value type %s does not match actual value type %s", expectedValue.Kind(), actualValue.Kind())
+		Assert(tb, actualValue.Float() >= expectedValue.Float(), "expected %f to be greater than or equal to %f", actualValue.Float(), expectedValue.Float())
+	default:
+		tb.Logf("\nunsupported kind for comparison: %s\n", actualValue.Kind())
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
 // ErrorIs fails the test if the err does not match the target.
 func ErrorIs(tb testing.TB, err, target error, msgAndArgs ...interface{}) {
 	tb.Helper()
 	msg := makeMessage("expected target to be in error chain", msgAndArgs...)
 	Assert(tb, errors.Is(err, target), msg)
+}
+
+// EqualError fails the test if the error message does not match the expected message.
+func EqualError(tb testing.TB, err error, expected string, msgAndArgs ...interface{}) {
+	tb.Helper()
+	if err == nil {
+		tb.Logf("\nexpected error but got nil\n")
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+	if err.Error() != expected {
+		tb.Logf("\nexpected error message to be %q but got %q\n", expected, err.Error())
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
 }
 
 // Len asserts that the specified container has specific length.
@@ -89,6 +154,18 @@ func Len(tb testing.TB, container interface{}, length int, msgAndArgs ...interfa
 	}
 	if l != length {
 		tb.Logf("\n\"%v\" should have %d item(s) but has %d\n", container, length, l)
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
+// IsType asserts that the specified object is of the expected type.
+func IsType(tb testing.TB, expectedType interface{}, object interface{}, msgAndArgs ...interface{}) {
+	tb.Helper()
+	expectedTypeName := reflect.TypeOf(expectedType).String()
+	actualTypeName := reflect.TypeOf(object).String()
+	if expectedTypeName != actualTypeName {
+		tb.Logf("\nexpected type %q but got %q\n", expectedTypeName, actualTypeName)
 		makeLogf(tb, msgAndArgs...)
 		tb.FailNow()
 	}

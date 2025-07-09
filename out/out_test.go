@@ -2,11 +2,12 @@ package out_test
 
 import (
 	"errors"
+	"testing"
 
 	"go.rtnl.ai/x/out"
 )
 
-func ExampleOutput() {
+func TestExampleOutput(t *testing.T) {
 	out.Init("[test] ", 0)
 	out.SetLogLevel(out.LevelInfo)
 	out.SetCautionThreshold(2)
