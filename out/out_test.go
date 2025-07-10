@@ -6,7 +6,7 @@ import (
 	"go.rtnl.ai/x/out"
 )
 
-func ExampleOutput() {
+func Example() {
 	out.Init("[test] ", 0)
 	out.SetLogLevel(out.LevelInfo)
 	out.SetCautionThreshold(2)
