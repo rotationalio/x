@@ -30,11 +30,10 @@ We want this package to be:
 
 ### Implemented
 
-* This package is only a stub for now.
+* Cosine Similarity (see [`vector.go`](./vector.go))
 
 ### Planned
 
-* Cosine Similarity (ASAP)
 * Readability Scores (ASAP)
 * Token & Type Counts (ASAP)
 * Part-of-Speech Distributions (Future)
