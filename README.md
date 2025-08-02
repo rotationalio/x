@@ -14,21 +14,26 @@ Where `[pkg]` is the name of the package you want to use in your project. Note t
 
 This is single repository that stores many, independent small subpackages. This list changes often as common code gets moved from specific projects into this repository.
 
-- [assert](https://go.rtnl.ai/x/assert): simple test assertions for no-dependency testing
-- [out](https://go.rtnl.ai/x/out): hierarchical logger to manage logging verbosity to stdout
-- [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
-- [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
-- [gravatar](https://go.rtnl.ai/x/gravatar): helper to create Gravatar urls from email addresses
-- [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
-- [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
-- [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run.
+- [assert](https://go.rtnl.ai/x/assert): simple test assertions for no-dependency testing
+- [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
 - [dsn](https://go.rtnl.ai/x/dsn): parses data source names in order to connect to both server and embedded databases easily.
+- [gravatar](https://go.rtnl.ai/x/gravatar): helper to create Gravatar urls from email addresses
+- [httpcc](https://go.rtnl.ai/x/httpcc): http cache control header parsing and directives management
+- [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
+- [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
+- [out](https://go.rtnl.ai/x/out): hierarchical logger to manage logging verbosity to stdout
+- [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
+- [quant](https://go.rtnl.ai/x/quant): metrics for quantitative text analysis.
+- [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
+- [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
 - [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
-- [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
-- [quant](https://go.rtnl.ai/x/quant): metrics for quantitative text analysis.
+
+## Development
+
+The primary rule of this package is that there should be no dependencies added to `go.mod`. For testing in this package, please use the `assert` package locally. If there is a dependency on a large third party package (e.g. `gin`) then that library should be in its own repository; otherwise anything that imports `x` will also import those dependencies.
 
 ## About
 
