@@ -5,35 +5,16 @@ import (
 )
 
 /*
-vector.go provides vector-related functionality.
+vector.go provides vector-related functionality with `[]float64`.
 
 Types:
-* Vector64 (`NewVector64()`, `Vector64.Len()`)
+* None
 
 Functions:
-* DotProduct(a, b Vector64) (product float64, err error)
-* VectorLength(v Vector64) (length float64)
-* CosineSimilarity(a, b Vector64) (similarity float64, err error)
+* DotProduct(a, b []float64]) (product float64, err error)
+* VectorLength(v []float64]) (length float64)
+* CosineSimilarity(a, b []float64]) (similarity float64, err error)
 */
-
-// ############################################################################
-// Vector64 type
-// ############################################################################
-
-// Vector64 is a vector of 64 bit floats.
-type Vector64 []float64
-
-// Create a new Vector64 from a slice of 64 bit floats.
-func NewVector64(vals ...float64) Vector64 {
-	// Vector64 is currently implemented as a slice of 64 bit floats.
-	return vals
-}
-
-// Returns the number of elements in the Vector64.
-func (v Vector64) Len() int {
-	// Vector64 is currently implemented as a slice of 64 bit floats.
-	return len(v)
-}
 
 // ############################################################################
 // DotProduct
@@ -42,12 +23,12 @@ func (v Vector64) Len() int {
 // VectorLength returns the dot product of the two vectors (as defined by SLP
 // 3rd Edition section 6.4 fig 6.7). If the vectors do not have the same number
 // of elements, an error will be returned.
-var DotProduct func(a, b Vector64) (product float64, err error) = DotProduct_impl_1
+var DotProduct func(a, b []float64) (product float64, err error) = DotProduct_impl_1
 
 // First Implementation of DotProduct, using a 'for range' loop.
-func DotProduct_impl_1(a, b Vector64) (product float64, err error) {
+func DotProduct_impl_1(a, b []float64) (product float64, err error) {
 	// Ensure vectors have the same number of elements
-	if a.Len() != b.Len() {
+	if len(a) != len(b) {
 		return 0.0, ErrUnequalLengthVectors
 	}
 
@@ -63,10 +44,10 @@ func DotProduct_impl_1(a, b Vector64) (product float64, err error) {
 
 // VectorLength returns the vector length (as defined by SLP 3rd Edition section
 // 6.4 fig 6.8).
-var VectorLength func(v Vector64) (length float64) = VectorLength_impl_1
+var VectorLength func(v []float64) (length float64) = VectorLength_impl_1
 
 // First Implementation of VectorLength, using a 'for range' loop.
-func VectorLength_impl_1(v Vector64) (length float64) {
+func VectorLength_impl_1(v []float64) (length float64) {
 	for _, e := range v {
 		length += e * e
 	}
@@ -80,13 +61,13 @@ func VectorLength_impl_1(v Vector64) (length float64) {
 // CosineSimilarity returns the cosine similarity (as defined by SLP 3rd Edition
 // section 6.4 fig 6.10). If the vectors do not have the same number of elements,
 // an error will be returned.
-var CosineSimilarity func(a, b Vector64) (similarity float64, err error) = CosineSimilarity_impl_1
+var CosineSimilarity func(a, b []float64) (similarity float64, err error) = CosineSimilarity_impl_1
 
 // First Implementation of CosineSimilarity, using the DotProduct and
 // VectorLength functions.
-func CosineSimilarity_impl_1(a, b Vector64) (similarity float64, err error) {
+func CosineSimilarity_impl_1(a, b []float64) (similarity float64, err error) {
 	// Ensure vectors have the same number of elements
-	if a.Len() != b.Len() {
+	if len(a) != len(b) {
 		return 0.0, ErrUnequalLengthVectors
 	}
 
