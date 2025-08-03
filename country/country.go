@@ -101,6 +101,7 @@ func Alpha3(code string) (*Country, error) {
 // code is much faster using those specific functions. If the country is not found, it
 // returns a false boolean instead of an error.
 func Find(name string) (*Country, bool) {
+	createLookupTrie()
 	return root.Find(name)
 }
 

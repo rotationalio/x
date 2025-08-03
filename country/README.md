@@ -2,6 +2,56 @@
 
 Resolves [ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1) country alpha codes to country information such as name, flag, etc. This package is primarily used on the front end to display country names, flag emojis, or languages; and on the backend to identify country data with a simple code enumeration.
 
+## Usage
+
+To lookup country data by an ISO Alpha-2 or Alpha-3 code you can:
+
+```go
+france, err := country.Alpha2("FR")
+peru, err := country.Alpha2("PER")
+```
+
+To search for a country by name:
+
+```go
+vietnam, ok := country.Find("ベトナム")
+```
+
+NOTE: when you find by country name for the first time a Trie with all of the country names is built into memory, enabling fast lookups.
+
+To search by alpha code or by name, you can use lookup:
+
+```go
+country, err := country.Lookup("BV")
+```
+
+To get an emoji flag for a country by the Alpha-2 code:
+
+```go
+country.Flag("JP")
+// 🇯🇵
+```
+
+Country data is as follows:
+
+```go
+type Country struct {
+	Alpha2          string   `json:"alpha2"`
+	Alpha3          string   `json:"alpha3"`
+	ShortName       string   `json:"iso_short_name"`
+	LongName        string   `json:"iso_long_name"`
+	CurrencyCode    string   `json:"currency_code"`
+	DistanceUnit    string   `json:"distance_unit"`
+	UnofficialNames []string `json:"unofficial_names"`
+	Region          string   `json:"world_region"`
+	Subregion       string   `json:"subregion"`
+	Continent       string   `json:"continent"`
+	Languages       []string `json:"languages_spoken"`
+}
+```
+
+Additional fields are available and can be populated with a new PR. See Generation below.
+
 ## Generation
 
 The data populating the country codes comes from [countries-data-json](https://github.com/countries/countries-data-json) which is automatically updated from the `countries` Ruby gem. To download the latest version of the country files and recompile the `countries.data.go` file, simply run `go generate ./...` at the top level of the `x` repository.

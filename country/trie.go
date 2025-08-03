@@ -1,22 +1,29 @@
 package country
 
-var root *Trie
+import "sync"
 
-func init() {
-	root = &Trie{}
-	for _, row := range alpha2Lookup {
-		for _, country := range row {
-			if country != nil {
-				root.Insert(country.Alpha2, country)
-				root.Insert(country.Alpha3, country)
-				root.Insert(country.ShortName, country)
-				root.Insert(country.LongName, country)
-				for _, name := range country.UnofficialNames {
-					root.Insert(name, country)
+var (
+	root *Trie
+	lumu sync.Once
+)
+
+func createLookupTrie() {
+	lumu.Do(func() {
+		root = &Trie{}
+		for _, row := range alpha2Lookup {
+			for _, country := range row {
+				if country != nil {
+					root.Insert(country.Alpha2, country)
+					root.Insert(country.Alpha3, country)
+					root.Insert(country.ShortName, country)
+					root.Insert(country.LongName, country)
+					for _, name := range country.UnofficialNames {
+						root.Insert(name, country)
+					}
 				}
 			}
 		}
-	}
+	})
 }
 
 // An optimized trie for 3 digit country codes.
