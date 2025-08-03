@@ -1,5 +1,10 @@
 # Countries
 
+Resolves [ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1) country alpha codes to country information such as name, flag, etc. This package is primarily used on the front end to display country names, flag emojis, or languages; and on the backend to identify country data with a simple code enumeration.
+
+## Generation
+
+The data populating the country codes comes from [countries-data-json](https://github.com/countries/countries-data-json) which is automatically updated from the `countries` Ruby gem. To download the latest version of the country files and recompile the `countries.data.go` file, simply run `go generate ./...` at the top level of the `x` repository.
 
 ## Benchmarks
 
@@ -27,3 +32,4 @@ BenchmarkMap3Lookup-10      	44839419	        25.86 ns/op	       0 B/op	       0
 BenchmarkTrie3Lookup-10     	158254705	         7.564 ns/op	       0 B/op	       0 allocs/op
 ```
 
+See commit [0bb88fa](https://github.com/rotationalio/x/commit/0bb88fadf000eb1b7aabf48c9b2ad3ac8dc0ce2b) for the code used to generate and execute the above benchmarks.
