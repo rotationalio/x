@@ -1,56 +1,64 @@
 package country
 
-import (
-	"errors"
-)
+var root *Trie
 
-var (
-	ErrNotFound    = errors.New("country code not found")
-	ErrInvalidCode = errors.New("invalid country code")
-)
+func init() {
+	root = &Trie{}
+	for _, row := range alpha2Lookup {
+		for _, country := range row {
+			if country != nil {
+				root.Insert(country.Alpha2, country)
+				root.Insert(country.Alpha3, country)
+				root.Insert(country.ShortName, country)
+				root.Insert(country.LongName, country)
+				for _, name := range country.UnofficialNames {
+					root.Insert(name, country)
+				}
+			}
+		}
+	}
+}
 
 // An optimized trie for 3 digit country codes.
 type Trie struct {
-	children [26]*Trie
-	value    [26]string
+	children map[byte]*Trie
+	value    *Country
 }
 
-func (t *Trie) Insert(code string, country string) {
-	if len(code) == 0 {
+func (t *Trie) Insert(name string, country *Country) {
+	if len(name) == 0 {
+		t.value = country
 		return
 	}
 
-	if len(code) == 1 {
-		t.value[code[0]-'A'] = country
-		return
+	if t.children == nil {
+		t.children = make(map[byte]*Trie)
 	}
 
 	var child *Trie
-	if child = t.children[code[0]-'A']; child == nil {
+	if child = t.children[name[0]]; child == nil {
 		child = &Trie{}
-		t.children[code[0]-'A'] = child
+		t.children[name[0]] = child
 	}
-	child.Insert(code[1:], country)
+	child.Insert(name[1:], country)
 }
 
-func (t *Trie) Find(code string) (string, bool) {
-	if len(code) == 0 {
-		return "", false
-	}
-
-	if len(code) == 1 {
+func (t *Trie) Find(name string) (*Country, bool) {
+	if len(name) == 0 {
 		if t == nil {
-			return "", false
+			return nil, false
 		}
-
-		v := t.value[code[0]-'A']
-		return v, v != ""
+		return t.value, t.value != nil
 	}
 
-	node := t.children[code[0]-'A']
+	if t.children == nil {
+		return nil, false
+	}
+
+	node := t.children[name[0]]
 	if node == nil {
-		return "", false
+		return nil, false
 	}
 
-	return node.Find(code[1:])
+	return node.Find(name[1:])
 }
