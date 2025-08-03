@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	uppercase  = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	lowercase  = "abcdefghijklmnopqrstuvwxyz"
 	alphabet   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	alphanum   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	passwords  = `abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{};:\|,.<>/?;`
@@ -30,6 +32,14 @@ const (
 // lowercase letters (no symbols or digits).
 func Alpha(n int) string {
 	return Generate(n, alphabet)
+}
+
+func AlphaUpper(n int) string {
+	return Generate(n, uppercase)
+}
+
+func AlphaLower(n int) string {
+	return Generate(n, lowercase)
 }
 
 // AlphaNumeric generates a random string of n characters that includes upper and
