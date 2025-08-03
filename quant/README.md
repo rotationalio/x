@@ -48,3 +48,11 @@ Tests should be located next to each feature, for example `similarity_tests.go` 
 Tests should all be in `package quant_test` and any test data should go into the `testdata/` folder.
 Documentation should go into each function's and package's docstrings so the documentation is accessible to the user while using the library in their local IDE and also available using Go's documentation tools.
 Any documentation or research that isn't immediately relevant to the user in the code context should go into the `docs/` folder.
+
+## Sources and References
+
+To ensure the algorithms in this package are accurate, we pulled information from several references, which have been recorded in [`docs/sources.md`](./docs/sources.md) and in the documentation and comments for the individual functions in this library.
+
+## License
+
+See: [LICENSE](../LICENSE)

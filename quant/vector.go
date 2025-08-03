@@ -1,12 +1,20 @@
-/*
-vector.go provides vector-related functionality.
-*/
-
 package quant
 
 import (
 	"math"
 )
+
+/*
+vector.go provides vector-related functionality.
+
+Types:
+* Vector64 (`NewVector64()`, `Vector64.Len()`)
+
+Functions:
+* DotProduct(a, b Vector64) (product float64, err error)
+* VectorLength(v Vector64) (length float64)
+* CosineSimilarity(a, b Vector64) (similarity float64, err error)
+*/
 
 // ############################################################################
 // Vector64 type
