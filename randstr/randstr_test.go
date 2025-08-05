@@ -53,6 +53,50 @@ func TestAlphaNumeric(t *testing.T) {
 	assert.Len(t, vals, 10000, "there is a very low chance that a duplicate value was generated")
 }
 
+func TestAlphaUpper(t *testing.T) {
+	// This is a long running test, skip if in short mode
+	if testing.Short() {
+		t.Skip("skipping long running test in short mode")
+	}
+
+	// Test creating different random strings at different lengths
+	for i := 0; i < 10000; i++ {
+		len := rand.Intn(512) + 1
+		alpha := randstr.AlphaUpper(len)
+		assert.Len(t, alpha, len)
+		assert.Regexp(t, regexp.MustCompile(`^[A-Z]+$`), alpha)
+	}
+
+	vals := make(map[string]struct{})
+	for i := 0; i < 10000; i++ {
+		val := randstr.AlphaUpper(16)
+		vals[val] = struct{}{}
+	}
+	assert.Len(t, vals, 10000, "there is a very low chance that a duplicate value was generated")
+}
+
+func TestAlphaLower(t *testing.T) {
+	// This is a long running test, skip if in short mode
+	if testing.Short() {
+		t.Skip("skipping long running test in short mode")
+	}
+
+	// Test creating different random strings at different lengths
+	for i := 0; i < 10000; i++ {
+		len := rand.Intn(512) + 1
+		alpha := randstr.AlphaLower(len)
+		assert.Len(t, alpha, len)
+		assert.Regexp(t, regexp.MustCompile(`^[a-z]+$`), alpha)
+	}
+
+	vals := make(map[string]struct{})
+	for i := 0; i < 10000; i++ {
+		val := randstr.AlphaLower(16)
+		vals[val] = struct{}{}
+	}
+	assert.Len(t, vals, 10000, "there is a very low chance that a duplicate value was generated")
+}
+
 func TestPassword(t *testing.T) {
 	// This is a long running test, skip if in short mode
 	if testing.Short() {
