@@ -61,11 +61,7 @@ func VectorLength_impl_1(v []float64) (length float64) {
 // CosineSimilarity returns the cosine similarity (as defined by SLP 3rd Edition
 // section 6.4 fig 6.10). If the vectors do not have the same number of elements,
 // an error will be returned.
-var CosineSimilarity func(a, b []float64) (similarity float64, err error) = CosineSimilarity_impl_1
-
-// First Implementation of CosineSimilarity, using the DotProduct and
-// VectorLength functions.
-func CosineSimilarity_impl_1(a, b []float64) (similarity float64, err error) {
+func CosineSimilarity(a, b []float64) (similarity float64, err error) {
 	// Ensure vectors have the same number of elements
 	if len(a) != len(b) {
 		return 0.0, ErrUnequalLengthVectors
@@ -80,4 +76,9 @@ func CosineSimilarity_impl_1(a, b []float64) (similarity float64, err error) {
 	vla = VectorLength(a)
 	vlb = VectorLength(b)
 	return dp / (vla * vlb), nil
+}
+
+func TextSimilarity(a, b string, opt ...Options) (similarity float64, err error) {
+	//TODO:
+	return 0.0, nil
 }
