@@ -4,14 +4,10 @@ package quant_test
 // Correctness Tests
 // ############################################################################
 
-//TODO: test correctness for TokenizeStringNaive implementations
-
-//TODO: test correctness for TypeCountStringTokens implementations
+//TODO: test correctness tests for all funcs
 
 // ############################################################################
-// Performance/Profiling Tests
+// Benchmarking Tests
 // ############################################################################
 
-//TODO: test performance/profiling for TokenizeStringNaive implementations
-
-//TODO: test performance/profiling for TypeCountStringTokens implementations
+//TODO: test benchmarking tests for all funcs
