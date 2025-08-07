@@ -28,10 +28,12 @@ We want this package to be:
 
 ## Features, metrics, and tools
 
-### Implemented
-
-* Token & Type Counts (see [`tokens.go`](./tokens.go))
-* Cosine Similarity (see [`vector.go`](./vector.go))
+* Tokenization, stemming, and type counting (see [`tokens.go`](./tokens.go))
+  * Porter2/Snowball stemming algorithm
+  * Regex tokenization with custom expressions
+* Cosine similarity (see [`similarity.go`](./similarity.go))
+* Vectors & vectorization (see [`vectors.go`](./vectors.go))
+  * One-hot and count encoding
 
 ### Planned
 

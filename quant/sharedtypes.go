@@ -3,19 +3,19 @@ package quant
 import "slices"
 
 /*
-sharedtypes.go provides a location for types that are useful for more than one
-context.
+sharedtypes.go provides a location for shared types.
+
+TODO: finalize this documentation block
 
 Types:
 * Language
-* StringModifier
 
 Functions:
 * Language.In(langs ...Language) bool
 */
 
 // ############################################################################
-// Language type enumeration
+// Language (a lightweight enumeration)
 // ############################################################################
 
 type Language uint16
@@ -29,10 +29,3 @@ const (
 func (l Language) In(langs ...Language) bool {
 	return slices.Contains(langs, l)
 }
-
-// ############################################################################
-// StringModifier function type
-// ############################################################################
-
-// A StringModifier is a function which takes a string and returns a string.
-type StringModifier func(string) string

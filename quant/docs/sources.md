@@ -16,4 +16,4 @@ The NLTK Book is a book about using NLTK, an NLP library for Python, to analyze 
 
 ## Porter2 / Snowball stemming algorithm
 
-TODO: proper source for this: <http://snowball.tartarus.org/algorithms/english/stemmer.html>
+TODO: add proper source text here: <http://snowball.tartarus.org/algorithms/english/stemmer.html>

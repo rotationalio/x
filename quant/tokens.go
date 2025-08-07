@@ -19,13 +19,15 @@ Functions:
 */
 
 // ############################################################################
-// TokenizeStringNaive
+// Tokenize
 // ############################################################################
+
+//TODO: Tokenizer struct and TokenizerOption
 
 // Tokenizes a string (naively) by grouping alphanumeric characters, ignoring
 // non-alphanumeric characters. Does not modify the corpus before tokenizing.
-// TODO: replace lang with an options functions thing like patrick did in radish
-func TokenizeStringNaive(corpus string, lang Language) (tokens []string, err error) {
+// TODO: replace lang with options
+func Tokenize(chunk string, lang Language) (tokens []string, err error) {
 	var (
 		expr string
 		r    *regexp.Regexp
