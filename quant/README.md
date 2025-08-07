@@ -30,12 +30,12 @@ We want this package to be:
 
 ### Implemented
 
+* Token & Type Counts (see [`tokens.go`](./tokens.go))
 * Cosine Similarity (see [`vector.go`](./vector.go))
 
 ### Planned
 
 * Readability Scores (ASAP)
-* Token & Type Counts (ASAP)
 * Part-of-Speech Distributions (Future)
 * Named Entities & Keyphrase Counts (Future)
 * Custom Classifiers (Distant Future)
