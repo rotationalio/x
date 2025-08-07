@@ -5,7 +5,9 @@ import (
 )
 
 /*
-tokens.go provides tokenization and counting functionality.
+tokens.go provides tokenization, stemming/lemmaization, and count functionality.
+
+TODO: finalize this documentation block
 
 Types:
 * None
@@ -13,6 +15,7 @@ Types:
 Functions:
 * TokenizeStringNaive(corpus string, lang Language) (tokens []string, err error)
 * TypeCountStringTokens(tokens []string, tokenModifiers ...StringModifier) (types map[string]int64)
+* TypeCount(chunk string, options ...Options)
 */
 
 // ############################################################################
@@ -32,7 +35,7 @@ func TokenizeStringNaive(corpus string, lang Language) (tokens []string, err err
 	switch lang {
 	case LanuageEnglish:
 		// 26 uppercase, 26 lowercase, and 10 digits
-		expr = `A-Za-z0-9`
+		expr = `A-Za-z0-9` //TODO: regex or function for tokenization is provided as option?
 	default:
 		// Unsupported language
 		return nil, ErrLanguageNotSupported
@@ -56,7 +59,7 @@ func TokenizeStringNaive(corpus string, lang Language) (tokens []string, err err
 // [StringModifier] would be the function [strings.ToLower] or many others in
 // the Go [strings] package.
 // TODO: replace the modifiers with an options functions thing like patrick did in radish
-func TypeCountStringTokens(tokens []string, tokenModifiers ...StringModifier) (types map[string]int64) {
+func TypeCountTokens(tokens []string, tokenModifiers ...StringModifier) (types map[string]int64, err error) {
 	// Make the types map (variable sz was selected arbitrarily)
 	sz := len(tokens) / 4
 	types = make(map[string]int64, sz)
@@ -76,7 +79,7 @@ func TypeCountStringTokens(tokens []string, tokenModifiers ...StringModifier) (t
 }
 
 // ############################################################################
-// HIGH LEVEL API EXAMPLE
+// TypeCount
 // ############################################################################
 
 type Options func(something any) any //FIXME: make this something useful not just a type filler for now
@@ -85,8 +88,15 @@ type Options func(something any) any //FIXME: make this something useful not jus
 // modifiers provided will be performed before counting. An example of a
 // [StringModifier] would be the function [strings.ToLower] or many others in
 // the Go [strings] package.
-func TypeCountString(corpus string, options ...Options) (types map[string]int64) {
+// TODO: chunk implies it's a piece; later we can chunk a whole corpus into parts perhaps
+func TypeCount(chunk string, options ...Options) (types map[string]int64, err error) {
 	//TODO: type count a string with different tokenizers and other stuff using options functions like patrick did for radish
 	// Make the types map (variable sz was selected arbitrarily)
-	return make(map[string]int64)
+	return make(map[string]int64), nil
 }
+
+// ############################################################################
+// Stemmer
+// ############################################################################
+
+//TODO: stemmer struct, options, and functions

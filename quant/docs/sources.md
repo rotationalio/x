@@ -13,3 +13,7 @@ These are citations for sources used for research for the `quant` package.
 The NLTK Book is a book about using NLTK, an NLP library for Python, to analyze text that was used for various information for the `quant` package.
 
 * Steven Bird, Ewan Klein, and Edward Loper. Natural Language Processing with Python – Analyzing Text with the Natural Language Toolkit. Online edition, (unknown year). NLTK Book, <https://www.nltk.org/book/>.
+
+## Porter2 / Snowball stemming algorithm
+
+TODO: proper source for this: <http://snowball.tartarus.org/algorithms/english/stemmer.html>
