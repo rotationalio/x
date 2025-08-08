@@ -14,6 +14,15 @@ The NLTK Book is a book about using NLTK, an NLP library for Python, to analyze 
 
 * Steven Bird, Ewan Klein, and Edward Loper. Natural Language Processing with Python – Analyzing Text with the Natural Language Toolkit. Online edition, (unknown year). NLTK Book, <https://www.nltk.org/book/>.
 
-## Porter2 / Snowball stemming algorithm
+## Porter stemming algorithm
 
-TODO: add proper source text here: <http://snowball.tartarus.org/algorithms/english/stemmer.html>
+The Porter stemmer is English stemming algorithm that's fairly simple to implement.
+
+* Martin Porter. The Porter Stemming Algorithm. Online edition, 2006. The Porter Stemming Algorithm, <https://tartarus.org/martin/PorterStemmer/index.html>.
+
+## Porter2/Snowball stemming algorithm
+
+A stemming algorithm that supports several languages and is a slight improvement on the Porter stemming algorithm for English, with some differences in the resulting stems.
+The English version of the algorithm called Porter2 is linked in the reference below.
+
+* Martin Porter. The English (Porter2) stemming algorithm. Online edition, 2002. The English (Porter2) stemming algorithm, <http://snowball.tartarus.org/algorithms/english/stemmer.html>.
