@@ -19,6 +19,18 @@ Functions:
 */
 
 // ############################################################################
+// Vectorizer
+// ############################################################################
+
+// TODO: docs
+type Vectorizer struct {
+	tokenizer Tokenizer //TODO: VectorizeOption function
+}
+
+// TODO: docs
+type VectorizeOption func(args ...any) Vectorizer //TODO: fix args?
+
+// ############################################################################
 // Cosine
 // ############################################################################
 
@@ -69,10 +81,10 @@ func DotProduct(a, b []float64) (product float64, err error) {
 // VectorizeFrequency returns a frequency (count) encoding vector for the given
 // chunk of text and given vocabulary map. The vector returned has a value of
 // the count of word instances within the chunk for each vocabulary word index.
-func VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error) {
+func (v *Vectorizer) VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error) {
 	// Type count the chunk
 	var types map[string]int64
-	if types, err = TypeCount(chunk); err != nil {
+	if types, err = v.tokenizer.TypeCount(chunk); err != nil {
 		return nil, err
 	}
 
@@ -95,9 +107,9 @@ func VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, e
 // and given vocabulary map. The vector returned has a value of 1 for each
 // vocabulary word index if it is present within the chunk of text and 0
 // otherwise.
-func VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error) {
+func (v *Vectorizer) VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error) {
 	// Get the frequency encoding first...
-	if vector, err = VectorizeFrequency(chunk, vocab); err != nil {
+	if vector, err = v.VectorizeFrequency(chunk, vocab); err != nil {
 		return nil, err
 	}
 

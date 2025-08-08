@@ -8,10 +8,10 @@ sharedtypes.go provides a location for shared types.
 TODO: finalize this documentation block
 
 Types:
-* Language
+* `Language`
 
 Functions:
-* Language.In(langs ...Language) bool
+* `Language.In(langs ...Language) bool`
 */
 
 // ############################################################################
