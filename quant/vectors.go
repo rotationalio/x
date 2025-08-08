@@ -7,17 +7,15 @@ import (
 /*
 vectors.go provides vector-related functionality.
 
-TODO: finalize this documentation block
-
 Types:
 * None
 
 Functions:
-* Cosine(a, b []float64]) (cosine float64, err error)
-* DotProduct(a, b []float64]) (product float64, err error)
-* VectorizeFrequency(chunk string, vocab []string) (vector []float64, err error)
-* VectorizeOneHot(chunk string, vocab []string) (vector []float64, err error)
-* VectorLength(v []float64]) (length float64)
+* `Cosine(a, b []float64]) (cosine float64, err error)`
+* `DotProduct(a, b []float64]) (product float64, err error)`
+* `VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error)`
+* `VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error)`
+* `VectorLength(v []float64]) (length float64)`
 */
 
 // ############################################################################
@@ -69,9 +67,9 @@ func DotProduct(a, b []float64) (product float64, err error) {
 // ############################################################################
 
 // VectorizeFrequency returns a frequency (count) encoding vector for the given
-// chunk of text and given vocabulary list. The vector returned indicates the
-// number of instances of each indexed vocabulary word within the chunk of text.
-func VectorizeFrequency(chunk string, vocab []string) (vector []float64, err error) {
+// chunk of text and given vocabulary map. The vector returned has a value of
+// the count of word instances within the chunk for each vocabulary word index.
+func VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error) {
 	// Type count the chunk
 	var types map[string]int64
 	if types, err = TypeCount(chunk); err != nil {
@@ -80,7 +78,7 @@ func VectorizeFrequency(chunk string, vocab []string) (vector []float64, err err
 
 	// Create the vector from the vocabulary
 	vector = make([]float64, len(vocab))
-	for i, word := range vocab {
+	for word, i := range vocab {
 		if count, ok := types[word]; ok {
 			vector[i] = float64(count)
 		}
@@ -94,10 +92,10 @@ func VectorizeFrequency(chunk string, vocab []string) (vector []float64, err err
 // ############################################################################
 
 // VectorizeOneHot returns a one-hot encoding vector for the given chunk of text
-// and given vocabulary list. The vector returned has a value of 1 for each
+// and given vocabulary map. The vector returned has a value of 1 for each
 // vocabulary word index if it is present within the chunk of text and 0
 // otherwise.
-func VectorizeOneHot(chunk string, vocab []string) (vector []float64, err error) {
+func VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error) {
 	// Get the frequency encoding first...
 	if vector, err = VectorizeFrequency(chunk, vocab); err != nil {
 		return nil, err
