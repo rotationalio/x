@@ -8,7 +8,8 @@ import (
 vectors.go provides vector-related functionality.
 
 Types:
-* None
+* Vectorizer
+* VectorizerOption
 
 Functions:
 * `Cosine(a, b []float64]) (cosine float64, err error)`
@@ -17,18 +18,6 @@ Functions:
 * `VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error)`
 * `VectorLength(v []float64]) (length float64)`
 */
-
-// ############################################################################
-// Vectorizer
-// ############################################################################
-
-// TODO: docs
-type Vectorizer struct {
-	tokenizer Tokenizer //TODO: VectorizeOption function
-}
-
-// TODO: docs
-type VectorizeOption func(args ...any) Vectorizer //TODO: fix args?
 
 // ############################################################################
 // Cosine
@@ -75,22 +64,40 @@ func DotProduct(a, b []float64) (product float64, err error) {
 }
 
 // ############################################################################
+// Vectorizer
+// ############################################################################
+
+// TODO: docs
+type Vectorizer struct {
+	vocab       map[string]int //TODO VectorizerOption function
+	typeCounter TypeCounter    //TODO VectorizerOption function
+	tokenizer   Tokenizer      //TODO: VectorizerOption function
+	stemmer     Stemmer        //TODO: VectorizerOption function
+}
+
+// TODO: docs
+type VectorizerOption func(args ...any) Vectorizer //TODO: fix args?
+
+// ############################################################################
 // VectorizeFrequency
 // ############################################################################
 
 // VectorizeFrequency returns a frequency (count) encoding vector for the given
 // chunk of text and given vocabulary map. The vector returned has a value of
 // the count of word instances within the chunk for each vocabulary word index.
-func (v *Vectorizer) VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error) {
+func (v *Vectorizer) VectorizeFrequency(chunk string, opts ...VectorizerOption) (vector []float64, err error) {
+	//TODO set opts
+
 	// Type count the chunk
 	var types map[string]int64
-	if types, err = v.tokenizer.TypeCount(chunk); err != nil {
+	//TODO add the tokenizer/stemmer for the typecount opts
+	if types, err = v.typeCounter.TypeCount(chunk); err != nil {
 		return nil, err
 	}
 
 	// Create the vector from the vocabulary
-	vector = make([]float64, len(vocab))
-	for word, i := range vocab {
+	vector = make([]float64, len(v.vocab))
+	for word, i := range v.vocab {
 		if count, ok := types[word]; ok {
 			vector[i] = float64(count)
 		}
@@ -107,9 +114,12 @@ func (v *Vectorizer) VectorizeFrequency(chunk string, vocab map[string]int) (vec
 // and given vocabulary map. The vector returned has a value of 1 for each
 // vocabulary word index if it is present within the chunk of text and 0
 // otherwise.
-func (v *Vectorizer) VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error) {
-	// Get the frequency encoding first...
-	if vector, err = v.VectorizeFrequency(chunk, vocab); err != nil {
+func (v *Vectorizer) VectorizeOneHot(chunk string, opts ...VectorizerOption) (vector []float64, err error) {
+	//TODO set opts
+
+	// Get the frequency encoding...
+	// NOTE: we already set the opts, so we do not need to pass them on.
+	if vector, err = v.VectorizeFrequency(chunk); err != nil {
 		return nil, err
 	}
 

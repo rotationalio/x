@@ -4,20 +4,24 @@ package quant_test
 // Tests
 // ############################################################################
 
-//TODO correctness test Tokenizer
+//TODO correctness test TypeCounter
 
-//TODO correctness test TokenizerOption
+//TODO correctness test TypeCounterOption
 
-//TODO correctness test NewTokenizer()
+//TODO correctness test NewTypeCounter()
 
-//TODO correctness test Tokenize()
+//TODO correctness test TypeCount()
 
-//TODO correctness test WithLanguage()
+//TODO correctness test CountTypes()
 
-//TODO correctness test WithRegex()
+//TODO correctness test WithTokenizer()
+
+//TODO correctness test WithStemmer()
 
 // ############################################################################
 // Benchmarking
 // ############################################################################
 
-//TODO benchmark Tokenize()
+//TODO benchmark TypeCount()
+
+//TODO benchmark CountTypes()

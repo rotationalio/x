@@ -5,55 +5,58 @@ import (
 )
 
 /*
-tokens.go provides tokenization, stemming/lemmaization, and count functionality.
-
-TODO: finalize this documentation block
+tokens.go provides tokenization functionality.
 
 Types:
-* None
+* Tokenizer struct
+* TokenizerOption func(t *Tokenizer)
 
 Functions:
-* `Tokenize(corpus string, lang Language) (tokens []string, err error)`
-* `TypeCount(chunk string, options ...Options)`
-* `TypeCountTokens(tokens []string, tokenModifiers ...StringModifier) (types map[string]int64)`
+* NewTokenizer() *Tokenizer
+* Tokenize(corpus string, lang Language) (tokens []string, err error)
+* WithLanguage(lang Language) TokenizerOption
+* WithRegex(regex string) TokenizerOption
 */
 
 // ############################################################################
-// Tokenize
+// Regex Expressions for Tokenizing
 // ############################################################################
 
-// TODO: docs
+// 26 uppercase, 26 lowercase, and 10 digits
+const REGEX_ENGLISH_ALPHANUMERIC = `A-Za-z0-9`
+
+// ############################################################################
+// Tokenizer
+// ############################################################################
+
+// Tokenizer can be used to tokenize text; create with [NewTokenizer].
 type Tokenizer struct {
-	lang      Language //TODO: TokenizerOption
-	regexExpr string   //TODO: TokenizerOption
+	// The [Language] to use for the [Tokenizer].
+	lang Language
+	// The regular expression to use for the [Tokenizer].
+	regex string
 }
 
-// TODO docs
-type TokenizerOption func(args ...any) Tokenizer //TODO: fix args?
+// Returns a new [Tokenizer] instance. Defaults to [LanuageEnglish] and
+// alphanumeric tokenization. Modified by passing [TokenizerOption] functions
+// into relevant function calls.
+func NewTokenizer() *Tokenizer {
+	return &Tokenizer{
+		lang:  LanuageEnglish,
+		regex: REGEX_ENGLISH_ALPHANUMERIC,
+	}
+}
 
-// Tokenizes a string (naively) by grouping alphanumeric characters, ignoring
-// non-alphanumeric characters. Does not modify the corpus before tokenizing.
-// TODO: document defaults here
+// Tokenizes a string. Does not modify the text chunk before tokenizing.
 func (t *Tokenizer) Tokenize(chunk string, opts ...TokenizerOption) (tokens []string, err error) {
-	//TODO: do opts
-
-	var (
-		expr string
-		r    *regexp.Regexp
-	)
-
-	// Define the regexp expression by language
-	switch t.lang {
-	case LanuageEnglish:
-		// 26 uppercase, 26 lowercase, and 10 digits
-		expr = `A-Za-z0-9` //TODO: regex or function for tokenization is provided as option?
-	default:
-		// Unsupported language
-		return nil, ErrLanguageNotSupported
+	// Set Tokenizer options
+	for _, fn := range opts {
+		fn(t)
 	}
 
 	// Compile and tokenize
-	if r, err = regexp.Compile(expr); err != nil {
+	var r *regexp.Regexp
+	if r, err = regexp.Compile(t.regex); err != nil {
 		return nil, err
 	}
 	tokens = r.FindAllString(chunk, -1)
@@ -62,41 +65,23 @@ func (t *Tokenizer) Tokenize(chunk string, opts ...TokenizerOption) (tokens []st
 }
 
 // ############################################################################
-// TypeCountTokens
+// TokenizerOptions
 // ############################################################################
 
-// Returns a map of type strings and their counts. For each token, all of the
-// modifiers provided will be performed before counting. An example of a
-// [StringModifier] would be the function [strings.ToLower] or many others in
-// the Go [strings] package.
-// TODO document defaults here
-func (t *Tokenizer) TypeCountTokens(tokens []string, opts ...TokenizerOption) (types map[string]int64, err error) {
-	// Make the types map (variable sz was selected arbitrarily)
-	sz := len(tokens) / 4
-	types = make(map[string]int64, sz)
+// TokenizerOption functions modify a [Tokenizer].
+type TokenizerOption func(t *Tokenizer)
 
-	// TODO: count the tokens
-
-	return types, nil
+// Returns a function which sets the [Language] to use with the [Tokenizer].
+func WithLanguage(lang Language) TokenizerOption {
+	return func(t *Tokenizer) {
+		t.lang = lang
+	}
 }
 
-// ############################################################################
-// TypeCount
-// ############################################################################
-
-// Returns a map of type strings and their counts. For each token, all of the
-// modifiers provided will be performed before counting. An example of a
-// [StringModifier] would be the function [strings.ToLower] or many others in
-// the Go [strings] package.
-// TODO document defaults here
-func (t *Tokenizer) TypeCount(chunk string, opts ...TokenizerOption) (types map[string]int64, err error) {
-	//TODO: type count a string with different tokenizers and other stuff using options functions like patrick did for radish
-	// Make the types map (variable sz was selected arbitrarily)
-	return make(map[string]int64), nil
+// Returns a function which sets the regular expression to use with the
+// [Tokenizer].
+func WithRegex(regex string) TokenizerOption {
+	return func(t *Tokenizer) {
+		t.regex = regex
+	}
 }
-
-// ############################################################################
-// Stemmer
-// ############################################################################
-
-//TODO: stemmer struct, options, and functions
