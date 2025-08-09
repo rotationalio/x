@@ -28,18 +28,28 @@ We want this package to be:
 
 ## Features, metrics, and tools
 
-### Implemented
-
-* This package is only a stub for now.
+* Tokenization, stemming, and type counting (see [`tokens.go`](./tokens.go))
+  * Porter2/Snowball stemming algorithm
+  * Regex tokenization with custom expressions
+* Cosine similarity (see [`similarity.go`](./similarity.go))
+* Vectors & vectorization (see [`vectors.go`](./vectors.go))
+  * One-hot encoding
+  * Frequency (count) encoding
 
 ### Planned
 
-* Cosine Similarity (ASAP)
 * Readability Scores (ASAP)
-* Token & Type Counts (ASAP)
 * Part-of-Speech Distributions (Future)
 * Named Entities & Keyphrase Counts (Future)
 * Custom Classifiers (Distant Future)
+
+## API Structure
+
+There are 3 levels in the API:
+
+1) Level one ('low-level API') are the functions which take pre-processed data, such as a list of tokens or a vector, and perform operations on those objects, such as stemming the tokens or calculating the cosine of the angles between two vectors, with the return types being basic Go types. Example: `Cosine(a, b []float64) (cosine float64, err error)`
+2) Level two ('high-level API') are the functions which take chunks of text and compose several low-level API functions to perform some operations, such as tokenizing and stemming the text to return the vocabulary or type count of the text chunk, with the return types being basic Go types. Example: `Similarity(chunkA, chunkB string, opts ...SimilarityOption) (similarity float64, err error)`
+3) (Planned; not yet implemented) Level three ('document API') is a document-based API to access the high-level and low-level APIs for the same chunk of text in a single object which you only have to initialize once, and which use sub-types for those operations that usually provide a document API for their type as well. Examples: `NewDocument(chunk string, opts ...DocumentOption) (doc Document, err error)`, `Document.Tokenize() (tokens []Token, err error)`, and `Token.Stem() (stem string)`
 
 ## Developing in x/quant
 
@@ -49,3 +59,17 @@ Tests should be located next to each feature, for example `similarity_tests.go` 
 Tests should all be in `package quant_test` and any test data should go into the `testdata/` folder.
 Documentation should go into each function's and package's docstrings so the documentation is accessible to the user while using the library in their local IDE and also available using Go's documentation tools.
 Any documentation or research that isn't immediately relevant to the user in the code context should go into the `docs/` folder.
+
+## Sources and References
+
+To ensure the algorithms in this package are accurate, we pulled information from several references, which have been recorded in [`docs/sources.md`](./docs/sources.md) and in the documentation and comments for the individual functions in this library.
+
+## Research Notes
+
+Research on different topics will go into the folder [`docs/research/`](./docs/research/).
+
+* [Go NLP](./docs/research/go_nlp.md): notes on different NLP packages/libraries for Go
+
+## License
+
+See: [LICENSE](../LICENSE)
