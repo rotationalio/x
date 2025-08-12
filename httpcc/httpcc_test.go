@@ -138,6 +138,34 @@ func TestRequest(t *testing.T) {
 		_, err := Request(1233)
 		assert.EqualError(t, err, "unsupported type int for request cache control parsing")
 	})
+
+	t.Run("IfNoneMatch", func(t *testing.T) {
+		t.Run("Quoted", func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+			assert.Ok(t, err, "failed to create request")
+			req.Header.Set(IfNoneMatch, `"myetag"`)
+
+			directive, err := Request(*req)
+			assert.Ok(t, err, "failed to parse request cache control")
+
+			ifNoneMatch, ok := directive.IfNoneMatch()
+			assert.True(t, ok)
+			assert.Equal(t, "myetag", ifNoneMatch)
+		})
+
+		t.Run("Unquoted", func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+			assert.Ok(t, err, "failed to create request")
+			req.Header.Set(IfNoneMatch, "myetag")
+
+			directive, err := Request(*req)
+			assert.Ok(t, err, "failed to parse request cache control")
+
+			ifNoneMatch, ok := directive.IfNoneMatch()
+			assert.True(t, ok)
+			assert.Equal(t, "myetag", ifNoneMatch)
+		})
+	})
 }
 
 func TestResponse(t *testing.T) {
@@ -275,6 +303,50 @@ func TestResponse(t *testing.T) {
 		dir2, err := Response(directive)
 		assert.Ok(t, err, "failed to parse response cache control from directive")
 		assert.Equal(t, directive, dir2)
+	})
+
+	t.Run("Etag", func(t *testing.T) {
+		t.Run("Quoted", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(ETag, `"myetag"`)
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			etag, ok := directive.ETag()
+			assert.True(t, ok)
+			assert.Equal(t, "myetag", etag)
+
+			assert.False(t, directive.WeakETag())
+		})
+
+		t.Run("Unquoted", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(ETag, "myetag")
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			etag, ok := directive.ETag()
+			assert.True(t, ok)
+			assert.Equal(t, "myetag", etag)
+
+			assert.False(t, directive.WeakETag())
+		})
+
+		t.Run("Weak", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(ETag, `W/"myetag"`)
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			etag, ok := directive.ETag()
+			assert.True(t, ok)
+			assert.Equal(t, "myetag", etag)
+
+			assert.True(t, directive.WeakETag())
+		})
 	})
 }
 
