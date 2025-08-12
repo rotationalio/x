@@ -31,6 +31,7 @@ type ResponseDirective struct {
 	expires              *time.Time
 	lastModified         *time.Time
 	etag                 *string
+	weakEtag             bool
 	sMaxAge              *uint64
 	mustRevalidate       bool
 	proxyRevalidate      bool
@@ -218,6 +219,12 @@ func (d *ResponseDirective) ETag() (string, bool) {
 		return *v, true
 	}
 	return "", false
+}
+
+// Weak ETags are a variant of Etags that are faster to compute but may have collisions.
+// If a weak etag was sent in the response, this method returns true.
+func (d *ResponseDirective) WeakETag() bool {
+	return d.weakEtag
 }
 
 // The s-maxage response directive indicates how long the response remains fresh in a
