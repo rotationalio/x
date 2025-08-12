@@ -31,7 +31,7 @@ type TypeCounter struct {
 func NewTypeCounter() *TypeCounter {
 	return &TypeCounter{
 		tokenizer: NewTokenizer(),
-		stemmer:   NewStemmer(),
+		//TODO stemmer:   NewStemmer(),
 	}
 }
 
@@ -53,9 +53,10 @@ func (c *TypeCounter) TypeCount(chunk string, opts ...TypeCounterOption) (types 
 	}
 
 	// Stemming
-	for i, tok := range tokens {
-		tokens[i] = c.stemmer.Stem(tok)
-	}
+	//FIXME:
+	// for i, tok := range tokens {
+	// 	tokens[i] = c.stemmer.Stem(tok)
+	// }
 
 	// Counting
 	return c.CountTypes(tokens), nil

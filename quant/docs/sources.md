@@ -16,9 +16,14 @@ The NLTK Book is a book about using NLTK, an NLP library for Python, to analyze 
 
 ## Porter stemming algorithm
 
-The Porter stemmer is English stemming algorithm that's fairly simple to implement.
+The Porter stemmer is English stemming algorithm that's fairly simple to implement (below is the 'official' homepage).
 
 * Martin Porter. The Porter Stemming Algorithm. Online edition, 2006. The Porter Stemming Algorithm, <https://tartarus.org/martin/PorterStemmer/index.html>.
+
+This source presents a "case study" for how to implement the Porter stemmer in the Snowball language.
+This article is simple to understand and adapt to other languages.
+
+* Snowballstem.org. The Porter stemming algorithm. Online edition, (unknown year). The Porter stemming algorithm, <https://snowballstem.org/algorithms/porter/stemmer.html>.
 
 ## Porter2/Snowball stemming algorithm
 
@@ -26,3 +31,8 @@ A stemming algorithm that supports several languages and is a slight improvement
 The English version of the algorithm called Porter2 is linked in the reference below.
 
 * Martin Porter. The English (Porter2) stemming algorithm. Online edition, 2002. The English (Porter2) stemming algorithm, <http://snowball.tartarus.org/algorithms/english/stemmer.html>.
+
+This source is an article on "developing the English stemmer" for how to implement the Porter2 stemmer in the Snowball language.
+This article is simple to understand and adapt to other languages.
+
+* Snowballstem.org. The English (Porter2) stemming algorithm. Online edition, (unknown year). The English (Porter2) stemming algorithm, <https://snowballstem.org/algorithms/english/stemmer.html>.

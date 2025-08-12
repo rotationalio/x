@@ -1,50 +1,57 @@
 package quant
 
 // ############################################################################
-// Stemmer
+// Stemmer interface
 // ############################################################################
 
-// TODO: docs
-type Stemmer struct {
-	stemmer StemmerImpl //TODO StemmerOption func
-	lang    Language    //TODO StemmerOption func
+// Interface for a stemming algorithm's implementation.
+type Stemmer interface {
+	// Returns true if the language can be stemmed by the implemented Stemmer.
+	CanStem(lang Language) (supported bool)
+
+	// Returns the stem for the input word.
+	Stem(word string) (stem string)
 }
 
-// StemmerImpl is the type of a function that implements a steming algorithm for
-// use by a [Stemmer].
-type StemmerImpl func(s *Stemmer, token string) (stem string)
+// ############################################################################
+// NoOpStemmer
+// ############################################################################
 
-// TODO: docs and defaults
-func NewStemmer() *Stemmer {
-	return &Stemmer{
-		stemmer: PorterStemmer,
+var _ Stemmer = &NoOpStemmer{}
+
+// NoOpStemmer does no stemming and returns any input without changes.
+type NoOpStemmer struct{}
+
+// Supports all languages.
+func (p *NoOpStemmer) CanStem(lang Language) bool {
+	return true
+}
+
+// Returns the input without changes.
+func (p *NoOpStemmer) Stem(word string) (stem string) {
+	return word
+}
+
+// ############################################################################
+// Porter2Stemmer
+// ############################################################################
+
+var _ Stemmer = &Porter2Stemmer{}
+
+// Implements the Porter2 stemming algorithm.
+type Porter2Stemmer struct{}
+
+// Supported languages for the Porter2Stemmer are: [LanguageEnglish]
+func (p *Porter2Stemmer) CanStem(lang Language) bool {
+	if lang.In(LanuageEnglish) {
+		return true
 	}
+	return false
 }
 
-// Stem returns a stem for the given token. //TODO: list default options here
-func (s *Stemmer) Stem(token string, opts ...StemmerOption) (stem string) {
-	return s.stemmer(s, token)
-}
+// Supported languages for the Porter2Stemmer are: [LanguageEnglish]
+func (p *Porter2Stemmer) Stem(word string) (stem string) {
+	//TODO: implement it
 
-// ############################################################################
-// StemmerOptions
-// ############################################################################
-
-// TODO: docs
-type StemmerOption func(s *Stemmer)
-
-// ############################################################################
-// PorterStemmer
-// ############################################################################
-
-// TODO docs
-func PorterStemmer(s *Stemmer, token string) (stem string) {
-	// Porter stemmer only supports English
-	//FIXME: error or something if not english?
-	if !s.lang.In(LanuageEnglish) {
-		return token
-	}
-
-	//TODO: implement porter stemmer
 	return stem
 }
