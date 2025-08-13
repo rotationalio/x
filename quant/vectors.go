@@ -68,6 +68,7 @@ func DotProduct(a, b []float64) (product float64, err error) {
 // ############################################################################
 
 // TODO: docs
+// TODO: interface instead?
 type Vectorizer struct {
 	vocab       map[string]int //TODO VectorizerOption function
 	typeCounter TypeCounter    //TODO VectorizerOption function

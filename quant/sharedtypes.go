@@ -5,13 +5,11 @@ import "slices"
 /*
 sharedtypes.go provides a location for shared types.
 
-TODO: finalize this documentation block
-
 Types:
-* `Language`
+* Language
 
 Functions:
-* `Language.In(langs ...Language) bool`
+* (l Language) In(langs ...Language) bool
 */
 
 // ############################################################################

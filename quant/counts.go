@@ -20,6 +20,7 @@ Functions:
 // ############################################################################
 
 // TypeCounter can be used to perform type counting on text; create with [NewTypeCounter].
+// TODO: interface instead?
 type TypeCounter struct {
 	tokenizer *Tokenizer
 	stemmer   *Stemmer

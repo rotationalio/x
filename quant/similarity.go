@@ -17,6 +17,7 @@ Functions:
 // ############################################################################
 
 // TODO docs and name?
+// TODO: interface instead?
 type Similarizer struct {
 	vocab      map[string]int //TODO SimilarityOption
 	tokenizer  Tokenizer      //TODO SimilarityOption
