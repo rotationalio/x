@@ -28,7 +28,6 @@ type Porter2Stemmer struct {
 
 // Returns a new [Porter2Stemmer] which supports the [Language] given, or an
 // error if the language is not supported.
-// TODO options
 func NewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer, err error) {
 	// Setup the stemmer for the selected language
 	stemmer = &Porter2Stemmer{lang: lang}
@@ -61,17 +60,17 @@ func (p *Porter2Stemmer) Stem(word string) (stem string) {
 // algorithm. Whitespace will be trimmed and the stem will be returned in
 // all lowercase.
 func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
-	// If the word has two letters or less, leave it as it is
-	if len(word) <= 2 {
-		return word
-	}
-
 	// Lowercase and remove any whitespace
 	word = strings.TrimSpace(strings.ToLower(word))
 
 	// Remove initial apostrophes in word
 	for p.isApostrophe(0) && len(p.word) != 0 {
 		p.word = p.word[1:]
+	}
+
+	// If the word has two letters or less, leave it as it is
+	if len(word) <= 2 {
+		return word
 	}
 
 	// Return exceptions immediately
@@ -83,7 +82,7 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	p.word = []rune(word)
 
 	// Set initial y, or y after a vowel, to Y
-	for i := range len(p.word) - 1 {
+	for i := range p.word {
 		if p.word[i] == 'y' && (i == 0 || !p.isVowel(i-1)) {
 			p.word[i] = 'Y'
 		}
@@ -102,7 +101,14 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	p.step_4_English()
 	p.step_5_English()
 
-	// TODO: post processing (uncapitalize Ys, etc.)
+	// TODO: post processing
+
+	// Uncapitalize Y's
+	for i := range p.word {
+		if p.word[i] == 'Y' {
+			p.word[i] = 'y'
+		}
+	}
 
 	// Return the completed stem as a string
 	return string(p.word)
@@ -111,49 +117,41 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 // Performs step 0 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_0_English() {
 	//TODO
-
 }
 
 // Performs step 1a of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1a_English() {
 	//TODO
-
 }
 
 // Performs step 1b of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1b_English() {
 	//TODO
-
 }
 
 // Performs step 1c of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1c_English() {
 	//TODO
-
 }
 
 // Performs step 2 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_2_English() {
 	//TODO
-
 }
 
 // Performs step 3 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_3_English() {
 	//TODO
-
 }
 
 // Performs step 4 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_4_English() {
 	//TODO
-
 }
 
 // Performs step 5 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_5_English() {
 	//TODO
-
 }
 
 // ############################################################################
@@ -177,7 +175,7 @@ func (p *Porter2Stemmer) findRegionStart(start int) int {
 	// Ensure the start index is at least the penultimate rune
 	if start < len(p.word)-2 {
 		// Find the word's next non-vowel after a vowel starting at the index given
-		for i := range p.word[start : len(p.word)-1] {
+		for i := range p.word[start:] {
 			if p.isVowel(i) && !p.isVowel(i+1) {
 				// The region starts at i+2, after the pattern 'Vnv'
 				// Note: this may be the "null" region, which is fine
@@ -312,7 +310,7 @@ func (p *Porter2Stemmer) porter2Exceptions(word string) string {
 	switch p.lang {
 	case LanuageEnglish:
 		switch word {
-		// Porter2 exceptions and invariants:
+		// Porter2 exceptions:
 		case "skis":
 			return "ski"
 		case "skies":
@@ -329,10 +327,9 @@ func (p *Porter2Stemmer) porter2Exceptions(word string) string {
 			return "onli"
 		case "singly":
 			return "singl"
+		//Porter2 invariants:
 		case "sky", "news", "howe", "atlas", "cosmos", "bias", "andes":
 			return word
-			// Local exceptions:
-			// There are no local exceptions yet.
 		}
 	}
 	return ""
