@@ -2,16 +2,6 @@ package quant
 
 import "slices"
 
-/*
-sharedtypes.go provides a location for shared types.
-
-Types:
-* Language
-
-Functions:
-* (l Language) In(langs ...Language) bool
-*/
-
 // ############################################################################
 // Language (a lightweight enumeration)
 // ############################################################################

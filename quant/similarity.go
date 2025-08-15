@@ -1,17 +1,5 @@
 package quant
 
-/*
-similarity.go provides similarity metrics on strings.
-
-TODO: finalize this documentation block
-
-Types:
-* `SimilarityOption func(args ...any) similarityOptions`
-
-Functions:
-* `CosineSimilarity(a, b string, opts ...SimilarityOption) (similarity float64, err error)`
-*/
-
 // ############################################################################
 // SimilarityOption
 // ############################################################################

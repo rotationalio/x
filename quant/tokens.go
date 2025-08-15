@@ -4,20 +4,6 @@ import (
 	"regexp"
 )
 
-/*
-tokens.go provides tokenization functionality.
-
-Types:
-* Tokenizer struct
-* TokenizerOption func(t *Tokenizer)
-
-Functions:
-* NewTokenizer() *Tokenizer
-* Tokenize(corpus string, lang Language) (tokens []string, err error)
-* WithLanguage(lang Language) TokenizerOption
-* WithRegex(regex string) TokenizerOption
-*/
-
 // ############################################################################
 // Regex Expressions for Tokenizing
 // ############################################################################
@@ -30,6 +16,7 @@ const REGEX_ENGLISH_ALPHANUMERIC = `A-Za-z0-9`
 // ############################################################################
 
 // Tokenizer can be used to tokenize text; create with [NewTokenizer].
+// TODO: interface with RegexTokenizer implementation?
 type Tokenizer struct {
 	// The [Language] to use for the [Tokenizer].
 	lang Language

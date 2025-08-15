@@ -4,21 +4,6 @@ import (
 	"math"
 )
 
-/*
-vectors.go provides vector-related functionality.
-
-Types:
-* Vectorizer
-* VectorizerOption
-
-Functions:
-* `Cosine(a, b []float64]) (cosine float64, err error)`
-* `DotProduct(a, b []float64]) (product float64, err error)`
-* `VectorizeFrequency(chunk string, vocab map[string]int) (vector []float64, err error)`
-* `VectorizeOneHot(chunk string, vocab map[string]int) (vector []float64, err error)`
-* `VectorLength(v []float64]) (length float64)`
-*/
-
 // ############################################################################
 // Cosine
 // ############################################################################

@@ -1,20 +1,5 @@
 package quant
 
-/*
-counts.go provides counting functionality.
-
-Types:
-* TypeCounter struct
-* TypeCounterOption func(t *TypeCounter)
-
-Functions:
-* NewTypeCounter() *TypeCounter
-* TypeCount(chunk string, opts ...TypeCounterOption) (types map[string]int64, err errors)
-* CountTypes(tokens []string) (types map[string]int64)
-* WithTokenizer(tokenizer *Tokenizer) TypeCounterOption
-* WithStemmer(stemmer *Stemmer) TypeCounterOption
-*/
-
 // ############################################################################
 // TypeCounter
 // ############################################################################
