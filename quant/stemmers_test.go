@@ -14,7 +14,7 @@ import (
 // Tests
 // ############################################################################
 
-func TestStemmer(t *testing.T) {
+func TestStemmers(t *testing.T) {
 	testcases := []struct {
 		Name         string
 		Stemmer      quant.Stemmer

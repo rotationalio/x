@@ -58,30 +58,29 @@ func (p *Porter2Stemmer) Stem(word string) (stem string) {
 // ############################################################################
 
 // Returns the stem for the selected English word using the English Porter2
-// algorithm.
+// algorithm. Whitespace will be trimmed and the stem will be returned in
+// all lowercase.
 func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	// If the word has two letters or less, leave it as it is
 	if len(word) <= 2 {
 		return word
 	}
 
-	// Exceptions specified by the Porter2 algorithm
-	if stem = p.porter2ExceptionsEnglish(word); stem != "" {
-		return stem
-	}
-
-	// Local (implementation) exceptions
-	if stem = p.localExceptionsEnglish(word); stem != "" {
-		return stem
-	}
-
-	// Put the word into the word buffer (lowercase and remove whitespace)
-	p.word = []rune(strings.TrimSpace(strings.ToLower(word)))
+	// Lowercase and remove any whitespace
+	word = strings.TrimSpace(strings.ToLower(word))
 
 	// Remove initial apostrophes in word
 	for p.isApostrophe(0) && len(p.word) != 0 {
 		p.word = p.word[1:]
 	}
+
+	// Return exceptions immediately
+	if stem = p.porter2Exceptions(word); stem != "" {
+		return stem
+	}
+
+	// Put the word into the word buffer
+	p.word = []rune(word)
 
 	// Set initial y, or y after a vowel, to Y
 	for i := range len(p.word) - 1 {
@@ -109,49 +108,49 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	return string(p.word)
 }
 
-// Performs step 0 of the Porter2 English stemmer algorithm.
+// Performs step 0 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_0_English() {
 	//TODO
 
 }
 
-// Performs step 1a of the Porter2 English stemmer algorithm.
+// Performs step 1a of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1a_English() {
 	//TODO
 
 }
 
-// Performs step 1b of the Porter2 English stemmer algorithm.
+// Performs step 1b of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1b_English() {
 	//TODO
 
 }
 
-// Performs step 1c of the Porter2 English stemmer algorithm.
+// Performs step 1c of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_1c_English() {
 	//TODO
 
 }
 
-// Performs step 2 of the Porter2 English stemmer algorithm.
+// Performs step 2 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_2_English() {
 	//TODO
 
 }
 
-// Performs step 3 of the Porter2 English stemmer algorithm.
+// Performs step 3 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_3_English() {
 	//TODO
 
 }
 
-// Performs step 4 of the Porter2 English stemmer algorithm.
+// Performs step 4 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_4_English() {
 	//TODO
 
 }
 
-// Performs step 5 of the Porter2 English stemmer algorithm.
+// Performs step 5 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) step_5_English() {
 	//TODO
 
@@ -213,7 +212,7 @@ func (p *Porter2Stemmer) isDouble(i int) bool {
 	case LanuageEnglish:
 		switch p.word[i] {
 		case 'b', 'd', 'f', 'g', 'm', 'n', 'p', 'r', 't':
-			// It's a double if i and i+1 are both the same
+			// It's a double if i and i+1 are both the same and one of above
 			if p.word[i] == p.word[i+1] {
 				return true
 			}
@@ -229,6 +228,7 @@ func (p *Porter2Stemmer) isValidLiEnding(i int) bool {
 	case LanuageEnglish:
 		switch p.word[i] {
 		case 'c', 'd', 'e', 'g', 'h', 'k', 'm', 'n', 'r', 't':
+			// It's a valid li- ending if it's one of the runes above
 			return true
 		}
 	}
@@ -266,7 +266,11 @@ func (p *Porter2Stemmer) isShortSyllable2Rune(i int) bool {
 // covers part (c) of the short syllable definition according to the Porter2
 // algorithm.
 func (p *Porter2Stemmer) isShortSyllablePast(i int) bool {
-	return slices.Equal(p.word[i:], []rune("past"))
+	switch p.lang {
+	case LanuageEnglish:
+		return slices.Equal(p.word[i:], []rune("past"))
+	}
+	return false
 }
 
 // Returns true if the word is a short word as defined in the Porter2 algorithm.
@@ -281,7 +285,7 @@ func (p *Porter2Stemmer) isShortWord() bool {
 
 		// Check if the word ends in "past"
 		endsPast := false
-		if 0 < (len(p.word) - 4) {
+		if 4 <= len(p.word) {
 			endsPast = p.isShortSyllablePast(len(p.word) - 4)
 		}
 
@@ -302,39 +306,34 @@ func (p *Porter2Stemmer) isApostrophe(i int) bool {
 	return false
 }
 
-// If word is an 'exceptional form' for the English stemmer algorithm, then a
-// stem for it will be returned immediately, otherwise the null string indicates
-// it is not exceptional.
-func (p *Porter2Stemmer) porter2ExceptionsEnglish(word string) string {
-	switch word {
-	case "skis":
-		return "ski"
-	case "skies":
-		return "sky"
-	case "idly":
-		return "idl"
-	case "gently":
-		return "gentl"
-	case "ugly":
-		return "ugli"
-	case "early":
-		return "earli"
-	case "only":
-		return "onli"
-	case "singly":
-		return "singl"
-	// Invariant cases:
-	case "sky", "news", "howe", "atlas", "cosmos", "bias", "andes":
-		return word
+// If word is an exception, then a stem for it will be returned otherwise the
+// null string indicates it is not exceptional.
+func (p *Porter2Stemmer) porter2Exceptions(word string) string {
+	switch p.lang {
+	case LanuageEnglish:
+		switch word {
+		// Porter2 exceptions and invariants:
+		case "skis":
+			return "ski"
+		case "skies":
+			return "sky"
+		case "idly":
+			return "idl"
+		case "gently":
+			return "gentl"
+		case "ugly":
+			return "ugli"
+		case "early":
+			return "earli"
+		case "only":
+			return "onli"
+		case "singly":
+			return "singl"
+		case "sky", "news", "howe", "atlas", "cosmos", "bias", "andes":
+			return word
+			// Local exceptions:
+			// There are no local exceptions yet.
+		}
 	}
-	return ""
-}
-
-// If a word has an exception that is not in the Porter2 English algorithm but
-// we wish to return an exception, then a stem for it will be returned,
-// otherwise the null string indicates it is not exceptional.
-func (p *Porter2Stemmer) localExceptionsEnglish(word string) string {
-	// None yet.
-	_ = word
 	return ""
 }
