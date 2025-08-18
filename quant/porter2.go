@@ -264,7 +264,94 @@ func (p *Porter2Stemmer) Step_1c_English() {
 
 // Performs step 2 of the Porter2 English stemmer algorithm on the word buffer.
 func (p *Porter2Stemmer) Step_2_English() {
-	//TODO
+	// Find the longest suffix then perform the operation for it
+	longest := p.longestMatchingSuffix(0, len(p.word),
+		"tional",
+		"enci",
+		"anci",
+		"abli",
+		"entli",
+		"izer",
+		"ization",
+		"ational",
+		"ation",
+		"ator",
+		"alism",
+		"aliti",
+		"alli",
+		"fulness",
+		"ousli",
+		"ousness",
+		"iveness",
+		"iviti",
+		"biliti",
+		"bli",
+		"ogist",
+		"ogi",
+		"fulli",
+		"lessli",
+		"li",
+	)
+
+	// Perform the operation
+	switch longest {
+	case "":
+		//No match
+
+	case "tional":
+		p.replaceSuffix(len(longest), "tion")
+
+	case "enci":
+		p.replaceSuffix(len(longest), "ence")
+
+	case "anci":
+		p.replaceSuffix(len(longest), "ance")
+
+	case "abli":
+		p.replaceSuffix(len(longest), "able")
+
+	case "entli":
+		p.replaceSuffix(len(longest), "ent")
+
+	case "izer", "ization":
+		p.replaceSuffix(len(longest), "ize")
+
+	case "ational", "ation", "ator":
+		p.replaceSuffix(len(longest), "ate")
+
+	case "alism", "aliti", "alli":
+		p.replaceSuffix(len(longest), "al")
+
+	case "fulness":
+		p.replaceSuffix(len(longest), "ful")
+
+	case "ousli", "ousness":
+		p.replaceSuffix(len(longest), "ous")
+
+	case "iveness", "iviti":
+		p.replaceSuffix(len(longest), "ive")
+
+	case "biliti", "bli":
+		p.replaceSuffix(len(longest), "ble")
+
+	case "ogist":
+		p.replaceSuffix(len(longest), "og")
+
+	case "ogi":
+		// Only if preceded by "l"
+		if 4 <= len(p.word) && p.word[len(p.word)-len(longest)] == 'l' {
+			p.replaceSuffix(len(longest), "og")
+		}
+
+	case "lessli":
+		p.replaceSuffix(len(longest), "less")
+
+	case "li":
+		// Only if preceded by a valid "li-ending"
+		if 3 <= len(p.word) && p.isValidLiEnding(len(p.word)-len(longest)) {
+			p.removeSuffix(len(longest))
+		}
+	}
 }
 
 // Performs step 3 of the Porter2 English stemmer algorithm on the word buffer.
