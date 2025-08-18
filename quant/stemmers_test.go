@@ -29,7 +29,7 @@ func TestStemmers(t *testing.T) {
 		},
 		{
 			Name:         "Porter2Stemmer",
-			Stemmer:      &quant.Porter2Stemmer{},
+			Stemmer:      quant.MustNewPorter2Stemmer(quant.LanuageEnglish),
 			InputPath:    "testdata/Porter2Stemmer/voc.txt",
 			ExpectedPath: "testdata/Porter2Stemmer/output.txt",
 		},
@@ -44,7 +44,7 @@ func TestStemmers(t *testing.T) {
 			defer input.Close()
 
 			// Load 'expected' data
-			expected, err := os.Open(tc.InputPath)
+			expected, err := os.Open(tc.ExpectedPath)
 			assert.NotNil(t, expected, "unexpected nil 'expected' file")
 			assert.Nil(t, err, "error opening 'expected' file")
 			defer expected.Close()
@@ -53,9 +53,10 @@ func TestStemmers(t *testing.T) {
 			inputScanner := bufio.NewScanner(input)
 			expectedScanner := bufio.NewScanner(expected)
 			for inputScanner.Scan() && expectedScanner.Scan() {
+				in := inputScanner.Text()
 				exp := expectedScanner.Text()
-				act := tc.Stemmer.Stem(inputScanner.Text())
-				assert.Equal(t, exp, act, fmt.Sprintf("wrong stem: expected '%s', got '%s'", exp, act))
+				act := tc.Stemmer.Stem(in)
+				assert.Equal(t, exp, act, fmt.Sprintf("wrong stem for |%s|: expected |%s|, got |%s|", in, exp, act))
 			}
 			// Ensure there were no scanning errors
 			assert.Nil(t, inputScanner.Err(), "error scanning 'input'")

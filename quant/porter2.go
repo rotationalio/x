@@ -45,6 +45,16 @@ func NewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer, err error) {
 	return stemmer, nil
 }
 
+// Returns a new [Porter2Stemmer] which supports the [Language] given or panics
+// on an error.
+func MustNewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer) {
+	var err error
+	if stemmer, err = NewPorter2Stemmer(lang); err != nil {
+		panic(err)
+	}
+	return stemmer
+}
+
 // Returns the stem for the selected word using the language-specific
 // implementation set with [NewPorter2Stemmer].
 func (p *Porter2Stemmer) Stem(word string) (stem string) {
@@ -63,11 +73,6 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	// Lowercase and remove any whitespace
 	word = strings.TrimSpace(strings.ToLower(word))
 
-	// Remove initial apostrophes in word
-	for p.isApostrophe(0) && len(p.word) != 0 {
-		p.word = p.word[1:]
-	}
-
 	// If the word has two letters or less, leave it as it is
 	if len(word) <= 2 {
 		return word
@@ -81,9 +86,14 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	// Put the word into the word buffer
 	p.word = []rune(word)
 
+	// Remove initial apostrophe if present
+	if p.isApostrophe(0) {
+		p.word = p.word[1:]
+	}
+
 	// Set initial y, or y after a vowel, to Y
 	for i := range p.word {
-		if p.word[i] == 'y' && (i == 0 || !p.isVowel(i-1)) {
+		if p.word[i] == 'y' && (i == 0 || p.isVowel(i-1)) {
 			p.word[i] = 'Y'
 		}
 	}
@@ -92,16 +102,14 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 	p.setRegions()
 
 	// Run Porter2 algorithm steps in order
-	p.Step_0_English()
-	p.Step_1a_English()
-	p.Step_1b_English()
-	p.Step_1c_English()
-	p.Step_2_English()
-	p.Step_3_English()
-	p.Step_4_English()
-	p.Step_5_English()
-
-	// TODO: post processing
+	p.step_0_English()
+	p.step_1a_English()
+	p.step_1b_English()
+	p.step_1c_English()
+	p.step_2_English()
+	p.step_3_English()
+	p.step_4_English()
+	p.step_5_English()
 
 	// Uncapitalize Y's
 	for i := range p.word {
@@ -115,13 +123,13 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 }
 
 // Performs step 0 of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_0_English() {
+func (p *Porter2Stemmer) step_0_English() {
 	// Remove the longest suffix found in the suffixes
 	p.removeSuffix(len(p.longestMatchingSuffix(0, len(p.word), "'", "'s", "'s'")))
 }
 
 // Performs step 1a of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_1a_English() {
+func (p *Porter2Stemmer) step_1a_English() {
 	// Find the longest suffix then perform the operation for it
 	longest := p.longestMatchingSuffix(0, len(p.word),
 		"sses",
@@ -156,17 +164,20 @@ func (p *Porter2Stemmer) Step_1a_English() {
 	case "s":
 		// Delete if the preceding word part contains a vowel not immediately
 		// before the s
-		for i := range p.word[:len(p.word)-2] {
-			if p.isVowel(i) {
-				p.removeSuffix(len(longest))
-				return
+		chkEnd := len(p.word) - 2
+		if 0 < chkEnd {
+			for i := range p.word[:chkEnd] {
+				if p.isVowel(i) {
+					p.removeSuffix(len(longest))
+					return
+				}
 			}
 		}
 	}
 }
 
 // Performs step 1b of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_1b_English() {
+func (p *Porter2Stemmer) step_1b_English() {
 	// Find the longest suffix then perform the operation for it
 	longest := p.longestMatchingSuffix(0, len(p.word),
 		"eed",
@@ -198,27 +209,33 @@ func (p *Porter2Stemmer) Step_1b_English() {
 				p.replaceSuffix(4, "ie")
 				return
 			}
-			// If it's exactly one of "inn", "out", "cann", "herr", "earr" or
-			// "even".
-			if 0 < len(p.longestMatchingSuffix(0, len(p.word)-3,
+
+			// Invariant exceptions
+			longIng := p.longestMatchingSuffix(0, len(p.word)-3,
 				"inn",  // inning
 				"out",  // outing
 				"cann", // canning
 				"herr", // herring
 				"earr", // earring
 				"even", // evening
-			)) {
+			)
+			// Must be EXACTLY one of the above
+			if longIng != "" && p.hasSuffix(0, len(longIng), longIng) {
 				// Do nothing
 				return
 			}
 		}
 
-		// Delete if the preceeding word part contains a vowel
-		for i := range p.word[:len(p.word)-len(longest)] {
+		// First, Delete if the preceeding word part contains a vowel
+		idxEnd := len(p.word) - len(longest)
+		for i := range p.word[:idxEnd] {
 			if p.isVowel(i) {
 				p.removeSuffix(len(longest))
+				break
 			}
 		}
+
+		// Then, do only one of the following:
 
 		// If the word ends "at", "bl" or "iz" add "e"
 		if 0 < len(p.longestMatchingSuffix(0, len(p.word),
@@ -232,13 +249,16 @@ func (p *Porter2Stemmer) Step_1b_English() {
 
 		// If the word ends with a double preceded by something other than
 		// exactly "a", "e", or "o" then remove the last letter
-		if 3 <= len(p.word) {
-			i := len(p.word) - 2
-			preceeding_aeo := p.word[i-1] == 'a' || p.word[i-1] == 'e' || p.word[i-1] == 'o'
-			if p.isDouble(i) && !preceeding_aeo {
+		idxDbl := len(p.word) - 2
+		if p.isDouble(idxDbl) {
+			if len(p.word) == 3 {
+				if p.word[0] != 'a' && p.word[0] != 'e' && p.word[0] != 'o' {
+					p.removeSuffix(1)
+				}
+			} else if 3 < len(p.word) {
 				p.removeSuffix(1)
-				return
 			}
+			return
 		}
 
 		// If the word does not end with a double and is short, add "e"
@@ -249,43 +269,35 @@ func (p *Porter2Stemmer) Step_1b_English() {
 }
 
 // Performs step 1c of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_1c_English() {
+func (p *Porter2Stemmer) step_1c_English() {
 	// Do nothing to 2 letter words here
 	if len(p.word) == 2 {
 		return
 	}
 
 	// Replace suffix "y" or "Y" by "i" if preceded by a non-vowel
-	idx := len(p.word) - 1
-	if (p.word[idx] == 'y' || p.word[idx] == 'Y') && !p.isVowel(idx-1) {
+	end := len(p.word) - 1
+	if (p.word[end] == 'y' || p.word[end] == 'Y') && !p.isVowel(end-1) {
 		p.replaceSuffix(1, "i")
 	}
 }
 
 // Performs step 2 of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_2_English() {
-	// Find the longest suffix then perform the operation for it
+func (p *Porter2Stemmer) step_2_English() {
+	// Search for the longest among the following suffixes
 	longest := p.longestMatchingSuffix(0, len(p.word),
 		"tional",
 		"enci",
 		"anci",
 		"abli",
 		"entli",
-		"izer",
-		"ization",
-		"ational",
-		"ation",
-		"ator",
-		"alism",
-		"aliti",
-		"alli",
+		"izer", "ization",
+		"ational", "ation", "ator",
+		"alism", "aliti", "alli",
 		"fulness",
-		"ousli",
-		"ousness",
-		"iveness",
-		"iviti",
-		"biliti",
-		"bli",
+		"ousli", "ousness",
+		"iveness", "iviti",
+		"biliti", "bli",
 		"ogist",
 		"ogi",
 		"fulli",
@@ -293,11 +305,13 @@ func (p *Porter2Stemmer) Step_2_English() {
 		"li",
 	)
 
+	// If a suffix is not found or it is not in R1, do nothing
+	if longest == "" || !p.hasSuffix(p.p1, len(p.word), longest) {
+		return
+	}
+
 	// Perform the operation
 	switch longest {
-	case "":
-		//No match
-
 	case "tional":
 		p.replaceSuffix(len(longest), "tion")
 
@@ -339,34 +353,114 @@ func (p *Porter2Stemmer) Step_2_English() {
 
 	case "ogi":
 		// Only if preceded by "l"
-		if 4 <= len(p.word) && p.word[len(p.word)-len(longest)] == 'l' {
+		idx := len(p.word) - len(longest) - 1
+		if 4 <= len(p.word) && p.word[idx] == 'l' {
 			p.replaceSuffix(len(longest), "og")
 		}
+
+	case "fulli":
+		p.replaceSuffix(len(longest), "ful")
 
 	case "lessli":
 		p.replaceSuffix(len(longest), "less")
 
 	case "li":
 		// Only if preceded by a valid "li-ending"
-		if 3 <= len(p.word) && p.isValidLiEnding(len(p.word)-len(longest)) {
+		idx := len(p.word) - len(longest) - 1
+		if 0 <= idx && p.isValidLiEnding(idx) {
 			p.removeSuffix(len(longest))
 		}
 	}
 }
 
 // Performs step 3 of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_3_English() {
-	//TODO
+func (p *Porter2Stemmer) step_3_English() {
+	// Search for the longest among the following suffixes
+	longest := p.longestMatchingSuffix(0, len(p.word),
+		"tional",
+		"ational",
+		"alize",
+		"icate", "iciti", "ical",
+		"ful", "ness",
+		"ative",
+	)
+
+	// If a suffix is not found or it is not in R1, do nothing
+	if longest == "" || !p.hasSuffix(p.p1, len(p.word), longest) {
+		return
+	}
+
+	// Perform the operation
+	switch longest {
+	case "tional":
+		p.replaceSuffix(len(longest), "tion")
+
+	case "ational":
+		p.replaceSuffix(len(longest), "ate")
+
+	case "alize":
+		p.replaceSuffix(len(longest), "al")
+
+	case "icate", "iciti", "ical":
+		p.replaceSuffix(len(longest), "ic")
+
+	case "ful", "ness":
+		p.removeSuffix(len(longest))
+
+	case "ative":
+		// Remove only if in R2
+		if p.hasSuffix(p.p2, len(p.word), longest) {
+			p.removeSuffix(len(longest))
+		}
+	}
 }
 
 // Performs step 4 of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_4_English() {
-	//TODO
+func (p *Porter2Stemmer) step_4_English() {
+	// Search for the longest among the following suffixes
+	longest := p.longestMatchingSuffix(0, len(p.word),
+		"al", "ance", "ence", "er", "ic", "able", "ible", "ant", "ement", "ment", "ent", "ism", "ate", "iti", "ous", "ive", "ize",
+		"ion",
+	)
+
+	// If a suffix is not found or it is not in R2, do nothing
+	if longest == "" || !p.hasSuffix(p.p2, len(p.word), longest) {
+		return
+	}
+
+	// Perform the operation
+	switch longest {
+	case "al", "ance", "ence", "er", "ic", "able", "ible", "ant", "ement", "ment", "ent", "ism", "ate", "iti", "ous", "ive", "ize":
+		p.removeSuffix(len(longest))
+
+	case "ion":
+		// Delete if precedded by "s" or "t"
+		idx := len(p.word) - len(longest) - 1
+		if 0 <= idx && (p.word[idx] == 's' || p.word[idx] == 't') {
+			p.removeSuffix(len(longest))
+		}
+	}
 }
 
 // Performs step 5 of the Porter2 English stemmer algorithm on the word buffer.
-func (p *Porter2Stemmer) Step_5_English() {
-	//TODO
+func (p *Porter2Stemmer) step_5_English() {
+	// Delete "e" if in R2
+	if p.hasSuffix(p.p2, len(p.word), "e") {
+		p.removeSuffix(1)
+		return
+	}
+
+	// Delete "e" if in R1 and not preceeded by a short syllable
+	if p.hasSuffix(p.p1, len(p.word), "e") && !p.endsShortSyllable(len(p.word)-1) {
+		p.removeSuffix(1)
+		return
+	}
+
+	// Delete "l" if in R2 and preceeded by an "l"
+	if p.hasSuffix(p.p2-1, len(p.word), "ll") {
+		p.removeSuffix(1)
+		return
+	}
 }
 
 // ############################################################################
@@ -379,6 +473,23 @@ func (p *Porter2Stemmer) Step_5_English() {
 func (p *Porter2Stemmer) setRegions() {
 	// Find R1
 	p.p1 = p.findRegionStart(0)
+
+	// R1 exceptions for over-stemmed words
+	for _, stem := range []string{
+		"gener",   // generate/general/generic/generous
+		"commun",  // communication/communism/community
+		"arsen",   // arsenic/arsenal
+		"past",    // past/paste
+		"univers", // universe/universal/university
+		"later",   // lateral/later
+		"emerg",   // emerge/emergency
+		"organ",   // organ/organic/organize
+	} {
+		if len(stem) <= len(p.word) && p.hasSuffix(0, len(stem), stem) {
+			p.p1 = len(stem)
+		}
+	}
+
 	// Find R2
 	p.p2 = p.findRegionStart(p.p1)
 }
@@ -390,8 +501,8 @@ func (p *Porter2Stemmer) findRegionStart(start int) int {
 	// Ensure the start index is at least the penultimate rune
 	if start < len(p.word)-2 {
 		// Find the word's next non-vowel after a vowel starting at the index given
-		for i := range p.word[start:] {
-			if p.isVowel(i) && !p.isVowel(i+1) {
+		for i := range p.word[start : len(p.word)-1] {
+			if p.isVowel(start+i) && !p.isVowel(start+i+1) {
 				// The region starts at i+2, after the pattern 'Vnv'
 				// Note: this may be the "null" region, which is fine
 				return start + i + 2
@@ -416,21 +527,17 @@ func (p *Porter2Stemmer) hasSuffix(start, end int, suffix string) (matches bool)
 
 // Returns the longest matching suffix of the word buffer slice [start:end].
 func (p *Porter2Stemmer) longestMatchingSuffix(start, end int, suffixes ...string) string {
+	// There can't be a match
+	if start == end {
+		return ""
+	}
+
 	// Sort the suffixes by length then lexicographically
 	slices.SortFunc(suffixes, func(a, b string) int {
-		// Equality
-		if a == b {
-			return 0
-		}
-
-		// Same length; sort lexicographically
 		if len(a) == len(b) {
 			return strings.Compare(a, b)
 		}
-
-		// Longer string wins
 		return len(b) - len(a)
-
 	})
 
 	// Find the first matching suffix
