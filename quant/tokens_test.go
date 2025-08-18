@@ -4,20 +4,12 @@ package quant_test
 // Tests
 // ############################################################################
 
-//TODO correctness test Tokenizer
+//TODO correctness test NewRegexTokenizer()
 
-//TODO correctness test TokenizerOption
-
-//TODO correctness test NewTokenizer()
-
-//TODO correctness test Tokenize()
-
-//TODO correctness test WithLanguage()
-
-//TODO correctness test WithRegex()
+//TODO correctness test (t *RegexTokenizer) Tokenize()
 
 // ############################################################################
 // Benchmarking
 // ############################################################################
 
-//TODO benchmark Tokenize()
+//TODO benchmark (t *RegexTokenizer) Tokenize()
