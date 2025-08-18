@@ -194,8 +194,18 @@ func (p *Porter2Stemmer) step_1b_English() {
 		//No match
 
 	case "eed", "eedly":
+		// Exceptions for "eed" words
+		if p.hasAnyPrefix(
+			"proc", // proceed
+			"exc",  // exceed
+			"succ", // succeed
+		) {
+			// Do nothing
+			return
+		}
+
 		// Replace by "ee" if in R1
-		if len(longest) < (len(p.word) - p.p1) {
+		if len(longest) <= (len(p.word) - p.p1) {
 			p.replaceSuffix(len(longest), "ee")
 		}
 
@@ -211,7 +221,7 @@ func (p *Porter2Stemmer) step_1b_English() {
 			}
 
 			// Invariant exceptions
-			longIng := p.longestMatchingSuffix(0, len(p.word)-3,
+			longIng := p.longestMatchingSuffix(0, len(p.word)-len(longest),
 				"inn",  // inning
 				"out",  // outing
 				"cann", // canning
@@ -226,44 +236,47 @@ func (p *Porter2Stemmer) step_1b_English() {
 			}
 		}
 
-		// First, Delete if the preceeding word part contains a vowel
+		// Delete if the preceeding word part contains a vowel
 		idxEnd := len(p.word) - len(longest)
+		hadVowel := false
 		for i := range p.word[:idxEnd] {
 			if p.isVowel(i) {
 				p.removeSuffix(len(longest))
+				hadVowel = true
 				break
 			}
 		}
 
-		// Then, do only one of the following:
+		// Then, after the deletion:
+		if hadVowel {
+			// If the word ends "at", "bl" or "iz" add "e"
+			if 0 < len(p.longestMatchingSuffix(0, len(p.word),
+				"at",
+				"bl",
+				"iz",
+			)) {
+				p.appendSuffix("e")
+				return
+			}
 
-		// If the word ends "at", "bl" or "iz" add "e"
-		if 0 < len(p.longestMatchingSuffix(0, len(p.word),
-			"at",
-			"bl",
-			"iz",
-		)) {
-			p.appendSuffix("e")
-			return
-		}
-
-		// If the word ends with a double preceded by something other than
-		// exactly "a", "e", or "o" then remove the last letter
-		idxDbl := len(p.word) - 2
-		if p.isDouble(idxDbl) {
-			if len(p.word) == 3 {
-				if p.word[0] != 'a' && p.word[0] != 'e' && p.word[0] != 'o' {
+			// If the word ends with a double preceded by something other than
+			// exactly "a", "e", or "o" then remove the last letter
+			idxDbl := len(p.word) - 2
+			if p.isDouble(idxDbl) {
+				if len(p.word) == 3 {
+					if p.word[0] != 'a' && p.word[0] != 'e' && p.word[0] != 'o' {
+						p.removeSuffix(1)
+					}
+				} else if 3 < len(p.word) {
 					p.removeSuffix(1)
 				}
-			} else if 3 < len(p.word) {
-				p.removeSuffix(1)
+				return
 			}
-			return
-		}
 
-		// If the word does not end with a double and is short, add "e"
-		if p.isShortWord() {
-			p.appendSuffix("e")
+			// If the word does not end with a double and is short, add "e"
+			if p.isShortWord() {
+				p.appendSuffix("e")
+			}
 		}
 	}
 }
@@ -523,6 +536,18 @@ func (p *Porter2Stemmer) hasSuffix(start, end int, suffix string) (matches bool)
 	}
 
 	return slices.Equal(p.word[end-len(suffix):end], []rune(suffix))
+}
+
+// Returns true if any of the provided prefixes match in the word buffer prefix.
+func (p *Porter2Stemmer) hasAnyPrefix(prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if len(prefix) <= len(p.word) {
+			if slices.Equal(p.word[:len(prefix)], []rune(prefix)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Returns the longest matching suffix of the word buffer slice [start:end].

@@ -54,6 +54,8 @@ func TestStemmers(t *testing.T) {
 			expectedScanner := bufio.NewScanner(expected)
 			for inputScanner.Scan() && expectedScanner.Scan() {
 				in := inputScanner.Text()
+				// NOTE: Uncomment below to see the 'in' word to debug panics
+				// fmt.Printf("IN: %s\n", in)
 				exp := expectedScanner.Text()
 				act := tc.Stemmer.Stem(in)
 				assert.Equal(t, exp, act, fmt.Sprintf("wrong stem for |%s|: expected |%s|, got |%s|", in, exp, act))
