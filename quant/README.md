@@ -26,12 +26,22 @@ We want this package to be:
 * Organize by category (similarity, counts, readability, lexical, etc.)
 * Stub out room for future metrics, even weird ones
 
+## End-User API Usage
+
+Generally, if we have an `Operation` that we want to perform on text, there will be an associated `Operation[izer|er]` type.
+The `Operation[izer|er]` may be an `interface` in the cases where we might want more than one implementation of the `Operation`, such as with the `Stemmer` interface where we have a `Porter2Stemmer` implementation.
+The `Operation[izer|er]` may alternately be a `struct` in the cases where we only need one implementation of the `Operation`, such as with the `TypeCounter` struct which does not need additional implementations.
+Each of the `Operation[izer|er]` types will have a `NewOperation[izer|er](opts ...Operation[izer|er]Option)` which allows the user to either take the default configuration of the new instance, or they can include a variable number of arguments which can modify the options for the `Operation[izer|er]` instance returned.
+Please see the documentation comments within the code for more information on how to use this library, and if anything is unclear please contact us to clarify!
+
 ## Features, metrics, and tools
 
-* Tokenization, stemming, and type counting (see [`tokens.go`](./tokens.go))
-  * Porter2/Snowball stemming algorithm
-  * Regex tokenization with custom expressions
-* Cosine similarity (see [`similarity.go`](./similarity.go))
+* Tokenization and type counting (see [`tokens.go`](./tokens.go))
+  * Regex tokenization with custom expression support
+* Stemming (see [`stemmers.go`](./stemmers.go))
+  * Porter2/Snowball stemming algorithm  (see [`porter2english.go`](./porter2english.go))
+* Similarity metrics (see [`similarity.go`](./similarity.go))
+  * Cosine similarity
 * Vectors & vectorization (see [`vectors.go`](./vectors.go))
   * One-hot encoding
   * Frequency (count) encoding
@@ -42,14 +52,6 @@ We want this package to be:
 * Part-of-Speech Distributions (Future)
 * Named Entities & Keyphrase Counts (Future)
 * Custom Classifiers (Distant Future)
-
-## API Structure
-
-There are 3 levels in the API:
-
-1) Level one ('low-level API') are the functions which take pre-processed data, such as a list of tokens or a vector, and perform operations on those objects, such as stemming the tokens or calculating the cosine of the angles between two vectors, with the return types being basic Go types. Example: `Cosine(a, b []float64) (cosine float64, err error)`
-2) Level two ('high-level API') are the functions which take chunks of text and compose several low-level API functions to perform some operations, such as tokenizing and stemming the text to return the vocabulary or type count of the text chunk, with the return types being basic Go types. Example: `Similarity(chunkA, chunkB string, opts ...SimilarityOption) (similarity float64, err error)`
-3) (Planned; not yet implemented) Level three ('document API') is a document-based API to access the high-level and low-level APIs for the same chunk of text in a single object which you only have to initialize once, and which use sub-types for those operations that usually provide a document API for their type as well. Examples: `NewDocument(chunk string, opts ...DocumentOption) (doc Document, err error)`, `Document.Tokenize() (tokens []Token, err error)`, and `Token.Stem() (stem string)`
 
 ## Developing in x/quant
 
