@@ -24,3 +24,60 @@ type NoOpStemmer struct{}
 func (p *NoOpStemmer) Stem(word string) (stem string) {
 	return word
 }
+
+// ############################################################################
+// Porter2Stemmer
+// ############################################################################
+
+// Ensure [Porter2Stemmer] meets the [Stemmer] interface requirements.
+var _ Stemmer = &Porter2Stemmer{}
+
+// Implements the Porter2 stemming algorithm.
+type Porter2Stemmer struct {
+	// Language for this stemmer (set in [NewPorter2Stemmer])
+	lang Language
+	// Implementation function (set in [NewPorter2Stemmer])
+	impl func(string) string
+	// Word buffer
+	word []rune
+	// Pointer to the start of the word region R1
+	p1 int
+	// Pointer to the start of the word region R2
+	p2 int
+}
+
+// Returns a new [Porter2Stemmer] which supports the [Language] given, or an
+// error if the language is not supported.
+func NewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer, err error) {
+	// Setup the stemmer for the selected language
+	stemmer = &Porter2Stemmer{lang: lang}
+	switch stemmer.lang {
+	case LanuageEnglish:
+		// 30 runes is long enough for most English words
+		stemmer.word = make([]rune, 30)
+		// Use English stemmer
+		stemmer.impl = stemmer.StemEnglish
+
+	default: // unsupported language
+		return nil, ErrLanguageNotSupported
+	}
+
+	return stemmer, nil
+}
+
+// Returns a new [Porter2Stemmer] which supports the [Language] given or panics
+// on an error.
+func MustNewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer) {
+	var err error
+	if stemmer, err = NewPorter2Stemmer(lang); err != nil {
+		panic(err)
+	}
+	return stemmer
+}
+
+// Returns the stem for the selected word using the language-specific
+// implementation set with [NewPorter2Stemmer].
+func (p *Porter2Stemmer) Stem(word string) (stem string) {
+	// The implementation was set in [NewPorter2Stemmer]
+	return p.impl(word)
+}

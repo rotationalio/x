@@ -6,63 +6,6 @@ import (
 )
 
 // ############################################################################
-// Porter2Stemmer General
-// ############################################################################
-
-// Ensure [Porter2Stemmer] meets the [Stemmer] interface requirements.
-var _ Stemmer = &Porter2Stemmer{}
-
-// Implements the Porter2 stemming algorithm.
-type Porter2Stemmer struct {
-	// Language for this stemmer (set in [NewPorter2Stemmer])
-	lang Language
-	// Implementation function (set in [NewPorter2Stemmer])
-	impl func(string) string
-	// Word buffer
-	word []rune
-	// Pointer to the start of the word region R1
-	p1 int
-	// Pointer to the start of the word region R2
-	p2 int
-}
-
-// Returns a new [Porter2Stemmer] which supports the [Language] given, or an
-// error if the language is not supported.
-func NewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer, err error) {
-	// Setup the stemmer for the selected language
-	stemmer = &Porter2Stemmer{lang: lang}
-	switch stemmer.lang {
-	case LanuageEnglish:
-		// 30 runes is long enough for most English words
-		stemmer.word = make([]rune, 30)
-		// Use English stemmer
-		stemmer.impl = stemmer.StemEnglish
-
-	default: // unsupported language
-		return nil, ErrLanguageNotSupported
-	}
-
-	return stemmer, nil
-}
-
-// Returns a new [Porter2Stemmer] which supports the [Language] given or panics
-// on an error.
-func MustNewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer) {
-	var err error
-	if stemmer, err = NewPorter2Stemmer(lang); err != nil {
-		panic(err)
-	}
-	return stemmer
-}
-
-// Returns the stem for the selected word using the language-specific
-// implementation set with [NewPorter2Stemmer].
-func (p *Porter2Stemmer) Stem(word string) (stem string) {
-	// The implementation was set in [NewPorter2Stemmer]
-	return p.impl(word)
-}
-
-// ############################################################################
 // Porter2Stemmer English Steps
 // ############################################################################
 
@@ -120,6 +63,37 @@ func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
 
 	// Return the completed stem as a string
 	return string(p.word)
+}
+
+// If word is an exception, then a stem for it will be returned otherwise the
+// null string indicates it is not exceptional.
+func (p *Porter2Stemmer) porter2Exceptions(word string) string {
+	switch p.lang {
+	case LanuageEnglish:
+		switch word {
+		// Porter2 exceptions:
+		case "skis":
+			return "ski"
+		case "skies":
+			return "sky"
+		case "idly":
+			return "idl"
+		case "gently":
+			return "gentl"
+		case "ugly":
+			return "ugli"
+		case "early":
+			return "earli"
+		case "only":
+			return "onli"
+		case "singly":
+			return "singl"
+		//Porter2 invariants:
+		case "sky", "news", "howe", "atlas", "cosmos", "bias", "andes":
+			return word
+		}
+	}
+	return ""
 }
 
 // Performs step 0 of the Porter2 English stemmer algorithm on the word buffer.
@@ -478,8 +452,6 @@ func (p *Porter2Stemmer) step_5_English() {
 
 // ############################################################################
 // Porter2Stemmer Helpers
-// NOTE: Functions which take indexes into the word are not guaranteed to check
-//       the index is valid, so the indexes must be checked before passing!
 // ############################################################################
 
 // Sets the R1 and R2 region pointers for the current word buffer.
@@ -527,17 +499,6 @@ func (p *Porter2Stemmer) findRegionStart(start int) int {
 	return len(p.word)
 }
 
-// Returns true if the suffix of the word buffer slice [start:end] matches the
-// suffix runes provided.
-func (p *Porter2Stemmer) hasSuffix(start, end int, suffix string) (matches bool) {
-	// If the suffix is longer than the word range, it cannot match.
-	if len(p.word[start:end]) < len(suffix) {
-		return false
-	}
-
-	return slices.Equal(p.word[end-len(suffix):end], []rune(suffix))
-}
-
 // Returns true if any of the provided prefixes match in the word buffer prefix.
 func (p *Porter2Stemmer) hasAnyPrefix(prefixes ...string) bool {
 	for _, prefix := range prefixes {
@@ -548,6 +509,17 @@ func (p *Porter2Stemmer) hasAnyPrefix(prefixes ...string) bool {
 		}
 	}
 	return false
+}
+
+// Returns true if the suffix of the word buffer slice [start:end] matches the
+// suffix runes provided.
+func (p *Porter2Stemmer) hasSuffix(start, end int, suffix string) (matches bool) {
+	// If the suffix is longer than the word range, it cannot match.
+	if len(p.word[start:end]) < len(suffix) {
+		return false
+	}
+
+	return slices.Equal(p.word[end-len(suffix):end], []rune(suffix))
 }
 
 // Returns the longest matching suffix of the word buffer slice [start:end].
@@ -594,6 +566,10 @@ func (p *Porter2Stemmer) appendSuffix(suffix string) {
 	p.word = append(p.word, []rune(suffix)...)
 	p.setRegions()
 }
+
+// ############################################################################
+// Porter2Stemmer Rule Definitions
+// ############################################################################
 
 // Returns true if rune in the word buffer at index i is a vowel as defined in
 // the Porter2 algorithm.
@@ -693,35 +669,4 @@ func (p *Porter2Stemmer) isApostrophe(i int) bool {
 		return true
 	}
 	return false
-}
-
-// If word is an exception, then a stem for it will be returned otherwise the
-// null string indicates it is not exceptional.
-func (p *Porter2Stemmer) porter2Exceptions(word string) string {
-	switch p.lang {
-	case LanuageEnglish:
-		switch word {
-		// Porter2 exceptions:
-		case "skis":
-			return "ski"
-		case "skies":
-			return "sky"
-		case "idly":
-			return "idl"
-		case "gently":
-			return "gentl"
-		case "ugly":
-			return "ugli"
-		case "early":
-			return "earli"
-		case "only":
-			return "onli"
-		case "singly":
-			return "singl"
-		//Porter2 invariants:
-		case "sky", "news", "howe", "atlas", "cosmos", "bias", "andes":
-			return word
-		}
-	}
-	return ""
 }

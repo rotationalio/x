@@ -12,6 +12,10 @@ import (
 
 // Use the following test to test a single word stem, for debugging.
 func TestPorter2Single(t *testing.T) {
+	// NOTE: skipping this test unless we're debugging a word:
+	t.SkipNow()
+
+	// Debug a single, specific word
 	in := "seaweed"
 	exp := "seawe"
 	act := quant.MustNewPorter2Stemmer(quant.LanuageEnglish).Stem(in)
