@@ -168,12 +168,12 @@ func (p *Porter2Stemmer) step_1b_English() {
 		//No match
 
 	case "eed", "eedly":
-		// Exceptions for "eed" words
-		if p.hasAnyPrefix(
+		// Exceptions for "eed" words; if found do not perform any action
+		if pfx := p.hasAnyPrefix(
 			"proc", // proceed
 			"exc",  // exceed
 			"succ", // succeed
-		) {
+		); pfx != nil {
 			// Do nothing
 			return
 		}
@@ -459,8 +459,9 @@ func (p *Porter2Stemmer) setRegions() {
 	// Find R1
 	p.p1 = p.findRegionStart(0)
 
-	// R1 exceptions for over-stemmed words
-	for _, stem := range []string{
+	// R1 exceptions for over-stemmed words; if found then set R1 to the end of
+	// the prefix found
+	if pfx := p.hasAnyPrefix(
 		"gener",   // generate/general/generic/generous
 		"commun",  // communication/communism/community
 		"arsen",   // arsenic/arsenal
@@ -469,10 +470,8 @@ func (p *Porter2Stemmer) setRegions() {
 		"later",   // lateral/later
 		"emerg",   // emerge/emergency
 		"organ",   // organ/organic/organize
-	} {
-		if len(stem) <= len(p.word) && p.hasSuffix(0, len(stem), stem) {
-			p.p1 = len(stem)
-		}
+	); pfx != nil {
+		p.p1 = len(pfx)
 	}
 
 	// Find R2
@@ -499,16 +498,18 @@ func (p *Porter2Stemmer) findRegionStart(start int) int {
 	return len(p.word)
 }
 
-// Returns true if any of the provided prefixes match in the word buffer prefix.
-func (p *Porter2Stemmer) hasAnyPrefix(prefixes ...string) bool {
-	for _, prefix := range prefixes {
-		if len(prefix) <= len(p.word) {
-			if slices.Equal(p.word[:len(prefix)], []rune(prefix)) {
-				return true
+// Returns the first prefix argument that matches the word buffer prefix. If
+// none are found, returns nil.
+func (p *Porter2Stemmer) hasAnyPrefix(prefixes ...string) (prefix []rune) {
+	for _, pfx := range prefixes {
+		if len(pfx) <= len(p.word) {
+			prefix := []rune(pfx)
+			if slices.Equal(p.word[:len(prefix)], prefix) {
+				return prefix
 			}
 		}
 	}
-	return false
+	return nil
 }
 
 // Returns true if the suffix of the word buffer slice [start:end] matches the
