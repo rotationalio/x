@@ -59,6 +59,10 @@ func Request(req any) (directive *RequestDirective, err error) {
 
 		// Parse the If-None-Match header if it exists.
 		if ifNoneMatch := r.Header.Get(IfNoneMatch); ifNoneMatch != "" {
+			// Unquote the If-None-Match header value.
+			if unquoted, err := strconv.Unquote(ifNoneMatch); err == nil {
+				ifNoneMatch = unquoted
+			}
 			directive.ifNoneMatch = &ifNoneMatch
 		}
 
@@ -121,6 +125,16 @@ func Response(rep any) (directive *ResponseDirective, err error) {
 
 		// Parse the ETag header if it exists.
 		if etag := r.Header.Get(ETag); etag != "" {
+			if strings.HasPrefix(etag, "W/") {
+				directive.weakEtag = true
+				etag = strings.TrimPrefix(etag, "W/")
+			}
+
+			// Unquote the ETag header value.
+			if unquoted, err := strconv.Unquote(etag); err == nil {
+				etag = unquoted
+			}
+
 			directive.etag = &etag
 		}
 		return directive, nil

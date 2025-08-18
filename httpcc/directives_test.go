@@ -79,6 +79,8 @@ func TestResponseDirective(t *testing.T) {
 		assert.False(t, ok)
 		assert.Equal(t, "", etag)
 
+		assert.False(t, directive.WeakETag())
+
 		sMaxAge, ok := directive.SMaxAge()
 		assert.False(t, ok)
 		assert.Equal(t, uint64(0), sMaxAge)
