@@ -415,13 +415,31 @@ func (p *Porter2Stemmer) hasSuffix(start, end int, suffix string) (matches bool)
 }
 
 // Returns the longest matching suffix of the word buffer slice [start:end].
-func (p *Porter2Stemmer) longestMatchingSuffix(start, end int, suffixes ...string) (longest string) {
+func (p *Porter2Stemmer) longestMatchingSuffix(start, end int, suffixes ...string) string {
+	// Sort the suffixes by length then lexicographically
+	slices.SortFunc(suffixes, func(a, b string) int {
+		// Equality
+		if a == b {
+			return 0
+		}
+
+		// Same length; sort lexicographically
+		if len(a) == len(b) {
+			return strings.Compare(a, b)
+		}
+
+		// Longer string wins
+		return len(b) - len(a)
+
+	})
+
+	// Find the first matching suffix
 	for _, suffix := range suffixes {
-		if p.hasSuffix(start, end, suffix) && len(longest) < len(suffix) {
-			longest = suffix
+		if p.hasSuffix(start, end, suffix) {
+			return suffix
 		}
 	}
-	return longest
+	return ""
 }
 
 // Removes the last n runes from the word buffer.
