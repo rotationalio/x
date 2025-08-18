@@ -4,24 +4,16 @@ package quant_test
 // Tests
 // ############################################################################
 
-//TODO correctness test TypeCounter
-
-//TODO correctness test TypeCounterOption
-
 //TODO correctness test NewTypeCounter()
 
-//TODO correctness test TypeCount()
+//TODO correctness test (c *TypeCounter) TypeCount()
 
-//TODO correctness test CountTypes()
-
-//TODO correctness test WithTokenizer()
-
-//TODO correctness test WithStemmer()
+//TODO correctness test (c *TypeCounter) CountTypes()
 
 // ############################################################################
 // Benchmarking
 // ############################################################################
 
-//TODO benchmark TypeCount()
+//TODO benchmark (c *TypeCounter) TypeCount()
 
-//TODO benchmark CountTypes()
+//TODO benchmark (c *TypeCounter) CountTypes()

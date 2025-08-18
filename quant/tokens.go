@@ -39,18 +39,21 @@ type RegexTokenizer struct {
 // into relevant function calls.
 //
 // Defaults:
-// * Language: [LanguageEnglish]
-// * Regex: [REGEX_ENGLISH_ALPHANUMERIC]
+//   - Language: [LanguageEnglish]
+//   - Regex: [REGEX_ENGLISH_ALPHANUMERIC]
 func NewRegexTokenizer(opts ...RegexTokenizerOption) *RegexTokenizer {
-	// Set defaults
-	tokenizer := &RegexTokenizer{
-		lang:  LanuageEnglish,
-		regex: REGEX_ENGLISH_ALPHANUMERIC,
-	}
-
 	// Set options
+	tokenizer := &RegexTokenizer{}
 	for _, fn := range opts {
 		fn(tokenizer)
+	}
+
+	// Set defaults
+	if tokenizer.lang == LanguageUnknown {
+		tokenizer.lang = LanuageEnglish
+	}
+	if tokenizer.regex == "" {
+		tokenizer.regex = REGEX_ENGLISH_ALPHANUMERIC
 	}
 
 	return tokenizer

@@ -5,20 +5,41 @@ package quant
 // ############################################################################
 
 // TypeCounter can be used to perform type counting on text; create with [NewTypeCounter].
-// TODO: interface instead?
 type TypeCounter struct {
-	tokenizer *Tokenizer
-	stemmer   *Stemmer
+	lang      Language
+	tokenizer Tokenizer
+	stemmer   Stemmer
 }
 
-// Returns a new [TypeCounter] instance. Defaults to the default [Tokenizer] and
+// Returns a new [TypeCounter] instance. Defaults to the default [RegexTokenizer] and
 // [Stemmer] options. Modified by passing [TypeCounterOption] functions into
 // relevant function calls.
-func NewTypeCounter() *TypeCounter {
-	return &TypeCounter{
-		tokenizer: NewTokenizer(),
-		//TODO stemmer:   NewStemmer(),
+//
+// Defaults:
+//   - Language: [LanguageEnglish]
+//   - Tokenizer: [RegexTokenizer]
+//   - Stemmer: [Porter2Stemmer]
+func NewTypeCounter(opts ...TypeCounterOption) (tc *TypeCounter, err error) {
+	// Set options
+	tc = &TypeCounter{}
+	for _, fn := range opts {
+		fn(tc)
 	}
+
+	// Set defaults
+	if tc.lang == LanguageUnknown {
+		tc.lang = LanuageEnglish
+	}
+	if tc.tokenizer == nil {
+		tc.tokenizer = NewRegexTokenizer()
+	}
+	if tc.stemmer == nil {
+		if tc.stemmer, err = NewPorter2Stemmer(tc.lang); err != nil {
+			return nil, err
+		}
+	}
+
+	return tc, nil
 }
 
 // Returns a map of type strings and their counts. For each token, all of the
@@ -26,33 +47,27 @@ func NewTypeCounter() *TypeCounter {
 // [StringModifier] would be the function [strings.ToLower] or many others in
 // the Go [strings] package. Defaults to the default [Tokenizer] and [Stemmer]
 // default options if none are provided.
-func (c *TypeCounter) TypeCount(chunk string, opts ...TypeCounterOption) (types map[string]int64, err error) {
-	// Set TypeCounter options
-	for _, fn := range opts {
-		fn(c)
-	}
-
-	// Tokenizing
+func (c *TypeCounter) TypeCount(chunk string) (types map[string]int, err error) {
+	// Tokenize
 	var tokens []string
 	if tokens, err = c.tokenizer.Tokenize(chunk); err != nil {
 		return nil, err
 	}
 
-	// Stemming
-	//FIXME:
-	// for i, tok := range tokens {
-	// 	tokens[i] = c.stemmer.Stem(tok)
-	// }
+	// Stem
+	for i, tok := range tokens {
+		tokens[i] = c.stemmer.Stem(tok)
+	}
 
-	// Counting
+	// Count
 	return c.CountTypes(tokens), nil
 }
 
 // CountTypes returns a the count of each type (unique word) in the given token
 // list.
-func (c *TypeCounter) CountTypes(tokens []string) (types map[string]int64) {
+func (c *TypeCounter) CountTypes(tokens []string) (types map[string]int) {
 	sz := len(tokens) / 5 // map size selected arbitrarily
-	types = make(map[string]int64, sz)
+	types = make(map[string]int, sz)
 	for _, tok := range tokens {
 		types[tok] += 1
 	}
@@ -67,14 +82,14 @@ func (c *TypeCounter) CountTypes(tokens []string) (types map[string]int64) {
 type TypeCounterOption func(t *TypeCounter)
 
 // WithTokenizer sets the [Tokenizer] to be used for the [TypeCounter].
-func WithTokenizer(tokenizer *Tokenizer) TypeCounterOption {
+func WithTokenizer(tokenizer Tokenizer) TypeCounterOption {
 	return func(t *TypeCounter) {
 		t.tokenizer = tokenizer
 	}
 }
 
 // WithStemmer sets the [Stemmer] to be used for the [TypeCounter].
-func WithStemmer(stemmer *Stemmer) TypeCounterOption {
+func WithStemmer(stemmer Stemmer) TypeCounterOption {
 	return func(t *TypeCounter) {
 		t.stemmer = stemmer
 	}
