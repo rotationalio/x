@@ -16,27 +16,27 @@ import (
 
 func TestStemmers(t *testing.T) {
 	testcases := []struct {
-		Name         string
+		TestName     string
 		Stemmer      quant.Stemmer
 		InputPath    string
 		ExpectedPath string
 	}{
 		{
-			Name:         "NoOpStemmer",
+			TestName:     "NoOpStemmer",
 			Stemmer:      &quant.NoOpStemmer{},
 			InputPath:    "testdata/NoOpStemmer/voc.txt",
 			ExpectedPath: "testdata/NoOpStemmer/voc.txt", // same as input
 		},
 		{
-			Name:         "Porter2Stemmer",
-			Stemmer:      quant.MustNewPorter2Stemmer(quant.LanuageEnglish),
+			TestName:     "Porter2Stemmer [English]",
+			Stemmer:      mustNewPorter2Stemmer(quant.LanuageEnglish),
 			InputPath:    "testdata/Porter2Stemmer/voc.txt",
 			ExpectedPath: "testdata/Porter2Stemmer/output.txt",
 		},
 	}
 
 	for _, tc := range testcases {
-		t.Run(tc.Name, func(t *testing.T) {
+		t.Run(tc.TestName, func(t *testing.T) {
 			// Load 'input' data
 			input, err := os.Open(tc.InputPath)
 			assert.NotNil(t, input, "unexpected nil input file")
@@ -72,3 +72,17 @@ func TestStemmers(t *testing.T) {
 // ############################################################################
 
 //TODO: benchmark Porter2Stemmer
+
+// ############################################################################
+// Helpers
+// ############################################################################
+
+// Returns a new [quant.Porter2Stemmer] which supports the [quant.Language]
+// given or panics on an error.
+func mustNewPorter2Stemmer(lang quant.Language) (stemmer *quant.Porter2Stemmer) {
+	var err error
+	if stemmer, err = quant.NewPorter2Stemmer(lang); err != nil {
+		panic(err)
+	}
+	return stemmer
+}

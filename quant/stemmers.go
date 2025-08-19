@@ -34,8 +34,8 @@ var _ Stemmer = &Porter2Stemmer{}
 
 // Implements the Porter2 stemming algorithm.
 type Porter2Stemmer struct {
-	// Language for this stemmer (set in [NewPorter2Stemmer])
 	lang Language
+
 	// Implementation function (set in [NewPorter2Stemmer])
 	impl func(string) string
 	// Word buffer
@@ -65,14 +65,9 @@ func NewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer, err error) {
 	return stemmer, nil
 }
 
-// Returns a new [Porter2Stemmer] which supports the [Language] given or panics
-// on an error.
-func MustNewPorter2Stemmer(lang Language) (stemmer *Porter2Stemmer) {
-	var err error
-	if stemmer, err = NewPorter2Stemmer(lang); err != nil {
-		panic(err)
-	}
-	return stemmer
+// Returns the [Porter2Stemmer]s configured [Language].
+func (p *Porter2Stemmer) Language() Language {
+	return p.lang
 }
 
 // Returns the stem for the selected word using the language-specific

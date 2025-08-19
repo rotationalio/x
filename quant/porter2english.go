@@ -13,6 +13,15 @@ import (
 // algorithm. Whitespace will be trimmed and the stem will be returned in
 // all lowercase.
 func (p *Porter2Stemmer) StemEnglish(word string) (stem string) {
+	// Ensure the language configured is English, in case the user did not call
+	// [Porter2Stemmer.Stem] to get here.
+	if p.lang != LanuageEnglish {
+		// Not English, so set it to English for now and reset it when done
+		oldLang := p.lang
+		p.lang = LanuageEnglish
+		defer func() { p.lang = oldLang }()
+	}
+
 	// Lowercase and remove any whitespace
 	word = strings.TrimSpace(strings.ToLower(word))
 
@@ -530,13 +539,8 @@ func (p *Porter2Stemmer) longestMatchingSuffix(start, end int, suffixes ...strin
 		return ""
 	}
 
-	// Sort the suffixes by length then lexicographically
-	slices.SortFunc(suffixes, func(a, b string) int {
-		if len(a) == len(b) {
-			return strings.Compare(a, b)
-		}
-		return len(b) - len(a)
-	})
+	// Sort the suffixes by length and lexicographically
+	SortLengthAndLexicographically(suffixes)
 
 	// Find the first matching suffix
 	for _, suffix := range suffixes {

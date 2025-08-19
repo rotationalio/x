@@ -26,17 +26,16 @@ const REGEX_ENGLISH_ALPHANUMERIC = `A-Za-z0-9`
 // RegexTokenizer
 // ############################################################################
 
+// Ensure [RegexTokenizer] meets the [Tokenizer] interface requirements.
+var _ Tokenizer = &RegexTokenizer{}
+
 // RegexTokenizer can be used to tokenize text; create with [NewRegexTokenizer].
 type RegexTokenizer struct {
-	// The [Language] to use for the [Tokenizer].
-	lang Language
-	// The regular expression to use for the [Tokenizer].
+	lang  Language
 	regex string
 }
 
-// Returns a new [RegexTokenizer] instance. Defaults to [LanuageEnglish] and
-// alphanumeric tokenization. Modified by passing [RegexTokenizerOption] functions
-// into relevant function calls.
+// Returns a new [RegexTokenizer] instance.
 //
 // Defaults:
 //   - Language: [LanguageEnglish]
@@ -57,6 +56,16 @@ func NewRegexTokenizer(opts ...RegexTokenizerOption) *RegexTokenizer {
 	}
 
 	return tokenizer
+}
+
+// Returns the [RegexTokenizer]s configured [Language]
+func (t *RegexTokenizer) Language() Language {
+	return t.lang
+}
+
+// Returns the [RegexTokenizer]s configured regular expression.
+func (t *RegexTokenizer) Regex() string {
+	return t.regex
 }
 
 // Tokenizes a chunk of text using [regexp.Regexp.FindAllString].
@@ -81,7 +90,7 @@ func (t *RegexTokenizer) Tokenize(chunk string) (tokens []string, err error) {
 type RegexTokenizerOption func(t *RegexTokenizer)
 
 // Returns a function which sets the [Language] to use with the [RegexTokenizer].
-func WithLanguage(lang Language) RegexTokenizerOption {
+func RegexTokenizerWithLanguage(lang Language) RegexTokenizerOption {
 	return func(t *RegexTokenizer) {
 		t.lang = lang
 	}
@@ -89,7 +98,7 @@ func WithLanguage(lang Language) RegexTokenizerOption {
 
 // Returns a function which sets the regular expression to use with the
 // [RegexTokenizer].
-func WithRegex(regex string) RegexTokenizerOption {
+func RegexTokenizerWithRegex(regex string) RegexTokenizerOption {
 	return func(t *RegexTokenizer) {
 		t.regex = regex
 	}

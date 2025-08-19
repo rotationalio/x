@@ -9,6 +9,9 @@ type TypeCounter struct {
 	lang      Language
 	tokenizer Tokenizer
 	stemmer   Stemmer
+
+	// Whether this struct was initialized by [NewTypeCounter]
+	initialized bool
 }
 
 // Returns a new [TypeCounter] instance. Defaults to the default [RegexTokenizer] and
@@ -39,7 +42,29 @@ func NewTypeCounter(opts ...TypeCounterOption) (tc *TypeCounter, err error) {
 		}
 	}
 
+	tc.initialized = true
+
 	return tc, nil
+}
+
+// Returns the [TypeCounter]s configured [Language].
+func (c *TypeCounter) Languge() Language {
+	return c.lang
+}
+
+// Returns the [TypeCounter]s configured [Tokenizer].
+func (c *TypeCounter) Tokenizer() Tokenizer {
+	return c.tokenizer
+}
+
+// Returns the [TypeCounter]s configured [Stemmer].
+func (c *TypeCounter) Stemmer() Stemmer {
+	return c.stemmer
+}
+
+// Returns true if the [TypeCounter] was initialized by [NewTypeCounter].
+func (c *TypeCounter) Initialized() bool {
+	return c.initialized
 }
 
 // Returns a map of type strings and their counts. For each token, all of the
@@ -81,15 +106,22 @@ func (c *TypeCounter) CountTypes(tokens []string) (types map[string]int) {
 // TypeCounterOption functions modify a [TypeCounter].
 type TypeCounterOption func(t *TypeCounter)
 
-// WithTokenizer sets the [Tokenizer] to be used for the [TypeCounter].
-func WithTokenizer(tokenizer Tokenizer) TypeCounterOption {
+// TypeCounterWithLanguage sets the [Language] to be used for a [TypeCounter].
+func TypeCounterWithLanguage(lang Language) TypeCounterOption {
+	return func(t *TypeCounter) {
+		t.lang = lang
+	}
+}
+
+// TypeCounterWithTokenizer sets the [Tokenizer] to be used for a [TypeCounter].
+func TypeCounterWithTokenizer(tokenizer Tokenizer) TypeCounterOption {
 	return func(t *TypeCounter) {
 		t.tokenizer = tokenizer
 	}
 }
 
-// WithStemmer sets the [Stemmer] to be used for the [TypeCounter].
-func WithStemmer(stemmer Stemmer) TypeCounterOption {
+// TypeCounterWithStemmer sets the [Stemmer] to be used for a [TypeCounter].
+func TypeCounterWithStemmer(stemmer Stemmer) TypeCounterOption {
 	return func(t *TypeCounter) {
 		t.stemmer = stemmer
 	}
