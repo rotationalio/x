@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/backoff"
 )
 
 func TestOptions(t *testing.T) {
@@ -25,13 +26,13 @@ func TestOptions(t *testing.T) {
 	t.Run("User", func(t *testing.T) {
 		opts := makeOptions(
 			WithRetries(42),
-			WithBackOff(NewConstantBackOff(1*time.Second)),
+			WithBackOff(backoff.NewConstantBackOff(1*time.Second)),
 			WithTimeout(1*time.Second),
 			WithError(ErrTaskManagerStopped),
 		)
 
 		assert.Equal(t, 42, opts.retries)
-		assert.IsType(t, NewConstantBackOff(1*time.Second), opts.backoff)
+		assert.IsType(t, backoff.NewConstantBackOff(1*time.Second), opts.backoff)
 		assert.Equal(t, 1*time.Second, opts.timeout)
 		assert.ErrorIs(t, opts.err, ErrTaskManagerStopped)
 		assert.False(t, opts.queuedAt.IsZero())
@@ -44,7 +45,7 @@ func TestOptions(t *testing.T) {
 		)
 
 		assert.Equal(t, 2, opts.retries)
-		assert.IsType(t, NewExponentialBackOff(), opts.backoff)
+		assert.IsType(t, backoff.NewExponentialBackOff(), opts.backoff)
 		assert.Equal(t, time.Duration(0), opts.timeout)
 		assert.EqualError(t, opts.err, "after 0 attempts: something wicked this way comes")
 		assert.False(t, opts.queuedAt.IsZero())
