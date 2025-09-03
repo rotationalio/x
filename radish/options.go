@@ -3,6 +3,8 @@ package radish
 import (
 	"context"
 	"time"
+
+	"go.rtnl.ai/x/backoff"
 )
 
 // Options are used to configure the behavior of the task manager.
@@ -35,7 +37,7 @@ func WithRetries(retries int) TaskOption {
 }
 
 // Backoff strategy to use when retrying (default constant backoff).
-func WithBackOff(backoff BackOff) TaskOption {
+func WithBackOff(backoff backoff.BackOff) TaskOption {
 	return func(o *TaskHandler) {
 		o.backoff = backoff
 	}

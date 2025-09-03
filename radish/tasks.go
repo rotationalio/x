@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"go.rtnl.ai/x/backoff"
 )
 
 // Workers in the task manager handle Tasks which can hold state and other information
@@ -31,7 +33,7 @@ type TaskHandler struct {
 	ctx      context.Context
 	attempts int
 	retries  int
-	backoff  BackOff
+	backoff  backoff.BackOff
 	timeout  time.Duration
 	err      *Error
 	queuedAt time.Time
@@ -56,7 +58,7 @@ func (tm *TaskManager) WrapTask(task Task, opts ...TaskOption) *TaskHandler {
 	}
 
 	if handler.retries > 0 && handler.backoff == nil {
-		handler.backoff = NewExponentialBackOff()
+		handler.backoff = backoff.NewExponentialBackOff()
 	}
 
 	return handler
@@ -88,7 +90,7 @@ func (h *TaskHandler) Exec() {
 	// Check if we have retries left
 	if h.attempts <= h.retries {
 		// Schedule the retry be added back to the queue
-		h.parent.scheduler.Delay(h.backoff.Next(), h)
+		h.parent.scheduler.Delay(h.backoff.NextBackOff(), h)
 		return
 	}
 }

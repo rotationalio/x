@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/backoff"
 	"go.rtnl.ai/x/radish"
 )
 
@@ -108,7 +109,7 @@ func TestTasksRetry(t *testing.T) {
 
 	// Queue state tasks with a retry limit that will ensure they all succeed
 	for _, retryTask := range state {
-		tm.Queue(retryTask, radish.WithRetries(5), radish.WithBackOff(radish.NewConstantBackOff(0)))
+		tm.Queue(retryTask, radish.WithRetries(5), radish.WithBackOff(&backoff.ZeroBackOff{}))
 	}
 
 	// Wait for all tasks to be completed and stop the task manager.
@@ -150,7 +151,7 @@ func TestTasksRetryFailure(t *testing.T) {
 
 	// Queue state tasks with a retry limit that will ensure they all fail
 	for _, retryTask := range state {
-		tm.Queue(retryTask, radish.WithRetries(1), radish.WithBackOff(radish.NewConstantBackOff(0)))
+		tm.Queue(retryTask, radish.WithRetries(1), radish.WithBackOff(&backoff.ZeroBackOff{}))
 	}
 
 	// Wait for all tasks to be completed and stop the task manager.
@@ -187,7 +188,7 @@ func TestTasksRetryBackoff(t *testing.T) {
 
 	// Queue state tasks with a retry limit that will ensure they all succeed
 	for _, retryTask := range state {
-		tm.Queue(retryTask, radish.WithRetries(5), radish.WithBackOff(radish.NewConstantBackOff(0)))
+		tm.Queue(retryTask, radish.WithRetries(5), radish.WithBackOff(&backoff.ZeroBackOff{}))
 	}
 
 	// Wait for all tasks to be completed and stop the task manager.
@@ -236,7 +237,7 @@ func TestTasksRetryContextCanceled(t *testing.T) {
 			atomic.AddInt32(&completed, 1)
 			return nil
 		}), radish.WithRetries(1),
-			radish.WithBackOff(radish.NewConstantBackOff(0)),
+			radish.WithBackOff(&backoff.ZeroBackOff{}),
 			radish.WithContext(ctx),
 		)
 	}
@@ -274,9 +275,9 @@ func TestTasksRetrySuccessAndFailure(t *testing.T) {
 	// First 50 have a retry, second 50 do not.
 	for i, retryTask := range state {
 		if i < 50 {
-			tm.Queue(retryTask, radish.WithRetries(2), radish.WithBackOff(radish.NewConstantBackOff(0)))
+			tm.Queue(retryTask, radish.WithRetries(2), radish.WithBackOff(&backoff.ZeroBackOff{}))
 		} else {
-			tm.Queue(retryTask, radish.WithBackOff(radish.NewConstantBackOff(0)))
+			tm.Queue(retryTask, radish.WithBackOff(&backoff.ZeroBackOff{}))
 		}
 	}
 
@@ -319,7 +320,7 @@ func TestTasksTimeout(t *testing.T) {
 
 	// Queue state tasks with a short timeout
 	for _, retryTask := range state {
-		tm.Queue(retryTask, radish.WithBackOff(radish.NewConstantBackOff(0)), radish.WithTimeout(10*time.Millisecond))
+		tm.Queue(retryTask, radish.WithBackOff(&backoff.ZeroBackOff{}), radish.WithTimeout(10*time.Millisecond))
 	}
 
 	// Wait for the timeout to expire
