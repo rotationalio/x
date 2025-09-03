@@ -16,6 +16,7 @@ This is single repository that stores many, independent small subpackages. This 
 
 - [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run.
 - [assert](https://go.rtnl.ai/x/assert): simple test assertions for no-dependency testing
+- [backoff](https://go.rtnl.ai/x/backoff): an exponential backoff algorithm
 - [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
 - [country](https://go.rtnl.ai/x/country): a helper package for resolving ISO-3166-1 country codes to country information
 - [dsn](https://go.rtnl.ai/x/dsn): parses data source names in order to connect to both server and embedded databases easily.
