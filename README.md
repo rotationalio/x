@@ -26,6 +26,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
 - [out](https://go.rtnl.ai/x/out): hierarchical logger to manage logging verbosity to stdout
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
+- [query](https://go.rtnl.ai/x/query): encode struct values as a url query string
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
