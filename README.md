@@ -32,6 +32,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
+- [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
 - [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
 
