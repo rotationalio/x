@@ -72,4 +72,6 @@ jobs:
           go version
 
       - name: Run Unit Tests
-        run: go test -v -coverprofile=coverage.txt -covermode=atomic --race ./...
+        run: |
+          go env -w GOTOOLCHAIN=go1.25.0+auto
+          go test -v -coverprofile=coverage.txt -covermode=atomic --race ./...
