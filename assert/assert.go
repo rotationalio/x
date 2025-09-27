@@ -11,9 +11,11 @@ package assert
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 )
 
 // Assert fails the test if the condition is false.
@@ -192,6 +194,27 @@ func NotNil(tb testing.TB, object interface{}, msgAndArgs ...interface{}) {
 	Assert(tb, object != nil && !reflect.ValueOf(object).IsNil(), msg)
 }
 
+// InDelta asserts that the two numerals are within delta of each other.
+func InDelta(tb testing.TB, expected, actual any, delta float64, msgAndArgs ...interface{}) {
+	tb.Helper()
+
+	af, aok := toFloat(expected)
+	bf, bok := toFloat(actual)
+
+	Assert(tb, aok && bok, makeMessage("parameters must be numbers", msgAndArgs...))
+
+	// If both expected and actual are NaN, we consider them equal.
+	if math.IsNaN(af) && math.IsNaN(bf) {
+		return
+	}
+
+	Assert(tb, !math.IsNaN(af), makeMessage("expected must not be NaN", msgAndArgs...))
+	Assert(tb, !math.IsNaN(bf), makeMessage(fmt.Sprintf("expected %v with delta %v, but was NaN", expected, delta), msgAndArgs...))
+
+	d := af - bf
+	Assert(tb, !(d < -delta || d > delta), makeMessage(fmt.Sprintf("expected %v to be within %v of %v", actual, delta, expected), msgAndArgs...))
+}
+
 func makeMessage(msg string, msgAndArgs ...interface{}) string {
 	switch len(msgAndArgs) {
 	case 0:
@@ -222,4 +245,44 @@ func getLen(x interface{}) (length int, ok bool) {
 		ok = recover() == nil
 	}()
 	return v.Len(), true
+}
+
+// toFloat tries to convert an interface to a float64.
+// It returns (0, false) if impossible.
+func toFloat(x interface{}) (float64, bool) {
+	var v float64
+	ok := true
+
+	switch n := x.(type) {
+	case uint:
+		v = float64(n)
+	case uint8:
+		v = float64(n)
+	case uint16:
+		v = float64(n)
+	case uint32:
+		v = float64(n)
+	case uint64:
+		v = float64(n)
+	case int:
+		v = float64(n)
+	case int8:
+		v = float64(n)
+	case int16:
+		v = float64(n)
+	case int32:
+		v = float64(n)
+	case int64:
+		v = float64(n)
+	case float32:
+		v = float64(n)
+	case float64:
+		v = n
+	case time.Duration:
+		v = float64(n)
+	default:
+		ok = false
+	}
+
+	return v, ok
 }
