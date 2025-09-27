@@ -43,7 +43,7 @@ spec("1.2.9")
 // false
 ```
 
-Alternatively, you can check to see if a version satisifies a range:
+Alternatively, you can check to see if a version satisfies a range:
 
 ```go
 v := semver.MustParse("1.3.0")
