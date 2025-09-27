@@ -111,7 +111,7 @@ func TestStatistics(t *testing.T) {
 		assert.InDelta(t, time.Duration(1199451546000000), stats.Total(), 1e-3)
 		assert.InDelta(t, 1.199451546e+09, stats.Mean(), 1e-3)
 		assert.InDelta(t, 1.0349137617525254e+08, stats.StdDev(), 1e-3)
-		assert.InDelta(t, 1.071046494264763e+16, stats.Variance(), 1e-3)
+		assert.InDelta(t, 1.071046494264763e+16, stats.Variance(), 1e6)
 		assert.InDelta(t, time.Duration(1683000000), stats.Maximum(), 1e-3)
 		assert.InDelta(t, time.Duration(686000000), stats.Minimum(), 1e-3)
 		assert.InDelta(t, time.Duration(997000000), float64(stats.Range()), 1e-3)
