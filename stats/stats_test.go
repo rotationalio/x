@@ -108,13 +108,13 @@ func TestStatistics(t *testing.T) {
 		t.Log(strconv.FormatInt(int64(stats.Range()), 10))
 
 		assert.Equal(t, int64(1000000), stats.N())
-		assert.InDelta(t, time.Duration(1199451546000000), stats.Total(), delta)
-		assert.InDelta(t, 1.199451546e+09, stats.Mean(), delta)
-		assert.InDelta(t, 1.0349137617525254e+08, stats.StdDev(), delta)
-		assert.InDelta(t, 1.071046494264763e+16, stats.Variance(), delta)
-		assert.InDelta(t, time.Duration(1683000000), stats.Maximum(), delta)
-		assert.InDelta(t, time.Duration(686000000), stats.Minimum(), delta)
-		assert.InDelta(t, time.Duration(997000000), float64(stats.Range()), delta)
+		assert.InDelta(t, time.Duration(1199451546000000), stats.Total(), 1e-3)
+		assert.InDelta(t, 1.199451546e+09, stats.Mean(), 1e-3)
+		assert.InDelta(t, 1.0349137617525254e+08, stats.StdDev(), 1e-3)
+		assert.InDelta(t, 1.071046494264763e+16, stats.Variance(), 1e-3)
+		assert.InDelta(t, time.Duration(1683000000), stats.Maximum(), 1e-3)
+		assert.InDelta(t, time.Duration(686000000), stats.Minimum(), 1e-3)
+		assert.InDelta(t, time.Duration(997000000), float64(stats.Range()), 1e-3)
 	})
 }
 
