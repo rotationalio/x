@@ -21,7 +21,10 @@ computations for values.
 package stats
 
 import (
+	"database/sql/driver"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -75,6 +78,10 @@ func (s *Statistics[T]) Update(samples ...T) {
 		}
 	}
 }
+
+//===========================================================================
+// Distribution Accessors
+//===========================================================================
 
 // N returns the number of samples observed.
 func (s *Statistics[T]) N() int64 {
@@ -143,6 +150,10 @@ func (s *Statistics[T]) Range() T {
 	return s.maximum - s.minimum
 }
 
+//===========================================================================
+// Helpers
+//===========================================================================
+
 // Append another statistics object to the current statistics object,
 // incrementing the distribution from the other object.
 func (s *Statistics[T]) Append(o *Statistics[T]) {
@@ -164,6 +175,10 @@ func (s *Statistics[T]) Append(o *Statistics[T]) {
 	s.samples += o.samples
 	s.squares += o.squares
 }
+
+//===========================================================================
+// JSON Serialization
+//===========================================================================
 
 func (s *Statistics[T]) MarshalJSON() ([]byte, error) {
 	data := map[string]json.Number{
@@ -236,4 +251,62 @@ func (s *Statistics[T]) UnmarshalJSON(data []byte) (err error) {
 	}
 
 	return nil
+}
+
+//===========================================================================
+// Binary Serialization
+//===========================================================================
+
+func (s *Statistics[T]) MarshalBinary() ([]byte, error) {
+	buf := make([]byte, 40)
+	binary.LittleEndian.PutUint64(buf[0:8], uint64(s.samples))
+	binary.LittleEndian.PutUint64(buf[8:16], math.Float64bits(s.total))
+	binary.LittleEndian.PutUint64(buf[16:24], math.Float64bits(s.squares))
+	binary.LittleEndian.PutUint64(buf[24:32], math.Float64bits(float64(s.maximum)))
+	binary.LittleEndian.PutUint64(buf[32:40], math.Float64bits(float64(s.minimum)))
+	return buf, nil
+}
+
+func (s *Statistics[T]) UnmarshalBinary(data []byte) error {
+	if len(data) != 40 {
+		return errors.New("stats: binary data buffer is the wrong size")
+	}
+
+	s.samples = int64(binary.LittleEndian.Uint64(data[0:8]))
+	s.total = math.Float64frombits(binary.LittleEndian.Uint64(data[8:16]))
+	s.squares = math.Float64frombits(binary.LittleEndian.Uint64(data[16:24]))
+	s.maximum = T(math.Float64frombits(binary.LittleEndian.Uint64(data[24:32])))
+	s.minimum = T(math.Float64frombits(binary.LittleEndian.Uint64(data[32:40])))
+
+	return nil
+}
+
+//===========================================================================
+// SQL Interfaces
+//===========================================================================
+
+// Scan implements the sql.Scanner interface to load the stats from a BLOB.
+func (s *Statistics[T]) Scan(src any) error {
+	switch val := src.(type) {
+	case nil:
+		return nil
+	case []byte:
+		return s.UnmarshalBinary(val)
+	default:
+		return errors.New("stats: source value must be a byte slice")
+	}
+}
+
+// Value implements the sql/driver.Valuer interface, returning the stats as a
+// slice of bytes, by invoking MarshalBinary.
+func (s *Statistics[T]) Value() (driver.Value, error) {
+	return s.MarshalBinary()
+}
+
+//===========================================================================
+// fmt.Stringer Interface
+//===========================================================================
+
+func (s *Statistics[T]) String() string {
+	return fmt.Sprintf("%0.3fµ ± %0.3fσ in [%v, %v] for %d samples", s.Mean(), s.StdDev(), s.Minimum(), s.Maximum(), s.N())
 }

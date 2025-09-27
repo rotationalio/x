@@ -338,6 +338,42 @@ func TestBadJSON(t *testing.T) {
 	}
 }
 
+func TestBinary(t *testing.T) {
+	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
+	orig := new(stats.Statistics[float64])
+
+	for i := 0; i < 10000; i++ {
+		orig.Update(rand.NormFloat64()*4.21312 + 15.930541)
+	}
+
+	data, err := orig.MarshalBinary()
+	assert.Ok(t, err)
+
+	cmpt := new(stats.Statistics[float64])
+	err = cmpt.UnmarshalBinary(data)
+	assert.Ok(t, err)
+
+	assert.Equal(t, orig.N(), cmpt.N())
+	assert.InDelta(t, orig.Total(), cmpt.Total(), delta)
+	assert.InDelta(t, orig.Mean(), cmpt.Mean(), delta)
+	assert.InDelta(t, orig.StdDev(), cmpt.StdDev(), delta)
+	assert.InDelta(t, orig.Variance(), cmpt.Variance(), delta)
+	assert.InDelta(t, float64(orig.Maximum()), float64(cmpt.Maximum()), delta)
+	assert.InDelta(t, float64(orig.Minimum()), float64(cmpt.Minimum()), delta)
+	assert.InDelta(t, float64(orig.Range()), float64(cmpt.Range()), delta)
+
+}
+
+func TestString(t *testing.T) {
+	loadTestData()
+	stats := new(stats.Statistics[float64])
+	stats.Update(testFloats...)
+
+	str := stats.String()
+	expected := "-0.000µ ± 1.000σ in [-4.962035104188279, 4.671499986908815] for 1000000 samples"
+	assert.Equal(t, expected, str)
+}
+
 func BenchmarkStatistics_Update(b *testing.B) {
 	b.Run("float64", func(b *testing.B) {
 		rand42 := rand.New(rand.NewSource(42))
