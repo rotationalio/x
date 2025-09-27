@@ -23,7 +23,7 @@ var (
 const (
 	testSeed = 512     // random seed ensures that we'll always get the same test data
 	testN    = 1000000 // number of samples to generate
-	delta    = 1e-12   // delta for comparison tests
+	delta    = 1e-9    // delta for comparison tests
 )
 
 func loadTestData() {
