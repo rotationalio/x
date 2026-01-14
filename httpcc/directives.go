@@ -1,9 +1,13 @@
 package httpcc
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Directive includes cache directives for both requests and responses.
 type Directive struct {
+	date         *time.Time
 	maxAge       *uint64
 	noCache      bool
 	noStore      bool
@@ -28,6 +32,9 @@ type RequestDirective struct {
 // are used to control caching behavior on the client side or in intermediate caches.
 type ResponseDirective struct {
 	Directive
+	age                  *uint64
+	requestTime          *time.Time
+	responseTime         *time.Time
 	expires              *time.Time
 	lastModified         *time.Time
 	etag                 *string
@@ -45,6 +52,16 @@ type ResponseDirective struct {
 //===========================================================================
 // Directive Methods
 //===========================================================================
+
+// The HTTP Date request and response header contains the date and time at which the
+// message originated.
+// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Date
+func (d *Directive) Date() (time.Time, bool) {
+	if v := d.date; v != nil {
+		return *v, true
+	}
+	return time.Time{}, false
+}
 
 // The max-age=N response directive indicates that the response remains fresh until
 // N seconds after the response is generated. Stored HTTP responses have two states:
@@ -184,6 +201,103 @@ func (d *RequestDirective) OnlyIfCached() bool {
 //===========================================================================
 // Response Directive Methods
 //===========================================================================
+
+// The HTTP Age response header indicates the time in seconds for which an object was
+// in a proxy cache. The header value is usually close to zero. If the value is 0, the
+// object was probably fetched from the origin server; otherwise, the value is usually
+// calculated as a difference between the proxy's current date and the Date general
+// header included in the HTTP response.
+// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Age
+func (d *ResponseDirective) Age() (uint64, bool) {
+	if v := d.age; v != nil {
+		return *v, true
+	}
+	return 0, false
+}
+
+// The HTTP X-Request-Time response header is a de-facto standard header that contains
+// the date and time at which the request was sent to the origin server by the client.
+// It is generally stored on the response by the cache and not the server.
+func (d *ResponseDirective) RequestTime() (time.Time, bool) {
+	if v := d.requestTime; v != nil {
+		return *v, true
+	}
+	return time.Time{}, false
+}
+
+// The HTTP X-Response-Time response header is a de-facto standard header that contains
+// the date and time at which the request was recieved by the client from the origin
+// server. It is generally stored on the response by the cache and not the server.
+func (d *ResponseDirective) ResponseTime() (time.Time, bool) {
+	if v := d.responseTime; v != nil {
+		return *v, true
+	}
+	return time.Time{}, false
+}
+
+// CalculateAge implements the Age calculation algorithm from RFC 9111 Section 4.2.3.
+//
+// RFC 9111 formula:
+//
+//	apparent_age = max(0, response_time - date_value)
+//	response_delay = response_time - request_time
+//	corrected_age_value = age_value + response_delay
+//	corrected_initial_age = max(apparent_age, corrected_age_value)
+//	resident_time = now - response_time
+//	current_age = corrected_initial_age + resident_time
+//
+// For cached responses:
+//   - request_time is stored in X-Request-Time header
+//   - response_time is stored in X-Response-Time header
+//   - date_value comes from Date header
+//   - age_value comes from Age header (if present)
+func (d *ResponseDirective) CalculateAge() (age time.Duration, err error) {
+	date, ok := d.Date()
+	if !ok {
+		return 0, errors.New("parseable date header is required to calculate age")
+	}
+
+	responseTime, ok := d.ResponseTime()
+	if !ok {
+		// If no cached time, use simplified calculation.
+		age = time.Since(date)
+
+		// Add any existing age header to the age.
+		if addAge, ok := d.Age(); ok {
+			age += time.Duration(addAge) * time.Second
+		}
+
+		return age, nil
+	}
+
+	// RFC 9111 Section 4.2.3: apparent_age = max(0, response_time - date_value)
+	var apparentAge time.Duration
+	if responseTime.After(date) {
+		apparentAge = responseTime.Sub(date)
+	}
+
+	// Get the response delay
+	var responseDelay time.Duration
+	if requestTime, ok := d.RequestTime(); ok {
+		responseDelay = responseTime.Sub(requestTime)
+	}
+
+	// RFC 9111 Section 4.2.3: corrected_age_value = age_value + response_delay
+	ageValue, _ := d.Age()
+	correctedAgeValue := (time.Duration(ageValue) * time.Second) + responseDelay
+
+	// RFC 9111: corrected_initial_age = max(apparent_age, corrected_age_value)
+	correctedInitialAge := apparentAge
+	if correctedAgeValue > correctedInitialAge {
+		correctedInitialAge = correctedAgeValue
+	}
+
+	// RFC 9111: resident_time = now - response_time
+	residentTime := time.Since(responseTime)
+
+	// RFC 9111: current_age = corrected_initial_age + resident_time
+	return correctedInitialAge + residentTime, nil
+}
 
 // The HTTP Expires response header contains the date/time after which the response is
 // considered expired in the context of HTTP caching.

@@ -32,6 +32,10 @@ const (
 
 const (
 	// Header Values
+	Date              = "Date"
+	Age               = "Age"
+	XRequestTime      = "X-Request-Time"
+	XResponseTime     = "X-Response-Time"
 	CacheControl      = "Cache-Control"
 	LastModified      = "Last-Modified"
 	Expires           = "Expires"
@@ -55,6 +59,15 @@ func Request(req any) (directive *RequestDirective, err error) {
 		// Parse the Cache-Control header from the request.
 		if directive, err = ParseRequest(r.Header.Get(CacheControl)); err != nil {
 			return nil, fmt.Errorf("failed to parse request cache control: %w", err)
+		}
+
+		// Parse the Date header if it exists.
+		if date := r.Header.Get(Date); date != "" {
+			var t time.Time
+			if t, err = http.ParseTime(date); err != nil {
+				return nil, fmt.Errorf("failed to parse date time: %w", err)
+			}
+			directive.date = &t
 		}
 
 		// Parse the If-None-Match header if it exists.
@@ -103,6 +116,45 @@ func Response(rep any) (directive *ResponseDirective, err error) {
 		// Parse the Cache-Control header from the response.
 		if directive, err = ParseResponse(r.Header.Get(CacheControl)); err != nil {
 			return nil, fmt.Errorf("failed to parse response cache control: %w", err)
+		}
+
+		// Parse the Date header if it exists.
+		if date := r.Header.Get(Date); date != "" {
+			var t time.Time
+			if t, err = http.ParseTime(date); err != nil {
+				return nil, fmt.Errorf("failed to parse date time: %w", err)
+			}
+			directive.date = &t
+		}
+
+		// Parse the Age header if it exists.
+		// RFC 9111 requirements:
+		// - If multiple Age headers exist, use the first value and discard others
+		// - If the value is invalid (negative, non-numeric), ignore it completely
+		// - Age header value must be a non-negative integer representing seconds
+		if age := r.Header.Get(Age); age != "" {
+			var val uint64
+			if val, err = parseUint64(age); err == nil {
+				directive.age = &val
+			}
+		}
+
+		// Parse the X-Request-Time header if it exists.
+		// Ignore errors parsing the header value.
+		if requestTime := r.Header.Get(XRequestTime); requestTime != "" {
+			var t time.Time
+			if t, err = http.ParseTime(requestTime); err == nil {
+				directive.requestTime = &t
+			}
+		}
+
+		// Parse the X-Response-Time header if it exists.
+		// Ignore errors parsing the header value.
+		if responseTime := r.Header.Get(XResponseTime); responseTime != "" {
+			var t time.Time
+			if t, err = http.ParseTime(responseTime); err == nil {
+				directive.responseTime = &t
+			}
 		}
 
 		// Parse the Expires header if it exists.
