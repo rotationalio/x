@@ -16,6 +16,10 @@ func TestRequest(t *testing.T) {
 		directive, err := Request(*req)
 		assert.Ok(t, err, "failed to parse request cache control")
 
+		date, ok := directive.Date()
+		assert.False(t, ok)
+		assert.True(t, date.IsZero())
+
 		maxAge, ok := directive.MaxAge()
 		assert.False(t, ok)
 		assert.Equal(t, uint64(0), maxAge)
@@ -63,12 +67,17 @@ func TestRequest(t *testing.T) {
 
 		ts := time.Date(2025, 4, 7, 13, 21, 43, 0, time.UTC)
 
+		req.Header.Set(Date, ts.Format(http.TimeFormat))
 		req.Header.Set(IfNoneMatch, "myetag")
 		req.Header.Set(IfUnmodifiedSince, ts.Format(http.TimeFormat))
 		req.Header.Set(IfModifiedSince, ts.Format(http.TimeFormat))
 
 		directive, err := Request(*req)
 		assert.Ok(t, err, "failed to parse request cache control")
+
+		date, ok := directive.Date()
+		assert.True(t, ok)
+		assert.Equal(t, ts, date)
 
 		ifNoneMatch, ok := directive.IfNoneMatch()
 		assert.True(t, ok)
@@ -93,6 +102,7 @@ func TestRequest(t *testing.T) {
 
 		ts := time.Date(2025, 4, 7, 13, 21, 43, 0, time.UTC)
 
+		req.Header.Set(Date, ts.Format(http.TimeFormat))
 		req.Header.Set(CacheControl, "max-age=604800, no-transform, stale-if-error=86400")
 		req.Header.Set(IfNoneMatch, "myetag")
 		req.Header.Set(IfUnmodifiedSince, ts.Format(http.TimeFormat))
@@ -100,6 +110,10 @@ func TestRequest(t *testing.T) {
 
 		directive, err := Request(*req)
 		assert.Ok(t, err, "failed to parse request cache control")
+
+		date, ok := directive.Date()
+		assert.True(t, ok)
+		assert.Equal(t, ts, date)
 
 		maxAge, ok := directive.MaxAge()
 		assert.True(t, ok)
@@ -174,6 +188,24 @@ func TestResponse(t *testing.T) {
 		directive, err := Response(*rep)
 		assert.Ok(t, err, "failed to parse response cache control")
 
+		date, ok := directive.Date()
+		assert.False(t, ok)
+		assert.True(t, date.IsZero())
+
+		age, ok := directive.Age()
+		assert.False(t, ok)
+		assert.Equal(t, uint64(0), age)
+
+		requestTime, ok := directive.RequestTime()
+		assert.False(t, ok)
+		assert.True(t, requestTime.IsZero())
+
+		responseTime, ok := directive.ResponseTime()
+		assert.False(t, ok)
+		assert.True(t, responseTime.IsZero())
+
+		assert.Nil(t, directive.Vary())
+
 		maxAge, ok := directive.MaxAge()
 		assert.False(t, ok)
 		assert.Equal(t, uint64(0), maxAge)
@@ -231,12 +263,17 @@ func TestResponse(t *testing.T) {
 		}
 
 		ts := time.Date(2025, 4, 7, 13, 21, 43, 0, time.UTC)
+		rep.Header.Set(Date, ts.Format(http.TimeFormat))
 		rep.Header.Set(Expires, ts.Format(http.TimeFormat))
 		rep.Header.Set(LastModified, ts.Format(http.TimeFormat))
 		rep.Header.Set(ETag, "myetag")
 
 		directive, err := Response(*rep)
 		assert.Ok(t, err, "failed to parse response cache control")
+
+		date, ok := directive.Date()
+		assert.True(t, ok)
+		assert.Equal(t, ts, date)
 
 		expires, ok := directive.Expires()
 		assert.True(t, ok)
@@ -262,6 +299,7 @@ func TestResponse(t *testing.T) {
 
 		ts := time.Date(2025, 4, 7, 13, 21, 43, 0, time.UTC)
 
+		rep.Header.Set(Date, ts.Format(http.TimeFormat))
 		rep.Header.Set(CacheControl, "max-age=604800, must-revalidate")
 		rep.Header.Set(Expires, ts.Format(http.TimeFormat))
 		rep.Header.Set(LastModified, ts.Format(http.TimeFormat))
@@ -269,6 +307,10 @@ func TestResponse(t *testing.T) {
 
 		directive, err := Response(*rep)
 		assert.Ok(t, err, "failed to parse response cache control")
+
+		date, ok := directive.Date()
+		assert.True(t, ok)
+		assert.Equal(t, ts, date)
 
 		maxAge, ok := directive.MaxAge()
 		assert.True(t, ok)
@@ -347,6 +389,77 @@ func TestResponse(t *testing.T) {
 
 			assert.True(t, directive.WeakETag())
 		})
+	})
+
+	t.Run("Age", func(t *testing.T) {
+
+		t.Run("Valid", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(Age, "3600")
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			age, ok := directive.Age()
+			assert.True(t, ok)
+			assert.Equal(t, uint64(3600), age)
+		})
+
+		t.Run("Invalid", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(Age, "foo")
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			age, ok := directive.Age()
+			assert.False(t, ok)
+			assert.Equal(t, uint64(0), age)
+		})
+
+		t.Run("Negative", func(t *testing.T) {
+			rep := &http.Response{Header: make(http.Header)}
+			rep.Header.Set(Age, "-500")
+
+			directive, err := Response(*rep)
+			assert.Ok(t, err, "failed to parse response cache control")
+
+			age, ok := directive.Age()
+			assert.False(t, ok)
+			assert.Equal(t, uint64(0), age)
+		})
+	})
+
+	t.Run("CacheHeaders", func(t *testing.T) {
+		requestTime := time.Date(2025, 4, 7, 13, 21, 43, 0, time.UTC)
+		responseTime := requestTime.Add(2 * time.Second)
+
+		rep := &http.Response{Header: make(http.Header)}
+		rep.Header.Set(XRequestTime, requestTime.Format(http.TimeFormat))
+		rep.Header.Set(XResponseTime, responseTime.Format(http.TimeFormat))
+
+		directive, err := Response(*rep)
+		assert.Ok(t, err, "failed to parse response cache control")
+
+		rt, ok := directive.RequestTime()
+		assert.True(t, ok)
+		assert.Equal(t, requestTime, rt)
+
+		rt, ok = directive.ResponseTime()
+		assert.True(t, ok)
+		assert.Equal(t, responseTime, rt)
+	})
+
+	t.Run("Vary", func(t *testing.T) {
+		rep := &http.Response{Header: make(http.Header)}
+		rep.Header.Set(Vary, "Accept-Encoding, User-Agent")
+
+		directive, err := Response(*rep)
+		assert.Ok(t, err, "failed to parse response cache control")
+
+		vary := directive.Vary()
+		assert.NotNil(t, vary)
+		assert.Equal(t, []string{"Accept-Encoding", "User-Agent"}, vary)
 	})
 }
 
@@ -487,6 +600,55 @@ func TestSkipSpaces(t *testing.T) {
 		assert.Ok(t, err)
 		assert.Equal(t, 4, len(tokens), "Expected 4 tokens for %q", cc)
 	})
+}
+
+func TestParseVaryHeader(t *testing.T) {
+	var testCases = []struct {
+		vary     string
+		expected []string
+	}{
+		{"Accept-Encoding", []string{"Accept-Encoding"}},
+		{"Accept-Encoding, User-Agent", []string{"Accept-Encoding", "User-Agent"}},
+		{"  Accept-Encoding  ,  User-Agent  ", []string{"Accept-Encoding", "User-Agent"}},
+		{"  Accept-Encoding  ,,  User-Agent  ,", []string{"Accept-Encoding", "User-Agent"}},
+		{"*", []string{"*"}},
+		{"  *  ", []string{"*"}},
+		{"", []string{}},
+		{"   ", []string{}},
+		{",", []string{}},
+		{"*, Accept-Language", []string{"*", "Accept-Language"}},
+		{"accept-encoding,accept-language,content-type", []string{"Accept-Encoding", "Accept-Language", "Content-Type"}},
+		{"accept-language, *", []string{"Accept-Language", "*"}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ParseVaryHeaders(tc.vary)
+		assert.Ok(t, err, "failed to parse vary header for %q", tc.vary)
+		assert.Equal(t, tc.expected, result, "parsed vary did not match expected for %q", tc.vary)
+	}
+}
+
+func TestParseHeaderCSV(t *testing.T) {
+	var testCases = []struct {
+		input    string
+		expected []string
+	}{
+		{"a,b,c", []string{"a", "b", "c"}},
+		{" a , b , c ", []string{"a", "b", "c"}},
+		{"a,,b,,c", []string{"a", "b", "c"}},
+		{",a,b,c,", []string{"a", "b", "c"}},
+		{"", []string{}},
+		{"   ", []string{}},
+		{",,,", []string{}},
+		{"en-FR, fr-CA, fr-FR", []string{"en-FR", "fr-CA", "fr-FR"}},
+		{"en,fr,es", []string{"en", "fr", "es"}},
+	}
+
+	for _, tc := range testCases {
+		result, err := ParseHeaderCSVs(tc.input)
+		assert.Ok(t, err, "failed to parse header CSV for %q", tc.input)
+		assert.Equal(t, tc.expected, result, "parsed CSV did not match expected for %q", tc.input)
+	}
 }
 
 func assertDirectives(t *testing.T, directives any, expected map[string]any) {

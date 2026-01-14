@@ -11,6 +11,10 @@ func TestDirective(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
 		directive := &httpcc.Directive{}
 
+		date, ok := directive.Date()
+		assert.False(t, ok)
+		assert.True(t, date.IsZero())
+
 		maxAge, ok := directive.MaxAge()
 		assert.False(t, ok)
 		assert.Equal(t, uint64(0), maxAge)
