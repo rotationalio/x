@@ -34,6 +34,7 @@ const (
 	// Header Values
 	Date              = "Date"
 	Age               = "Age"
+	Vary              = "Vary"
 	XRequestTime      = "X-Request-Time"
 	XResponseTime     = "X-Response-Time"
 	CacheControl      = "Cache-Control"
@@ -155,6 +156,15 @@ func Response(rep any) (directive *ResponseDirective, err error) {
 			if t, err = http.ParseTime(responseTime); err == nil {
 				directive.responseTime = &t
 			}
+		}
+
+		// Parse the Vary header if it exists.
+		if vary := r.Header.Values(Vary); len(vary) > 0 {
+			var headers []string
+			if headers, err = ParseVaryHeaders(vary...); err != nil {
+				return nil, err
+			}
+			directive.vary = headers
 		}
 
 		// Parse the Expires header if it exists.
@@ -455,6 +465,76 @@ func parseDirectives(s string, p func(string) (*TokenPair, error)) (tokens []*To
 	}
 
 	return tokens, nil
+}
+
+// Parses comma separated values from a Vary header(s) into canonicalized header names.
+func ParseVaryHeaders(values ...string) (headers []string, err error) {
+	canonicalize := func(s string) (string, error) {
+		return http.CanonicalHeaderKey(s), nil
+	}
+	return ApplyParseHeaderCSVs(canonicalize, values...)
+}
+
+func ParseHeaderCSVs(headers ...string) (values []string, err error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+
+	values = make([]string, 0)
+	for _, s := range headers {
+		scanner := bufio.NewScanner(strings.NewReader(s))
+		scanner.Split(commaSeparatedWords)
+
+		for scanner.Scan() {
+			value := scanner.Text()
+
+			// Skip any empty values
+			if value == "" {
+				continue
+			}
+
+			values = append(values, value)
+		}
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return values, nil
+}
+
+func ApplyParseHeaderCSVs(fn func(string) (string, error), headers ...string) (values []string, err error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+
+	values = make([]string, 0)
+	for _, header := range headers {
+		scanner := bufio.NewScanner(strings.NewReader(header))
+		scanner.Split(commaSeparatedWords)
+
+		for scanner.Scan() {
+			value := scanner.Text()
+
+			var parsed string
+			if parsed, err = fn(value); err != nil {
+				return nil, err
+			}
+
+			// Skip any empty values
+			if parsed == "" {
+				continue
+			}
+
+			values = append(values, parsed)
+		}
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+	}
+
+	return values, nil
 }
 
 // Scan to find comma separated tokens, handling leading spaces and consecutive spaces.

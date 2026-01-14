@@ -35,6 +35,7 @@ type ResponseDirective struct {
 	age                  *uint64
 	requestTime          *time.Time
 	responseTime         *time.Time
+	vary                 []string
 	expires              *time.Time
 	lastModified         *time.Time
 	etag                 *string
@@ -233,6 +234,16 @@ func (d *ResponseDirective) ResponseTime() (time.Time, bool) {
 		return *v, true
 	}
 	return time.Time{}, false
+}
+
+// The HTTP Vary response header describes the parts of the request message (aside from
+// the method and URL) that influenced the content of the response it occurs in.
+// Including a Vary header ensures that responses are separately cached based on the
+// headers listed in the Vary field. Most often, this is used to create a cache key
+// when content negotiation is in use.
+// See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Vary
+func (d *ResponseDirective) Vary() []string {
+	return d.vary
 }
 
 // CalculateAge implements the Age calculation algorithm from RFC 9111 Section 4.2.3.
