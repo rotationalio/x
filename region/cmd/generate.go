@@ -140,17 +140,8 @@ func iterateData(yield func(name string, region *region.Info) bool) {
 		}
 		path := filepath.Join("testdata", entry.Name())
 
-		var (
-			f    *os.File
-			data map[string]*region.Info
-		)
-
-		if f, err = os.Open(path); err != nil {
-			handleError(err)
-		}
-		defer f.Close()
-
-		if err = json.NewDecoder(f).Decode(&data); err != nil {
+		var data map[string]*region.Info
+		if data, err = readData(path); err != nil {
 			handleError(err)
 		}
 
@@ -160,6 +151,19 @@ func iterateData(yield func(name string, region *region.Info) bool) {
 			}
 		}
 	}
+}
+
+func readData(path string) (data map[string]*region.Info, err error) {
+	var f *os.File
+	if f, err = os.Open(path); err != nil {
+		return nil, fmt.Errorf("could not open %s: %w", path, err)
+	}
+	defer f.Close()
+
+	if err = json.NewDecoder(f).Decode(&data); err != nil {
+		return nil, fmt.Errorf("could not decode JSON data: %w", err)
+	}
+	return data, nil
 }
 
 type pair struct {

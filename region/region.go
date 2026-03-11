@@ -56,12 +56,16 @@ func List() Regions {
 func Parse(s interface{}) (_ Region, err error) {
 	switch v := s.(type) {
 	case string:
+		if v == "" {
+			return UNKNOWN, nil
+		}
+
 		if isDigits(v) {
 			var n uint64
 			if n, err = strconv.ParseUint(v, 10, 32); err != nil {
 				return 0, err
 			}
-			return Region(n), nil
+			return Parse(uint32(n))
 		}
 
 		v = normalize(v)
@@ -210,6 +214,10 @@ func (r *Region) Decode(s string) (err error) {
 //============================================================================
 
 func isDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+
 	for _, c := range s {
 		if c < '0' || c > '9' {
 			return false
