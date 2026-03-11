@@ -56,10 +56,6 @@ func List() Regions {
 func Parse(s interface{}) (_ Region, err error) {
 	switch v := s.(type) {
 	case string:
-		if v == "" {
-			return UNKNOWN, nil
-		}
-
 		if isDigits(v) {
 			var n uint64
 			if n, err = strconv.ParseUint(v, 10, 32); err != nil {
