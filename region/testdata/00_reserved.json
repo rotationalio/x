@@ -1,0 +1,22 @@
+{
+  "UNKNOWN": {
+    "region": 0,
+    "name": "unknown"
+  },
+  "LOCALHOST": {
+    "region": 1,
+    "name": "localhost"
+  },
+  "DEVELOPMENT": {
+    "region": 2,
+    "name": "development"
+  },
+  "TESTING": {
+    "region": 3,
+    "name": "testing"
+  },
+  "STAGING": {
+    "region": 4,
+    "name": "staging"
+  }
+}

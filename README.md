@@ -30,6 +30,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [query](https://go.rtnl.ai/x/query): encode struct values as a url query string
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
+- [region](https://go.rtnl.ai/x/region): enumerates the clouds and regions that Rotational services can be deployed to
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.

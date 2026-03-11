@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"text/template"
 
@@ -63,6 +64,18 @@ func writeCountriesData() (err error) {
 		return fmt.Errorf("failed to read countries data: %w", err)
 	}
 
+	// Ensure that all countries have a valid numeric code
+	for _, country := range countries {
+		var code int
+		if code, err = strconv.Atoi(country.Numeric); err != nil {
+			return fmt.Errorf("failed to convert numeric code for %s: %w", country.Alpha2, err)
+		}
+		if code < 1 || code > 999 {
+			return fmt.Errorf("invalid numeric code for %s: %s", country.Alpha2, country.Numeric)
+		}
+		country.Numeric = fmt.Sprintf("%03d", code)
+	}
+
 	var f *os.File
 	if f, err = os.Create(Datafile); err != nil {
 		return fmt.Errorf("could not create %s: %w", Datafile, err)
@@ -107,6 +120,11 @@ func writeCountriesData() (err error) {
 		return fmt.Errorf("failed to write Alpha3 lookup table: %w", err)
 	}
 
+	// Write the lookup table for ISO 3166-1 numeric codes
+	if err = writeCodeLookup(f, countries); err != nil {
+		return fmt.Errorf("failed to write ISO 3166-1 numeric lookup table: %w", err)
+	}
+
 	return nil
 }
 
@@ -141,6 +159,7 @@ func readCountriesData() (out []*country.Country, err error) {
 var countryStruct = `	{{ .Alpha2 }} = Country{
 		Alpha2:          "{{ .Alpha2 }}",
 		Alpha3:          "{{ .Alpha3 }}",
+		Numeric:         "{{ .Numeric }}",
 		ShortName:       "{{ .ShortName }}",
 		LongName:        "{{ .LongName }}",
 		CurrencyCode:    "{{ .CurrencyCode }}",
@@ -219,6 +238,40 @@ func writeAlpha3Lookup(w io.Writer, countries []*country.Country) (err error) {
 
 	fmt.Fprintln(w, "// ISO-3166-1 Alpha3 Lookup Table")
 	fmt.Fprintln(w, "var alpha3Lookup = [26][26][26]*Country{")
+	for _, row := range table {
+		fmt.Fprint(w, "\t{\n")
+		for _, col := range row {
+			fmt.Fprint(w, "\t\t{")
+			for _, code := range col {
+				if code == "" {
+					fmt.Fprint(w, "nil, ")
+				} else {
+					fmt.Fprintf(w, "&%s, ", code)
+				}
+			}
+			fmt.Fprint(w, "},\n")
+		}
+		fmt.Fprintln(w, "},")
+	}
+
+	if _, err = fmt.Fprintln(w, "}"); err != nil {
+		return fmt.Errorf("failed to write closing lookup table to %s: %w", Datafile, err)
+	}
+
+	return nil
+}
+
+func writeCodeLookup(w io.Writer, countries []*country.Country) (err error) {
+	var table [10][10][10]string
+	for _, country := range countries {
+		x := country.Numeric[0] - '0'
+		y := country.Numeric[1] - '0'
+		z := country.Numeric[2] - '0'
+		table[x][y][z] = country.Alpha2
+	}
+
+	fmt.Fprintln(w, "// ISO-3166-1 Numeric Code Lookup Table")
+	fmt.Fprintln(w, "var codeLookup = [10][10][10]*Country{")
 	for _, row := range table {
 		fmt.Fprint(w, "\t{\n")
 		for _, col := range row {

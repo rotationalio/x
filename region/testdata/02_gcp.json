@@ -1,0 +1,338 @@
+{
+  "GCP_ASIA_EAST_1A": {
+    "region": "2158001"
+  },
+  "GCP_ASIA_EAST_1B": {
+    "region": "2158002"
+  },
+  "GCP_ASIA_EAST_1C": {
+    "region": "2158003"
+  },
+  "GCP_ASIA_EAST_2A": {
+    "region": "2344010"
+  },
+  "GCP_ASIA_EAST_2B": {
+    "region": "2344011"
+  },
+  "GCP_ASIA_EAST_2C": {
+    "region": "2344012"
+  },
+  "GCP_ASIA_NORTHEAST_1A": {
+    "region": "2392020"
+  },
+  "GCP_ASIA_NORTHEAST_1B": {
+    "region": "2392021"
+  },
+  "GCP_ASIA_NORTHEAST_1C": {
+    "region": "2392022"
+  },
+  "GCP_ASIA_NORTHEAST_2A": {
+    "region": "2392030"
+  },
+  "GCP_ASIA_NORTHEAST_2B": {
+    "region": "2392031"
+  },
+  "GCP_ASIA_NORTHEAST_2C": {
+    "region": "2392032"
+  },
+  "GCP_ASIA_NORTHEAST_3A": {
+    "region": "2410040"
+  },
+  "GCP_ASIA_NORTHEAST_3B": {
+    "region": "2410041"
+  },
+  "GCP_ASIA_NORTHEAST_3C": {
+    "region": "2410042"
+  },
+  "GCP_ASIA_SOUTH_1A": {
+    "region": "2356051"
+  },
+  "GCP_ASIA_SOUTH_1B": {
+    "region": "2356052"
+  },
+  "GCP_ASIA_SOUTH_1C": {
+    "region": "2356053"
+  },
+  "GCP_ASIA_SOUTH_2A": {
+    "region": "2356061"
+  },
+  "GCP_ASIA_SOUTH_2B": {
+    "region": "2356062"
+  },
+  "GCP_ASIA_SOUTH_2C": {
+    "region": "2356063"
+  },
+  "GCP_ASIA_SOUTHEAST_1A": {
+    "region": "2702070"
+  },
+  "GCP_ASIA_SOUTHEAST_1B": {
+    "region": "2702071"
+  },
+  "GCP_ASIA_SOUTHEAST_1C": {
+    "region": "2702072"
+  },
+  "GCP_ASIA_SOUTHEAST_2A": {
+    "region": "2360080"
+  },
+  "GCP_ASIA_SOUTHEAST_2B": {
+    "region": "2360081"
+  },
+  "GCP_ASIA_SOUTHEAST_2C": {
+    "region": "2360082"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_1A": {
+    "region": "2036090"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_1B": {
+    "region": "2036091"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_1C": {
+    "region": "2036092"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_2A": {
+    "region": "2036100"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_2B": {
+    "region": "2036101"
+  },
+  "GCP_AUSTRALIA_SOUTHEAST_2C": {
+    "region": "2036102"
+  },
+  "GCP_EUROPE_CENTRAL_2A": {
+    "region": "2616110"
+  },
+  "GCP_EUROPE_CENTRAL_2B": {
+    "region": "2616111"
+  },
+  "GCP_EUROPE_CENTRAL_2C": {
+    "region": "2616112"
+  },
+  "GCP_EUROPE_NORTH_1A": {
+    "region": "2246120"
+  },
+  "GCP_EUROPE_NORTH_1B": {
+    "region": "2246121"
+  },
+  "GCP_EUROPE_NORTH_1C": {
+    "region": "2246122"
+  },
+  "GCP_EUROPE_SOUTHWEST_1A": {
+    "region": "2724130"
+  },
+  "GCP_EUROPE_SOUTHWEST_1B": {
+    "region": "2724131"
+  },
+  "GCP_EUROPE_SOUTHWEST_1C": {
+    "region": "2724132"
+  },
+  "GCP_EUROPE_WEST_1B": {
+    "region": "2056141"
+  },
+  "GCP_EUROPE_WEST_1C": {
+    "region": "2056142"
+  },
+  "GCP_EUROPE_WEST_1D": {
+    "region": "2056143"
+  },
+  "GCP_EUROPE_WEST_12A": {
+    "region": "2380150"
+  },
+  "GCP_EUROPE_WEST_12B": {
+    "region": "2380151"
+  },
+  "GCP_EUROPE_WEST_12C": {
+    "region": "2380152"
+  },
+  "GCP_EUROPE_WEST_2A": {
+    "region": "2826160"
+  },
+  "GCP_EUROPE_WEST_2B": {
+    "region": "2826161"
+  },
+  "GCP_EUROPE_WEST_2C": {
+    "region": "2826162"
+  },
+  "GCP_EUROPE_WEST_3A": {
+    "region": "2276170"
+  },
+  "GCP_EUROPE_WEST_3B": {
+    "region": "2276171"
+  },
+  "GCP_EUROPE_WEST_3C": {
+    "region": "2276172"
+  },
+  "GCP_EUROPE_WEST_4A": {
+    "region": "2528180"
+  },
+  "GCP_EUROPE_WEST_4B": {
+    "region": "2528181"
+  },
+  "GCP_EUROPE_WEST_4C": {
+    "region": "2528182"
+  },
+  "GCP_EUROPE_WEST_6A": {
+    "region": "2756190"
+  },
+  "GCP_EUROPE_WEST_6B": {
+    "region": "2756191"
+  },
+  "GCP_EUROPE_WEST_6C": {
+    "region": "2756192"
+  },
+  "GCP_EUROPE_WEST_8A": {
+    "region": "2380200"
+  },
+  "GCP_EUROPE_WEST_8B": {
+    "region": "2380201"
+  },
+  "GCP_EUROPE_WEST_8C": {
+    "region": "2380202"
+  },
+  "GCP_EUROPE_WEST_9A": {
+    "region": "2250210"
+  },
+  "GCP_EUROPE_WEST_9B": {
+    "region": "2250211"
+  },
+  "GCP_EUROPE_WEST_9C": {
+    "region": "2250212"
+  },
+  "GCP_ME_CENTRAL_1A": {
+    "region": "2364220"
+  },
+  "GCP_ME_CENTRAL_1B": {
+    "region": "2364221"
+  },
+  "GCP_ME_CENTRAL_1C": {
+    "region": "2364222"
+  },
+  "GCP_ME_WEST_1A": {
+    "region": "2376230"
+  },
+  "GCP_ME_WEST_1B": {
+    "region": "2376231"
+  },
+  "GCP_ME_WEST_1C": {
+    "region": "2376232"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_1A": {
+    "region": "2124240"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_1B": {
+    "region": "2124241"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_1C": {
+    "region": "2124242"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_2A": {
+    "region": "2124250"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_2B": {
+    "region": "2124251"
+  },
+  "GCP_NORTHAMERICA_NORTHEAST_2C": {
+    "region": "2124252"
+  },
+  "GCP_SOUTHAMERICA_EAST_1A": {
+    "region": "2076260"
+  },
+  "GCP_SOUTHAMERICA_EAST_1B": {
+    "region": "2076261"
+  },
+  "GCP_SOUTHAMERICA_EAST_1C": {
+    "region": "2076262"
+  },
+  "GCP_SOUTHAMERICA_WEST_1A": {
+    "region": "2152270"
+  },
+  "GCP_SOUTHAMERICA_WEST_1B": {
+    "region": "2152271"
+  },
+  "GCP_SOUTHAMERICA_WEST_1C": {
+    "region": "2152272"
+  },
+  "GCP_US_CENTRAL_1A": {
+    "region": "2840280"
+  },
+  "GCP_US_CENTRAL_1B": {
+    "region": "2840281"
+  },
+  "GCP_US_CENTRAL_1C": {
+    "region": "2840282"
+  },
+  "GCP_US_CENTRAL_1F": {
+    "region": "2840285"
+  },
+  "GCP_US_EAST_1B": {
+    "region": "2840291"
+  },
+  "GCP_US_EAST_1C": {
+    "region": "2840292"
+  },
+  "GCP_US_EAST_1D": {
+    "region": "2840293"
+  },
+  "GCP_US_EAST_4A": {
+    "region": "2840300"
+  },
+  "GCP_US_EAST_4B": {
+    "region": "2840301"
+  },
+  "GCP_US_EAST_4C": {
+    "region": "2840302"
+  },
+  "GCP_US_EAST_5A": {
+    "region": "2840310"
+  },
+  "GCP_US_EAST_5B": {
+    "region": "2840311"
+  },
+  "GCP_US_EAST_5C": {
+    "region": "2840312"
+  },
+  "GCP_US_SOUTH_1A": {
+    "region": "2840320"
+  },
+  "GCP_US_SOUTH_1B": {
+    "region": "2840321"
+  },
+  "GCP_US_SOUTH_1C": {
+    "region": "2840322"
+  },
+  "GCP_US_WEST_1A": {
+    "region": "2840330"
+  },
+  "GCP_US_WEST_1B": {
+    "region": "2840331"
+  },
+  "GCP_US_WEST_1C": {
+    "region": "2840332"
+  },
+  "GCP_US_WEST_2A": {
+    "region": "2840340"
+  },
+  "GCP_US_WEST_2B": {
+    "region": "2840341"
+  },
+  "GCP_US_WEST_2C": {
+    "region": "2840342"
+  },
+  "GCP_US_WEST_3A": {
+    "region": "2840350"
+  },
+  "GCP_US_WEST_3B": {
+    "region": "2840351"
+  },
+  "GCP_US_WEST_3C": {
+    "region": "2840352"
+  },
+  "GCP_US_WEST_4A": {
+    "region": "2840360"
+  },
+  "GCP_US_WEST_4B": {
+    "region": "2840361"
+  },
+  "GCP_US_WEST_4C": {
+    "region": "2840362"
+  }
+}

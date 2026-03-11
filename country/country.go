@@ -9,6 +9,7 @@ import (
 type Country struct {
 	Alpha2          string   `json:"alpha2"`
 	Alpha3          string   `json:"alpha3"`
+	Numeric         string   `json:"number"`
 	ShortName       string   `json:"iso_short_name"`
 	LongName        string   `json:"iso_long_name"`
 	CurrencyCode    string   `json:"currency_code"`
@@ -29,18 +30,19 @@ var (
 // Returns a list of all countries in the database.
 func Countries() []*Country {
 	var countries []*Country
-	for _, country := range alpha2Lookup {
-		for _, c := range country {
-			if c != nil {
-				countries = append(countries, c)
+	for _, row := range alpha2Lookup {
+		for _, country := range row {
+			if country != nil {
+				countries = append(countries, country)
 			}
 		}
 	}
 	return countries
 }
 
-// Lookups the country by its Alpha-2 or Alpha-3 code depending on the input length,
-// or searches for the country by its name (including unofficial names). If the country
+// Lookups the country by its Alpha-2, Alpha-3, or ISO 3166-1 numeric code code
+// depending on the input length and format. If the input is not a valid country code,
+// searches for the country by its name (including unofficial names). If the country
 // is not found, it returns a not found error.
 func Lookup(country string) (*Country, error) {
 	switch len(country) {
@@ -48,6 +50,10 @@ func Lookup(country string) (*Country, error) {
 		country = strings.ToUpper(country)
 		return Alpha2(country)
 	case 3:
+		if isNumeric(country) {
+			return Code(country)
+		}
+
 		country = strings.ToUpper(country)
 		return Alpha3(country)
 	default:
@@ -96,6 +102,25 @@ func Alpha3(code string) (*Country, error) {
 	return country, nil
 }
 
+// Fast lookup for a country by its ISO 3166-1 numeric code. If the code is not three
+// digits, it returns an invalid code error. If the country is not found, it returns
+// a not found error.
+func Code(code string) (*Country, error) {
+	if len(code) != 3 {
+		return nil, ErrInvalidCode
+	}
+
+	if code[0] < '0' || code[0] > '9' || code[1] < '0' || code[1] > '9' || code[2] < '0' || code[2] > '9' {
+		return nil, ErrInvalidCode
+	}
+
+	country := codeLookup[code[0]-'0'][code[1]-'0'][code[2]-'0']
+	if country == nil {
+		return nil, ErrNotFound
+	}
+	return country, nil
+}
+
 // Find a country by its name, including unofficial names. This function uses a trie
 // structure to lookup the country by its various names. Finding an Alpha2 or Alpha3
 // code is much faster using those specific functions. If the country is not found, it
@@ -125,4 +150,8 @@ func (c *Country) Flag() string {
 		c.flag, _ = Flag(c.Alpha2)
 	}
 	return c.flag
+}
+
+func isNumeric(code string) bool {
+	return code[0] >= '0' && code[0] <= '9' && code[1] >= '0' && code[1] <= '9' && code[2] >= '0' && code[2] <= '9'
 }
