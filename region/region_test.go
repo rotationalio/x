@@ -172,6 +172,31 @@ func TestBinary(t *testing.T) {
 	})
 }
 
+func TestCountries(t *testing.T) {
+	counts := make(map[string]int)
+	for _, r := range region.List() {
+		switch r {
+		case region.UNKNOWN, region.LOCALHOST, region.DEVELOPMENT, region.TESTING, region.STAGING:
+			continue
+		}
+
+		info := r.Info()
+		assert.NotNil(t, info, "expected a region info to be returned for %s", r)
+		counts[info.CountryCode]++
+
+		assert.Ok(t, info.Validate())
+
+		country := info.Country()
+		assert.NotNil(t, country, "expected a country to be returned for %s", r)
+	}
+
+	for country, count := range counts {
+		t.Logf("%s: %d", country, count)
+	}
+
+	assert.True(t, len(counts) > 0, "expected at least one country to be found")
+}
+
 type iterator func(func(name string, region *region.Info) bool)
 
 func iterateData(t *testing.T) iterator {
