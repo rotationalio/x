@@ -1,0 +1,35 @@
+{
+  "LKE_AP_WEST_1A": {
+    "region": "1356000"
+  },
+  "LKE_CA_CENTRAL_1A": {
+    "region": "1124010"
+  },
+  "LKE_AP_SOUTHEAST_1A": {
+    "region": "1036020"
+  },
+  "LKE_US_CENTRAL_1A": {
+    "region": "1840030"
+  },
+  "LKE_US_WEST_1A": {
+    "region": "1840040"
+  },
+  "LKE_US_SOUTHEAST_1A": {
+    "region": "1840050"
+  },
+  "LKE_US_EAST_1A": {
+    "region": "1840060"
+  },
+  "LKE_EU_WEST_1A": {
+    "region": "1826070"
+  },
+  "LKE_AP_SOUTH_1A": {
+    "region": "1702080"
+  },
+  "LKE_EU_CENTRAL_1A": {
+    "region": "1276090"
+  },
+  "LKE_AP_NORTHEAST_1A": {
+    "region": "1392100"
+  }
+}

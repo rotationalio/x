@@ -24,13 +24,27 @@ func TestRealCountries(t *testing.T) {
 
 	t.Run("Lookups", func(t *testing.T) {
 		for _, c := range countries {
-			f, err := country.Lookup(c.Alpha2)
+			// To ensure no comparison to empty slices
+			if len(c.Languages) == 0 {
+				c.Languages = nil
+			}
+
+			var (
+				f   *country.Country
+				err error
+			)
+
+			f, err = country.Lookup(c.Alpha2)
 			assert.Ok(t, err, "should be able to lookup country by Alpha2 code")
 			assert.Equal(t, c, f, "should find correct country by Alpha2 code")
 
 			f, err = country.Lookup(c.Alpha3)
 			assert.Ok(t, err, "should be able to lookup country by Alpha3 code")
 			assert.Equal(t, c, f, "should find correct country by Alpha3 code")
+
+			f, err = country.Lookup(c.Numeric)
+			assert.Ok(t, err, "should be able to lookup country by Numeric code")
+			assert.Equal(t, c, f, "should find correct country by Numeric code")
 
 			f, err = country.Lookup(c.ShortName)
 			assert.Ok(t, err, "should be able to lookup country by ShortName")
@@ -57,7 +71,7 @@ func TestRealCountries(t *testing.T) {
 
 func TestLookupNotFound(t *testing.T) {
 	cases := []string{
-		"b", "B", "xx", "XX", "zzz", "ZZZ", "Unknown Country", "NonExistent",
+		"b", "B", "xx", "XX", "zzz", "ZZZ", "Unknown Country", "NonExistent", "000",
 	}
 
 	for _, c := range cases {
@@ -88,6 +102,18 @@ func TestLookupInvalidCode(t *testing.T) {
 		for _, code := range testCases {
 			_, err := country.Alpha3(code)
 			assert.ErrorIs(t, err, country.ErrInvalidCode, "should return invalid code error for Alpha3")
+		}
+	})
+
+	t.Run("Numeric", func(t *testing.T) {
+		testCases := []string{
+			"", "   ", "1", "A", "AA", "AB ", " AB", "aBc", "aB1", "A1B", "A B",
+			"01", "0 1", "8 4 0", "84A", "4A1", "0100", "01000",
+		}
+
+		for _, code := range testCases {
+			_, err := country.Code(code)
+			assert.ErrorIs(t, err, country.ErrInvalidCode, "should return invalid code error for Numeric")
 		}
 	})
 }

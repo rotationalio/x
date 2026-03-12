@@ -6,6 +6,7 @@ var (
 	AD = Country{
 		Alpha2:          "AD",
 		Alpha3:          "AND",
+		Numeric:         "020",
 		ShortName:       "Andorra",
 		LongName:        "The Principality of Andorra",
 		CurrencyCode:    "EUR",
@@ -20,7 +21,8 @@ var (
 	AE = Country{
 		Alpha2:          "AE",
 		Alpha3:          "ARE",
-		ShortName:       "United Arab Emirates (the)",
+		Numeric:         "784",
+		ShortName:       "United Arab Emirates",
 		LongName:        "The United Arab Emirates",
 		CurrencyCode:    "AED",
 		DistanceUnit:    "KM",
@@ -34,6 +36,7 @@ var (
 	AF = Country{
 		Alpha2:          "AF",
 		Alpha3:          "AFG",
+		Numeric:         "004",
 		ShortName:       "Afghanistan",
 		LongName:        "The Islamic Republic of Afghanistan",
 		CurrencyCode:    "AFN",
@@ -48,6 +51,7 @@ var (
 	AG = Country{
 		Alpha2:          "AG",
 		Alpha3:          "ATG",
+		Numeric:         "028",
 		ShortName:       "Antigua and Barbuda",
 		LongName:        "Antigua and Barbuda",
 		CurrencyCode:    "XCD",
@@ -62,6 +66,7 @@ var (
 	AI = Country{
 		Alpha2:          "AI",
 		Alpha3:          "AIA",
+		Numeric:         "660",
 		ShortName:       "Anguilla",
 		LongName:        "Anguilla",
 		CurrencyCode:    "XCD",
@@ -76,6 +81,7 @@ var (
 	AL = Country{
 		Alpha2:          "AL",
 		Alpha3:          "ALB",
+		Numeric:         "008",
 		ShortName:       "Albania",
 		LongName:        "The Republic of Albania",
 		CurrencyCode:    "ALL",
@@ -90,6 +96,7 @@ var (
 	AM = Country{
 		Alpha2:          "AM",
 		Alpha3:          "ARM",
+		Numeric:         "051",
 		ShortName:       "Armenia",
 		LongName:        "The Republic of Armenia",
 		CurrencyCode:    "AMD",
@@ -104,6 +111,7 @@ var (
 	AO = Country{
 		Alpha2:          "AO",
 		Alpha3:          "AGO",
+		Numeric:         "024",
 		ShortName:       "Angola",
 		LongName:        "The Republic of Angola",
 		CurrencyCode:    "AOA",
@@ -118,6 +126,7 @@ var (
 	AQ = Country{
 		Alpha2:          "AQ",
 		Alpha3:          "ATA",
+		Numeric:         "010",
 		ShortName:       "Antarctica",
 		LongName:        "Antarctica",
 		CurrencyCode:    "USD",
@@ -132,6 +141,7 @@ var (
 	AR = Country{
 		Alpha2:          "AR",
 		Alpha3:          "ARG",
+		Numeric:         "032",
 		ShortName:       "Argentina",
 		LongName:        "The Argentine Republic",
 		CurrencyCode:    "ARS",
@@ -146,6 +156,7 @@ var (
 	AS = Country{
 		Alpha2:          "AS",
 		Alpha3:          "ASM",
+		Numeric:         "016",
 		ShortName:       "American Samoa",
 		LongName:        "The Territory of American Samoa",
 		CurrencyCode:    "USD",
@@ -160,6 +171,7 @@ var (
 	AT = Country{
 		Alpha2:          "AT",
 		Alpha3:          "AUT",
+		Numeric:         "040",
 		ShortName:       "Austria",
 		LongName:        "The Republic of Austria",
 		CurrencyCode:    "EUR",
@@ -174,6 +186,7 @@ var (
 	AU = Country{
 		Alpha2:          "AU",
 		Alpha3:          "AUS",
+		Numeric:         "036",
 		ShortName:       "Australia",
 		LongName:        "The Commonwealth of Australia",
 		CurrencyCode:    "AUD",
@@ -188,6 +201,7 @@ var (
 	AW = Country{
 		Alpha2:          "AW",
 		Alpha3:          "ABW",
+		Numeric:         "533",
 		ShortName:       "Aruba",
 		LongName:        "Aruba",
 		CurrencyCode:    "AWG",
@@ -202,6 +216,7 @@ var (
 	AX = Country{
 		Alpha2:          "AX",
 		Alpha3:          "ALA",
+		Numeric:         "248",
 		ShortName:       "Åland Islands",
 		LongName:        "Åland",
 		CurrencyCode:    "EUR",
@@ -216,6 +231,7 @@ var (
 	AZ = Country{
 		Alpha2:          "AZ",
 		Alpha3:          "AZE",
+		Numeric:         "031",
 		ShortName:       "Azerbaijan",
 		LongName:        "The Republic of Azerbaijan",
 		CurrencyCode:    "AZN",
@@ -230,6 +246,7 @@ var (
 	BA = Country{
 		Alpha2:          "BA",
 		Alpha3:          "BIH",
+		Numeric:         "070",
 		ShortName:       "Bosnia and Herzegovina",
 		LongName:        "Bosnia and Herzegovina",
 		CurrencyCode:    "BAM",
@@ -244,6 +261,7 @@ var (
 	BB = Country{
 		Alpha2:          "BB",
 		Alpha3:          "BRB",
+		Numeric:         "052",
 		ShortName:       "Barbados",
 		LongName:        "Barbados",
 		CurrencyCode:    "BBD",
@@ -258,6 +276,7 @@ var (
 	BD = Country{
 		Alpha2:          "BD",
 		Alpha3:          "BGD",
+		Numeric:         "050",
 		ShortName:       "Bangladesh",
 		LongName:        "The People's Republic of Bangladesh",
 		CurrencyCode:    "BDT",
@@ -272,6 +291,7 @@ var (
 	BE = Country{
 		Alpha2:          "BE",
 		Alpha3:          "BEL",
+		Numeric:         "056",
 		ShortName:       "Belgium",
 		LongName:        "The Kingdom of Belgium",
 		CurrencyCode:    "EUR",
@@ -286,6 +306,7 @@ var (
 	BF = Country{
 		Alpha2:          "BF",
 		Alpha3:          "BFA",
+		Numeric:         "854",
 		ShortName:       "Burkina Faso",
 		LongName:        "Burkina Faso",
 		CurrencyCode:    "XOF",
@@ -300,9 +321,10 @@ var (
 	BG = Country{
 		Alpha2:          "BG",
 		Alpha3:          "BGR",
+		Numeric:         "100",
 		ShortName:       "Bulgaria",
 		LongName:        "The Republic of Bulgaria",
-		CurrencyCode:    "BGN",
+		CurrencyCode:    "EUR",
 		DistanceUnit:    "KM",
 		UnofficialNames: []string{"Bulgaria", "България", "Bulgarien", "Bulgarie", "ブルガリア", "Bulgarije"},
 		Region:          "EMEA",
@@ -314,6 +336,7 @@ var (
 	BH = Country{
 		Alpha2:          "BH",
 		Alpha3:          "BHR",
+		Numeric:         "048",
 		ShortName:       "Bahrain",
 		LongName:        "The Kingdom of Bahrain",
 		CurrencyCode:    "BHD",
@@ -328,6 +351,7 @@ var (
 	BI = Country{
 		Alpha2:          "BI",
 		Alpha3:          "BDI",
+		Numeric:         "108",
 		ShortName:       "Burundi",
 		LongName:        "The Republic of Burundi",
 		CurrencyCode:    "BIF",
@@ -342,6 +366,7 @@ var (
 	BJ = Country{
 		Alpha2:          "BJ",
 		Alpha3:          "BEN",
+		Numeric:         "204",
 		ShortName:       "Benin",
 		LongName:        "The Republic of Benin",
 		CurrencyCode:    "XOF",
@@ -356,6 +381,7 @@ var (
 	BL = Country{
 		Alpha2:          "BL",
 		Alpha3:          "BLM",
+		Numeric:         "652",
 		ShortName:       "Saint Barthélemy",
 		LongName:        "The Collectivity of Saint-Barthélemy",
 		CurrencyCode:    "EUR",
@@ -370,6 +396,7 @@ var (
 	BM = Country{
 		Alpha2:          "BM",
 		Alpha3:          "BMU",
+		Numeric:         "060",
 		ShortName:       "Bermuda",
 		LongName:        "Bermuda",
 		CurrencyCode:    "BMD",
@@ -384,6 +411,7 @@ var (
 	BN = Country{
 		Alpha2:          "BN",
 		Alpha3:          "BRN",
+		Numeric:         "096",
 		ShortName:       "Brunei Darussalam",
 		LongName:        "The Nation of Brunei, the Abode of Peace",
 		CurrencyCode:    "BND",
@@ -398,6 +426,7 @@ var (
 	BO = Country{
 		Alpha2:          "BO",
 		Alpha3:          "BOL",
+		Numeric:         "068",
 		ShortName:       "Bolivia (Plurinational State of)",
 		LongName:        "The Plurinational State of Bolivia",
 		CurrencyCode:    "BOB",
@@ -412,6 +441,7 @@ var (
 	BQ = Country{
 		Alpha2:          "BQ",
 		Alpha3:          "BES",
+		Numeric:         "535",
 		ShortName:       "Bonaire, Sint Eustatius and Saba",
 		LongName:        "Bonaire, Sint Eustatius and Saba",
 		CurrencyCode:    "USD",
@@ -426,6 +456,7 @@ var (
 	BR = Country{
 		Alpha2:          "BR",
 		Alpha3:          "BRA",
+		Numeric:         "076",
 		ShortName:       "Brazil",
 		LongName:        "The Federative Republic of Brazil",
 		CurrencyCode:    "BRL",
@@ -440,11 +471,12 @@ var (
 	BS = Country{
 		Alpha2:          "BS",
 		Alpha3:          "BHS",
-		ShortName:       "Bahamas (the)",
+		Numeric:         "044",
+		ShortName:       "Bahamas",
 		LongName:        "The Commonwealth of The Bahamas",
 		CurrencyCode:    "BSD",
 		DistanceUnit:    "MI",
-		UnofficialNames: []string{"The Bahamas", "バハマ"},
+		UnofficialNames: []string{"Bahamas", "The Bahamas", "バハマ"},
 		Region:          "AMER",
 		Subregion:       "Caribbean",
 		Continent:       "North America",
@@ -454,6 +486,7 @@ var (
 	BT = Country{
 		Alpha2:          "BT",
 		Alpha3:          "BTN",
+		Numeric:         "064",
 		ShortName:       "Bhutan",
 		LongName:        "The Kingdom of Bhutan",
 		CurrencyCode:    "BTN",
@@ -468,6 +501,7 @@ var (
 	BV = Country{
 		Alpha2:          "BV",
 		Alpha3:          "BVT",
+		Numeric:         "074",
 		ShortName:       "Bouvet Island",
 		LongName:        "Bouvet Island",
 		CurrencyCode:    "NOK",
@@ -482,6 +516,7 @@ var (
 	BW = Country{
 		Alpha2:          "BW",
 		Alpha3:          "BWA",
+		Numeric:         "072",
 		ShortName:       "Botswana",
 		LongName:        "The Republic of Botswana",
 		CurrencyCode:    "BWP",
@@ -496,6 +531,7 @@ var (
 	BY = Country{
 		Alpha2:          "BY",
 		Alpha3:          "BLR",
+		Numeric:         "112",
 		ShortName:       "Belarus",
 		LongName:        "The Republic of Belarus",
 		CurrencyCode:    "BYN",
@@ -510,6 +546,7 @@ var (
 	BZ = Country{
 		Alpha2:          "BZ",
 		Alpha3:          "BLZ",
+		Numeric:         "084",
 		ShortName:       "Belize",
 		LongName:        "Belize",
 		CurrencyCode:    "BZD",
@@ -524,6 +561,7 @@ var (
 	CA = Country{
 		Alpha2:          "CA",
 		Alpha3:          "CAN",
+		Numeric:         "124",
 		ShortName:       "Canada",
 		LongName:        "Canada",
 		CurrencyCode:    "CAD",
@@ -538,7 +576,8 @@ var (
 	CC = Country{
 		Alpha2:          "CC",
 		Alpha3:          "CCK",
-		ShortName:       "Cocos (Keeling) Islands (the)",
+		Numeric:         "166",
+		ShortName:       "Cocos (Keeling) Islands",
 		LongName:        "The Territory of Cocos (Keeling) Islands",
 		CurrencyCode:    "AUD",
 		DistanceUnit:    "KM",
@@ -552,11 +591,12 @@ var (
 	CD = Country{
 		Alpha2:          "CD",
 		Alpha3:          "COD",
-		ShortName:       "Congo (the Democratic Republic of the)",
+		Numeric:         "180",
+		ShortName:       "Congo (Democratic Republic of the)",
 		LongName:        "The Democratic Republic of the Congo",
 		CurrencyCode:    "CDF",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Congo (Dem. Rep.)", "Kongo (Dem. Rep.)", "Congo (Rep. Dem.)", "コンゴ民主共和国", "Congo [DRC]", "Congo (The Democratic Republic Of The)", "Democratic Republic of the Congo", "Congo, Democratic Republic of", "Congo (Kinshasa)"},
+		UnofficialNames: []string{"Congo (Democratic Republic of the)", "Congo (Dem. Rep.)", "Kongo (Dem. Rep.)", "Congo (Rep. Dem.)", "コンゴ民主共和国", "Congo [DRC]", "Democratic Republic of the Congo", "Congo, Democratic Republic of", "Congo (Kinshasa)"},
 		Region:          "EMEA",
 		Subregion:       "Middle Africa",
 		Continent:       "Africa",
@@ -566,7 +606,8 @@ var (
 	CF = Country{
 		Alpha2:          "CF",
 		Alpha3:          "CAF",
-		ShortName:       "Central African Republic (the)",
+		Numeric:         "140",
+		ShortName:       "Central African Republic",
 		LongName:        "The Central African Republic",
 		CurrencyCode:    "XAF",
 		DistanceUnit:    "KM",
@@ -580,7 +621,8 @@ var (
 	CG = Country{
 		Alpha2:          "CG",
 		Alpha3:          "COG",
-		ShortName:       "Congo (the)",
+		Numeric:         "178",
+		ShortName:       "Congo",
 		LongName:        "The Republic of the Congo",
 		CurrencyCode:    "XAF",
 		DistanceUnit:    "KM",
@@ -594,6 +636,7 @@ var (
 	CH = Country{
 		Alpha2:          "CH",
 		Alpha3:          "CHE",
+		Numeric:         "756",
 		ShortName:       "Switzerland",
 		LongName:        "The Swiss Confederation",
 		CurrencyCode:    "CHF",
@@ -608,6 +651,7 @@ var (
 	CI = Country{
 		Alpha2:          "CI",
 		Alpha3:          "CIV",
+		Numeric:         "384",
 		ShortName:       "Côte d'Ivoire",
 		LongName:        "The Republic of Côte d'Ivoire",
 		CurrencyCode:    "XOF",
@@ -622,7 +666,8 @@ var (
 	CK = Country{
 		Alpha2:          "CK",
 		Alpha3:          "COK",
-		ShortName:       "Cook Islands (the)",
+		Numeric:         "184",
+		ShortName:       "Cook Islands",
 		LongName:        "The Cook Islands",
 		CurrencyCode:    "NZD",
 		DistanceUnit:    "KM",
@@ -636,6 +681,7 @@ var (
 	CL = Country{
 		Alpha2:          "CL",
 		Alpha3:          "CHL",
+		Numeric:         "152",
 		ShortName:       "Chile",
 		LongName:        "The Republic of Chile",
 		CurrencyCode:    "CLP",
@@ -650,6 +696,7 @@ var (
 	CM = Country{
 		Alpha2:          "CM",
 		Alpha3:          "CMR",
+		Numeric:         "120",
 		ShortName:       "Cameroon",
 		LongName:        "The Republic of Cameroon",
 		CurrencyCode:    "XAF",
@@ -664,6 +711,7 @@ var (
 	CN = Country{
 		Alpha2:          "CN",
 		Alpha3:          "CHN",
+		Numeric:         "156",
 		ShortName:       "China",
 		LongName:        "The People's Republic of China",
 		CurrencyCode:    "CNY",
@@ -678,6 +726,7 @@ var (
 	CO = Country{
 		Alpha2:          "CO",
 		Alpha3:          "COL",
+		Numeric:         "170",
 		ShortName:       "Colombia",
 		LongName:        "The Republic of Colombia",
 		CurrencyCode:    "COP",
@@ -692,6 +741,7 @@ var (
 	CR = Country{
 		Alpha2:          "CR",
 		Alpha3:          "CRI",
+		Numeric:         "188",
 		ShortName:       "Costa Rica",
 		LongName:        "The Republic of Costa Rica",
 		CurrencyCode:    "CRC",
@@ -706,6 +756,7 @@ var (
 	CU = Country{
 		Alpha2:          "CU",
 		Alpha3:          "CUB",
+		Numeric:         "192",
 		ShortName:       "Cuba",
 		LongName:        "The Republic of Cuba",
 		CurrencyCode:    "CUP",
@@ -720,6 +771,7 @@ var (
 	CV = Country{
 		Alpha2:          "CV",
 		Alpha3:          "CPV",
+		Numeric:         "132",
 		ShortName:       "Cabo Verde",
 		LongName:        "The Republic of Cabo Verde",
 		CurrencyCode:    "CVE",
@@ -734,6 +786,7 @@ var (
 	CW = Country{
 		Alpha2:          "CW",
 		Alpha3:          "CUW",
+		Numeric:         "531",
 		ShortName:       "Curaçao",
 		LongName:        "The Country of Curaçao",
 		CurrencyCode:    "XCG",
@@ -748,6 +801,7 @@ var (
 	CX = Country{
 		Alpha2:          "CX",
 		Alpha3:          "CXR",
+		Numeric:         "162",
 		ShortName:       "Christmas Island",
 		LongName:        "The Territory of Christmas Island",
 		CurrencyCode:    "AUD",
@@ -762,6 +816,7 @@ var (
 	CY = Country{
 		Alpha2:          "CY",
 		Alpha3:          "CYP",
+		Numeric:         "196",
 		ShortName:       "Cyprus",
 		LongName:        "The Republic of Cyprus",
 		CurrencyCode:    "EUR",
@@ -776,6 +831,7 @@ var (
 	CZ = Country{
 		Alpha2:          "CZ",
 		Alpha3:          "CZE",
+		Numeric:         "203",
 		ShortName:       "Czechia",
 		LongName:        "The Czech Republic",
 		CurrencyCode:    "CZK",
@@ -790,6 +846,7 @@ var (
 	DE = Country{
 		Alpha2:          "DE",
 		Alpha3:          "DEU",
+		Numeric:         "276",
 		ShortName:       "Germany",
 		LongName:        "The Federal Republic of Germany",
 		CurrencyCode:    "EUR",
@@ -804,6 +861,7 @@ var (
 	DJ = Country{
 		Alpha2:          "DJ",
 		Alpha3:          "DJI",
+		Numeric:         "262",
 		ShortName:       "Djibouti",
 		LongName:        "The Republic of Djibouti",
 		CurrencyCode:    "DJF",
@@ -818,6 +876,7 @@ var (
 	DK = Country{
 		Alpha2:          "DK",
 		Alpha3:          "DNK",
+		Numeric:         "208",
 		ShortName:       "Denmark",
 		LongName:        "The Kingdom of Denmark",
 		CurrencyCode:    "DKK",
@@ -832,6 +891,7 @@ var (
 	DM = Country{
 		Alpha2:          "DM",
 		Alpha3:          "DMA",
+		Numeric:         "212",
 		ShortName:       "Dominica",
 		LongName:        "The Commonwealth of Dominica",
 		CurrencyCode:    "XCD",
@@ -846,7 +906,8 @@ var (
 	DO = Country{
 		Alpha2:          "DO",
 		Alpha3:          "DOM",
-		ShortName:       "Dominican Republic (the)",
+		Numeric:         "214",
+		ShortName:       "Dominican Republic",
 		LongName:        "The Dominican Republic",
 		CurrencyCode:    "DOP",
 		DistanceUnit:    "KM",
@@ -860,6 +921,7 @@ var (
 	DZ = Country{
 		Alpha2:          "DZ",
 		Alpha3:          "DZA",
+		Numeric:         "012",
 		ShortName:       "Algeria",
 		LongName:        "The People's Democratic Republic of Algeria",
 		CurrencyCode:    "DZD",
@@ -874,6 +936,7 @@ var (
 	EC = Country{
 		Alpha2:          "EC",
 		Alpha3:          "ECU",
+		Numeric:         "218",
 		ShortName:       "Ecuador",
 		LongName:        "The Republic of Ecuador",
 		CurrencyCode:    "USD",
@@ -888,6 +951,7 @@ var (
 	EE = Country{
 		Alpha2:          "EE",
 		Alpha3:          "EST",
+		Numeric:         "233",
 		ShortName:       "Estonia",
 		LongName:        "The Republic of Estonia",
 		CurrencyCode:    "EUR",
@@ -902,6 +966,7 @@ var (
 	EG = Country{
 		Alpha2:          "EG",
 		Alpha3:          "EGY",
+		Numeric:         "818",
 		ShortName:       "Egypt",
 		LongName:        "The Arab Republic of Egypt",
 		CurrencyCode:    "EGP",
@@ -916,6 +981,7 @@ var (
 	EH = Country{
 		Alpha2:          "EH",
 		Alpha3:          "ESH",
+		Numeric:         "732",
 		ShortName:       "Western Sahara",
 		LongName:        "The Sahrawi Arab Democratic Republic",
 		CurrencyCode:    "MAD",
@@ -930,6 +996,7 @@ var (
 	ER = Country{
 		Alpha2:          "ER",
 		Alpha3:          "ERI",
+		Numeric:         "232",
 		ShortName:       "Eritrea",
 		LongName:        "The State of Eritrea",
 		CurrencyCode:    "ERN",
@@ -944,6 +1011,7 @@ var (
 	ES = Country{
 		Alpha2:          "ES",
 		Alpha3:          "ESP",
+		Numeric:         "724",
 		ShortName:       "Spain",
 		LongName:        "The Kingdom of Spain",
 		CurrencyCode:    "EUR",
@@ -958,6 +1026,7 @@ var (
 	ET = Country{
 		Alpha2:          "ET",
 		Alpha3:          "ETH",
+		Numeric:         "231",
 		ShortName:       "Ethiopia",
 		LongName:        "The Federal Democratic Republic of Ethiopia",
 		CurrencyCode:    "ETB",
@@ -972,6 +1041,7 @@ var (
 	FI = Country{
 		Alpha2:          "FI",
 		Alpha3:          "FIN",
+		Numeric:         "246",
 		ShortName:       "Finland",
 		LongName:        "The Republic of Finland",
 		CurrencyCode:    "EUR",
@@ -986,6 +1056,7 @@ var (
 	FJ = Country{
 		Alpha2:          "FJ",
 		Alpha3:          "FJI",
+		Numeric:         "242",
 		ShortName:       "Fiji",
 		LongName:        "The Republic of Fiji",
 		CurrencyCode:    "FJD",
@@ -1000,11 +1071,12 @@ var (
 	FK = Country{
 		Alpha2:          "FK",
 		Alpha3:          "FLK",
-		ShortName:       "Falkland Islands (the) [Malvinas]",
+		Numeric:         "238",
+		ShortName:       "Falkland Islands (Malvinas)",
 		LongName:        "The Falkland Islands",
 		CurrencyCode:    "FKP",
 		DistanceUnit:    "MI",
-		UnofficialNames: []string{"Falkland Islands", "Falklandinseln", "Îles Malouines", "Islas Malvinas", "フォークランド（マルビナス）諸島", "Falklandeilanden [Islas Malvinas]"},
+		UnofficialNames: []string{"Falkland Islands", "Falkland Islands [Malvinas]", "Falklandinseln", "Îles Malouines", "Islas Malvinas", "フォークランド（マルビナス）諸島", "Falklandeilanden [Islas Malvinas]"},
 		Region:          "AMER",
 		Subregion:       "South America",
 		Continent:       "South America",
@@ -1014,6 +1086,7 @@ var (
 	FM = Country{
 		Alpha2:          "FM",
 		Alpha3:          "FSM",
+		Numeric:         "583",
 		ShortName:       "Micronesia (Federated States of)",
 		LongName:        "The Federated States of Micronesia",
 		CurrencyCode:    "USD",
@@ -1028,7 +1101,8 @@ var (
 	FO = Country{
 		Alpha2:          "FO",
 		Alpha3:          "FRO",
-		ShortName:       "Faroe Islands (the)",
+		Numeric:         "234",
+		ShortName:       "Faroe Islands",
 		LongName:        "The Faroe Islands",
 		CurrencyCode:    "DKK",
 		DistanceUnit:    "KM",
@@ -1042,6 +1116,7 @@ var (
 	FR = Country{
 		Alpha2:          "FR",
 		Alpha3:          "FRA",
+		Numeric:         "250",
 		ShortName:       "France",
 		LongName:        "The French Republic",
 		CurrencyCode:    "EUR",
@@ -1056,6 +1131,7 @@ var (
 	GA = Country{
 		Alpha2:          "GA",
 		Alpha3:          "GAB",
+		Numeric:         "266",
 		ShortName:       "Gabon",
 		LongName:        "The Gabonese Republic",
 		CurrencyCode:    "XAF",
@@ -1070,11 +1146,12 @@ var (
 	GB = Country{
 		Alpha2:          "GB",
 		Alpha3:          "GBR",
-		ShortName:       "United Kingdom of Great Britain and Northern Ireland (the)",
+		Numeric:         "826",
+		ShortName:       "United Kingdom of Great Britain and Northern Ireland",
 		LongName:        "The United Kingdom of Great Britain and Northern Ireland",
 		CurrencyCode:    "GBP",
 		DistanceUnit:    "MI",
-		UnofficialNames: []string{"United Kingdom", "The United Kingdom", "England", "Großbritannien", "Vereinigtes Königreich", "Royaume-Uni", "Reino Unido", "イギリス", "Verenigd Koninkrijk", "Great Britain (UK)", "UK", "Великобритания", "Velká Británie", "İngiltere", "Великобританія", "Great Britain"},
+		UnofficialNames: []string{"United Kingdom", "The United Kingdom", "United Kingdom of Great Britain and Northern Ireland", "England", "Großbritannien", "Vereinigtes Königreich", "Royaume-Uni", "Reino Unido", "イギリス", "Verenigd Koninkrijk", "Great Britain (UK)", "UK", "Великобритания", "Velká Británie", "İngiltere", "Великобританія", "Great Britain"},
 		Region:          "EMEA",
 		Subregion:       "Northern Europe",
 		Continent:       "Europe",
@@ -1084,6 +1161,7 @@ var (
 	GD = Country{
 		Alpha2:          "GD",
 		Alpha3:          "GRD",
+		Numeric:         "308",
 		ShortName:       "Grenada",
 		LongName:        "Grenada",
 		CurrencyCode:    "XCD",
@@ -1098,6 +1176,7 @@ var (
 	GE = Country{
 		Alpha2:          "GE",
 		Alpha3:          "GEO",
+		Numeric:         "268",
 		ShortName:       "Georgia",
 		LongName:        "Georgia",
 		CurrencyCode:    "GEL",
@@ -1112,6 +1191,7 @@ var (
 	GF = Country{
 		Alpha2:          "GF",
 		Alpha3:          "GUF",
+		Numeric:         "254",
 		ShortName:       "French Guiana",
 		LongName:        "Guyane",
 		CurrencyCode:    "EUR",
@@ -1126,6 +1206,7 @@ var (
 	GG = Country{
 		Alpha2:          "GG",
 		Alpha3:          "GGY",
+		Numeric:         "831",
 		ShortName:       "Guernsey",
 		LongName:        "The Bailiwick of Guernsey",
 		CurrencyCode:    "GBP",
@@ -1140,6 +1221,7 @@ var (
 	GH = Country{
 		Alpha2:          "GH",
 		Alpha3:          "GHA",
+		Numeric:         "288",
 		ShortName:       "Ghana",
 		LongName:        "The Republic of Ghana",
 		CurrencyCode:    "GHS",
@@ -1154,6 +1236,7 @@ var (
 	GI = Country{
 		Alpha2:          "GI",
 		Alpha3:          "GIB",
+		Numeric:         "292",
 		ShortName:       "Gibraltar",
 		LongName:        "Gibraltar",
 		CurrencyCode:    "GIP",
@@ -1168,6 +1251,7 @@ var (
 	GL = Country{
 		Alpha2:          "GL",
 		Alpha3:          "GRL",
+		Numeric:         "304",
 		ShortName:       "Greenland",
 		LongName:        "Kalaallit Nunaat",
 		CurrencyCode:    "DKK",
@@ -1182,11 +1266,12 @@ var (
 	GM = Country{
 		Alpha2:          "GM",
 		Alpha3:          "GMB",
-		ShortName:       "Gambia (the)",
+		Numeric:         "270",
+		ShortName:       "Gambia",
 		LongName:        "The Republic of The Gambia",
 		CurrencyCode:    "GMD",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"The Gambia", "ガンビア"},
+		UnofficialNames: []string{"Gambia", "The Gambia", "ガンビア"},
 		Region:          "EMEA",
 		Subregion:       "Western Africa",
 		Continent:       "Africa",
@@ -1196,6 +1281,7 @@ var (
 	GN = Country{
 		Alpha2:          "GN",
 		Alpha3:          "GIN",
+		Numeric:         "324",
 		ShortName:       "Guinea",
 		LongName:        "The Republic of Guinea",
 		CurrencyCode:    "GNF",
@@ -1210,6 +1296,7 @@ var (
 	GP = Country{
 		Alpha2:          "GP",
 		Alpha3:          "GLP",
+		Numeric:         "312",
 		ShortName:       "Guadeloupe",
 		LongName:        "Guadeloupe",
 		CurrencyCode:    "EUR",
@@ -1224,6 +1311,7 @@ var (
 	GQ = Country{
 		Alpha2:          "GQ",
 		Alpha3:          "GNQ",
+		Numeric:         "226",
 		ShortName:       "Equatorial Guinea",
 		LongName:        "The Republic of Equatorial Guinea",
 		CurrencyCode:    "XAF",
@@ -1238,6 +1326,7 @@ var (
 	GR = Country{
 		Alpha2:          "GR",
 		Alpha3:          "GRC",
+		Numeric:         "300",
 		ShortName:       "Greece",
 		LongName:        "The Hellenic Republic",
 		CurrencyCode:    "EUR",
@@ -1252,6 +1341,7 @@ var (
 	GS = Country{
 		Alpha2:          "GS",
 		Alpha3:          "SGS",
+		Numeric:         "239",
 		ShortName:       "South Georgia and the South Sandwich Islands",
 		LongName:        "South Georgia and the South Sandwich Islands",
 		CurrencyCode:    "GBP",
@@ -1266,6 +1356,7 @@ var (
 	GT = Country{
 		Alpha2:          "GT",
 		Alpha3:          "GTM",
+		Numeric:         "320",
 		ShortName:       "Guatemala",
 		LongName:        "The Republic of Guatemala",
 		CurrencyCode:    "GTQ",
@@ -1280,6 +1371,7 @@ var (
 	GU = Country{
 		Alpha2:          "GU",
 		Alpha3:          "GUM",
+		Numeric:         "316",
 		ShortName:       "Guam",
 		LongName:        "The Territory of Guam",
 		CurrencyCode:    "USD",
@@ -1294,6 +1386,7 @@ var (
 	GW = Country{
 		Alpha2:          "GW",
 		Alpha3:          "GNB",
+		Numeric:         "624",
 		ShortName:       "Guinea-Bissau",
 		LongName:        "The Republic of Guinea-Bissau",
 		CurrencyCode:    "XOF",
@@ -1308,6 +1401,7 @@ var (
 	GY = Country{
 		Alpha2:          "GY",
 		Alpha3:          "GUY",
+		Numeric:         "328",
 		ShortName:       "Guyana",
 		LongName:        "The Co-operative Republic of Guyana",
 		CurrencyCode:    "GYD",
@@ -1322,6 +1416,7 @@ var (
 	HK = Country{
 		Alpha2:          "HK",
 		Alpha3:          "HKG",
+		Numeric:         "344",
 		ShortName:       "Hong Kong",
 		LongName:        "The Hong Kong Special Administrative Region of China",
 		CurrencyCode:    "HKD",
@@ -1336,6 +1431,7 @@ var (
 	HM = Country{
 		Alpha2:          "HM",
 		Alpha3:          "HMD",
+		Numeric:         "334",
 		ShortName:       "Heard Island and McDonald Islands",
 		LongName:        "The Territory of Heard Island and McDonald Islands",
 		CurrencyCode:    "AUD",
@@ -1350,6 +1446,7 @@ var (
 	HN = Country{
 		Alpha2:          "HN",
 		Alpha3:          "HND",
+		Numeric:         "340",
 		ShortName:       "Honduras",
 		LongName:        "The Republic of Honduras",
 		CurrencyCode:    "HNL",
@@ -1364,6 +1461,7 @@ var (
 	HR = Country{
 		Alpha2:          "HR",
 		Alpha3:          "HRV",
+		Numeric:         "191",
 		ShortName:       "Croatia",
 		LongName:        "The Republic of Croatia",
 		CurrencyCode:    "EUR",
@@ -1378,6 +1476,7 @@ var (
 	HT = Country{
 		Alpha2:          "HT",
 		Alpha3:          "HTI",
+		Numeric:         "332",
 		ShortName:       "Haiti",
 		LongName:        "The Republic of Haiti",
 		CurrencyCode:    "HTG",
@@ -1392,6 +1491,7 @@ var (
 	HU = Country{
 		Alpha2:          "HU",
 		Alpha3:          "HUN",
+		Numeric:         "348",
 		ShortName:       "Hungary",
 		LongName:        "Hungary",
 		CurrencyCode:    "HUF",
@@ -1406,6 +1506,7 @@ var (
 	ID = Country{
 		Alpha2:          "ID",
 		Alpha3:          "IDN",
+		Numeric:         "360",
 		ShortName:       "Indonesia",
 		LongName:        "The Republic of Indonesia",
 		CurrencyCode:    "IDR",
@@ -1420,6 +1521,7 @@ var (
 	IE = Country{
 		Alpha2:          "IE",
 		Alpha3:          "IRL",
+		Numeric:         "372",
 		ShortName:       "Ireland",
 		LongName:        "Ireland",
 		CurrencyCode:    "EUR",
@@ -1434,6 +1536,7 @@ var (
 	IL = Country{
 		Alpha2:          "IL",
 		Alpha3:          "ISR",
+		Numeric:         "376",
 		ShortName:       "Israel",
 		LongName:        "The State of Israel",
 		CurrencyCode:    "ILS",
@@ -1448,6 +1551,7 @@ var (
 	IM = Country{
 		Alpha2:          "IM",
 		Alpha3:          "IMN",
+		Numeric:         "833",
 		ShortName:       "Isle of Man",
 		LongName:        "The Isle of Man",
 		CurrencyCode:    "GBP",
@@ -1462,6 +1566,7 @@ var (
 	IN = Country{
 		Alpha2:          "IN",
 		Alpha3:          "IND",
+		Numeric:         "356",
 		ShortName:       "India",
 		LongName:        "The Republic of India",
 		CurrencyCode:    "INR",
@@ -1476,7 +1581,8 @@ var (
 	IO = Country{
 		Alpha2:          "IO",
 		Alpha3:          "IOT",
-		ShortName:       "British Indian Ocean Territory (the)",
+		Numeric:         "086",
+		ShortName:       "British Indian Ocean Territory",
 		LongName:        "The British Indian Ocean Territory",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "KM",
@@ -1490,6 +1596,7 @@ var (
 	IQ = Country{
 		Alpha2:          "IQ",
 		Alpha3:          "IRQ",
+		Numeric:         "368",
 		ShortName:       "Iraq",
 		LongName:        "The Republic of Iraq",
 		CurrencyCode:    "IQD",
@@ -1504,6 +1611,7 @@ var (
 	IR = Country{
 		Alpha2:          "IR",
 		Alpha3:          "IRN",
+		Numeric:         "364",
 		ShortName:       "Iran (Islamic Republic of)",
 		LongName:        "The Islamic Republic of Iran",
 		CurrencyCode:    "IRR",
@@ -1518,6 +1626,7 @@ var (
 	IS = Country{
 		Alpha2:          "IS",
 		Alpha3:          "ISL",
+		Numeric:         "352",
 		ShortName:       "Iceland",
 		LongName:        "Iceland",
 		CurrencyCode:    "ISK",
@@ -1532,6 +1641,7 @@ var (
 	IT = Country{
 		Alpha2:          "IT",
 		Alpha3:          "ITA",
+		Numeric:         "380",
 		ShortName:       "Italy",
 		LongName:        "The Italian Republic",
 		CurrencyCode:    "EUR",
@@ -1546,6 +1656,7 @@ var (
 	JE = Country{
 		Alpha2:          "JE",
 		Alpha3:          "JEY",
+		Numeric:         "832",
 		ShortName:       "Jersey",
 		LongName:        "The Bailiwick of Jersey",
 		CurrencyCode:    "GBP",
@@ -1560,6 +1671,7 @@ var (
 	JM = Country{
 		Alpha2:          "JM",
 		Alpha3:          "JAM",
+		Numeric:         "388",
 		ShortName:       "Jamaica",
 		LongName:        "Jamaica",
 		CurrencyCode:    "JMD",
@@ -1574,6 +1686,7 @@ var (
 	JO = Country{
 		Alpha2:          "JO",
 		Alpha3:          "JOR",
+		Numeric:         "400",
 		ShortName:       "Jordan",
 		LongName:        "The Hashemite Kingdom of Jordan",
 		CurrencyCode:    "JOD",
@@ -1588,6 +1701,7 @@ var (
 	JP = Country{
 		Alpha2:          "JP",
 		Alpha3:          "JPN",
+		Numeric:         "392",
 		ShortName:       "Japan",
 		LongName:        "Japan",
 		CurrencyCode:    "JPY",
@@ -1602,6 +1716,7 @@ var (
 	KE = Country{
 		Alpha2:          "KE",
 		Alpha3:          "KEN",
+		Numeric:         "404",
 		ShortName:       "Kenya",
 		LongName:        "The Republic of Kenya",
 		CurrencyCode:    "KES",
@@ -1616,6 +1731,7 @@ var (
 	KG = Country{
 		Alpha2:          "KG",
 		Alpha3:          "KGZ",
+		Numeric:         "417",
 		ShortName:       "Kyrgyzstan",
 		LongName:        "The Kyrgyz Republic",
 		CurrencyCode:    "KGS",
@@ -1630,6 +1746,7 @@ var (
 	KH = Country{
 		Alpha2:          "KH",
 		Alpha3:          "KHM",
+		Numeric:         "116",
 		ShortName:       "Cambodia",
 		LongName:        "The Kingdom of Cambodia",
 		CurrencyCode:    "KHR",
@@ -1644,6 +1761,7 @@ var (
 	KI = Country{
 		Alpha2:          "KI",
 		Alpha3:          "KIR",
+		Numeric:         "296",
 		ShortName:       "Kiribati",
 		LongName:        "The Republic of Kiribati",
 		CurrencyCode:    "AUD",
@@ -1658,7 +1776,8 @@ var (
 	KM = Country{
 		Alpha2:          "KM",
 		Alpha3:          "COM",
-		ShortName:       "Comoros (the)",
+		Numeric:         "174",
+		ShortName:       "Comoros",
 		LongName:        "The Union of the Comoros",
 		CurrencyCode:    "KMF",
 		DistanceUnit:    "KM",
@@ -1672,6 +1791,7 @@ var (
 	KN = Country{
 		Alpha2:          "KN",
 		Alpha3:          "KNA",
+		Numeric:         "659",
 		ShortName:       "Saint Kitts and Nevis",
 		LongName:        "Saint Kitts and Nevis",
 		CurrencyCode:    "XCD",
@@ -1686,11 +1806,12 @@ var (
 	KP = Country{
 		Alpha2:          "KP",
 		Alpha3:          "PRK",
-		ShortName:       "Korea (the Democratic People's Republic of)",
+		Numeric:         "408",
+		ShortName:       "Korea (Democratic People's Republic of)",
 		LongName:        "The Democratic People's Republic of Korea",
 		CurrencyCode:    "KPW",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Korea (North)", "North Korea", "Nordkorea", "Corée du Nord", "Corea del Norte", "朝鮮民主主義人民共和国", "Noord-Korea", "Korea Democratic People's Republic", "Korea (Democratic People s Republic of)"},
+		UnofficialNames: []string{"Korea (Democratic People's Republic of)", "Korea (North)", "North Korea", "Nordkorea", "Corée du Nord", "Corea del Norte", "朝鮮民主主義人民共和国", "Noord-Korea", "Korea Democratic People's Republic", "Korea (Democratic People s Republic of)"},
 		Region:          "APAC",
 		Subregion:       "Eastern Asia",
 		Continent:       "Asia",
@@ -1700,7 +1821,8 @@ var (
 	KR = Country{
 		Alpha2:          "KR",
 		Alpha3:          "KOR",
-		ShortName:       "Korea (the Republic of)",
+		Numeric:         "410",
+		ShortName:       "Korea (Republic of)",
 		LongName:        "The Republic of Korea",
 		CurrencyCode:    "KRW",
 		DistanceUnit:    "KM",
@@ -1714,6 +1836,7 @@ var (
 	KW = Country{
 		Alpha2:          "KW",
 		Alpha3:          "KWT",
+		Numeric:         "414",
 		ShortName:       "Kuwait",
 		LongName:        "The State of Kuwait",
 		CurrencyCode:    "KWD",
@@ -1728,7 +1851,8 @@ var (
 	KY = Country{
 		Alpha2:          "KY",
 		Alpha3:          "CYM",
-		ShortName:       "Cayman Islands (the)",
+		Numeric:         "136",
+		ShortName:       "Cayman Islands",
 		LongName:        "The Cayman Islands",
 		CurrencyCode:    "KYD",
 		DistanceUnit:    "MI",
@@ -1742,6 +1866,7 @@ var (
 	KZ = Country{
 		Alpha2:          "KZ",
 		Alpha3:          "KAZ",
+		Numeric:         "398",
 		ShortName:       "Kazakhstan",
 		LongName:        "The Republic of Kazakhstan",
 		CurrencyCode:    "KZT",
@@ -1756,7 +1881,8 @@ var (
 	LA = Country{
 		Alpha2:          "LA",
 		Alpha3:          "LAO",
-		ShortName:       "Lao People's Democratic Republic (the)",
+		Numeric:         "418",
+		ShortName:       "Lao People's Democratic Republic",
 		LongName:        "The Lao People's Democratic Republic",
 		CurrencyCode:    "LAK",
 		DistanceUnit:    "KM",
@@ -1770,6 +1896,7 @@ var (
 	LB = Country{
 		Alpha2:          "LB",
 		Alpha3:          "LBN",
+		Numeric:         "422",
 		ShortName:       "Lebanon",
 		LongName:        "The Lebanese Republic",
 		CurrencyCode:    "LBP",
@@ -1784,6 +1911,7 @@ var (
 	LC = Country{
 		Alpha2:          "LC",
 		Alpha3:          "LCA",
+		Numeric:         "662",
 		ShortName:       "Saint Lucia",
 		LongName:        "Saint Lucia",
 		CurrencyCode:    "XCD",
@@ -1798,6 +1926,7 @@ var (
 	LI = Country{
 		Alpha2:          "LI",
 		Alpha3:          "LIE",
+		Numeric:         "438",
 		ShortName:       "Liechtenstein",
 		LongName:        "The Principality of Liechtenstein",
 		CurrencyCode:    "CHF",
@@ -1812,6 +1941,7 @@ var (
 	LK = Country{
 		Alpha2:          "LK",
 		Alpha3:          "LKA",
+		Numeric:         "144",
 		ShortName:       "Sri Lanka",
 		LongName:        "The Democratic Socialist Republic of Sri Lanka",
 		CurrencyCode:    "LKR",
@@ -1826,6 +1956,7 @@ var (
 	LR = Country{
 		Alpha2:          "LR",
 		Alpha3:          "LBR",
+		Numeric:         "430",
 		ShortName:       "Liberia",
 		LongName:        "The Republic of Liberia",
 		CurrencyCode:    "LRD",
@@ -1840,6 +1971,7 @@ var (
 	LS = Country{
 		Alpha2:          "LS",
 		Alpha3:          "LSO",
+		Numeric:         "426",
 		ShortName:       "Lesotho",
 		LongName:        "The Kingdom of Lesotho",
 		CurrencyCode:    "LSL",
@@ -1854,6 +1986,7 @@ var (
 	LT = Country{
 		Alpha2:          "LT",
 		Alpha3:          "LTU",
+		Numeric:         "440",
 		ShortName:       "Lithuania",
 		LongName:        "The Republic of Lithuania",
 		CurrencyCode:    "EUR",
@@ -1868,6 +2001,7 @@ var (
 	LU = Country{
 		Alpha2:          "LU",
 		Alpha3:          "LUX",
+		Numeric:         "442",
 		ShortName:       "Luxembourg",
 		LongName:        "The Grand Duchy of Luxembourg",
 		CurrencyCode:    "EUR",
@@ -1882,6 +2016,7 @@ var (
 	LV = Country{
 		Alpha2:          "LV",
 		Alpha3:          "LVA",
+		Numeric:         "428",
 		ShortName:       "Latvia",
 		LongName:        "The Republic of Latvia",
 		CurrencyCode:    "EUR",
@@ -1896,6 +2031,7 @@ var (
 	LY = Country{
 		Alpha2:          "LY",
 		Alpha3:          "LBY",
+		Numeric:         "434",
 		ShortName:       "Libya",
 		LongName:        "The State of Libya",
 		CurrencyCode:    "LYD",
@@ -1910,6 +2046,7 @@ var (
 	MA = Country{
 		Alpha2:          "MA",
 		Alpha3:          "MAR",
+		Numeric:         "504",
 		ShortName:       "Morocco",
 		LongName:        "The Kingdom of Morocco",
 		CurrencyCode:    "MAD",
@@ -1924,6 +2061,7 @@ var (
 	MC = Country{
 		Alpha2:          "MC",
 		Alpha3:          "MCO",
+		Numeric:         "492",
 		ShortName:       "Monaco",
 		LongName:        "The Principality of Monaco",
 		CurrencyCode:    "EUR",
@@ -1938,11 +2076,12 @@ var (
 	MD = Country{
 		Alpha2:          "MD",
 		Alpha3:          "MDA",
-		ShortName:       "Moldova (the Republic of)",
+		Numeric:         "498",
+		ShortName:       "Moldova (Republic of)",
 		LongName:        "The Republic of Moldova",
 		CurrencyCode:    "MDL",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Moldova", "Moldawien", "Moldavie", "Moldavia", "the Republic of Moldova", "モルドバ共和国", "Moldavië"},
+		UnofficialNames: []string{"Moldova", "Moldawien", "Moldavie", "Moldavia", "Moldova (Republic of)", "the Republic of Moldova", "モルドバ共和国", "Moldavië"},
 		Region:          "EMEA",
 		Subregion:       "Eastern Europe",
 		Continent:       "Europe",
@@ -1952,6 +2091,7 @@ var (
 	ME = Country{
 		Alpha2:          "ME",
 		Alpha3:          "MNE",
+		Numeric:         "499",
 		ShortName:       "Montenegro",
 		LongName:        "Montenegro",
 		CurrencyCode:    "EUR",
@@ -1966,6 +2106,7 @@ var (
 	MF = Country{
 		Alpha2:          "MF",
 		Alpha3:          "MAF",
+		Numeric:         "663",
 		ShortName:       "Saint Martin (French part)",
 		LongName:        "The Collectivity of Saint-Martin",
 		CurrencyCode:    "EUR",
@@ -1980,6 +2121,7 @@ var (
 	MG = Country{
 		Alpha2:          "MG",
 		Alpha3:          "MDG",
+		Numeric:         "450",
 		ShortName:       "Madagascar",
 		LongName:        "The Republic of Madagascar",
 		CurrencyCode:    "MGA",
@@ -1994,7 +2136,8 @@ var (
 	MH = Country{
 		Alpha2:          "MH",
 		Alpha3:          "MHL",
-		ShortName:       "Marshall Islands (the)",
+		Numeric:         "584",
+		ShortName:       "Marshall Islands",
 		LongName:        "The Republic of the Marshall Islands",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "KM",
@@ -2008,6 +2151,7 @@ var (
 	MK = Country{
 		Alpha2:          "MK",
 		Alpha3:          "MKD",
+		Numeric:         "807",
 		ShortName:       "North Macedonia",
 		LongName:        "The Republic of North Macedonia",
 		CurrencyCode:    "MKD",
@@ -2022,6 +2166,7 @@ var (
 	ML = Country{
 		Alpha2:          "ML",
 		Alpha3:          "MLI",
+		Numeric:         "466",
 		ShortName:       "Mali",
 		LongName:        "The Republic of Mali",
 		CurrencyCode:    "XOF",
@@ -2036,6 +2181,7 @@ var (
 	MM = Country{
 		Alpha2:          "MM",
 		Alpha3:          "MMR",
+		Numeric:         "104",
 		ShortName:       "Myanmar",
 		LongName:        "The Republic of the Union of Myanmar",
 		CurrencyCode:    "MMK",
@@ -2050,6 +2196,7 @@ var (
 	MN = Country{
 		Alpha2:          "MN",
 		Alpha3:          "MNG",
+		Numeric:         "496",
 		ShortName:       "Mongolia",
 		LongName:        "Mongolia",
 		CurrencyCode:    "MNT",
@@ -2064,6 +2211,7 @@ var (
 	MO = Country{
 		Alpha2:          "MO",
 		Alpha3:          "MAC",
+		Numeric:         "446",
 		ShortName:       "Macao",
 		LongName:        "The Macao Special Administrative Region of China",
 		CurrencyCode:    "MOP",
@@ -2078,7 +2226,8 @@ var (
 	MP = Country{
 		Alpha2:          "MP",
 		Alpha3:          "MNP",
-		ShortName:       "Northern Mariana Islands (the)",
+		Numeric:         "580",
+		ShortName:       "Northern Mariana Islands",
 		LongName:        "The Commonwealth of the Northern Mariana Islands",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "MI",
@@ -2092,6 +2241,7 @@ var (
 	MQ = Country{
 		Alpha2:          "MQ",
 		Alpha3:          "MTQ",
+		Numeric:         "474",
 		ShortName:       "Martinique",
 		LongName:        "Martinique",
 		CurrencyCode:    "EUR",
@@ -2106,6 +2256,7 @@ var (
 	MR = Country{
 		Alpha2:          "MR",
 		Alpha3:          "MRT",
+		Numeric:         "478",
 		ShortName:       "Mauritania",
 		LongName:        "The Islamic Republic of Mauritania",
 		CurrencyCode:    "MRU",
@@ -2120,6 +2271,7 @@ var (
 	MS = Country{
 		Alpha2:          "MS",
 		Alpha3:          "MSR",
+		Numeric:         "500",
 		ShortName:       "Montserrat",
 		LongName:        "Montserrat",
 		CurrencyCode:    "XCD",
@@ -2134,6 +2286,7 @@ var (
 	MT = Country{
 		Alpha2:          "MT",
 		Alpha3:          "MLT",
+		Numeric:         "470",
 		ShortName:       "Malta",
 		LongName:        "The Republic of Malta",
 		CurrencyCode:    "EUR",
@@ -2148,6 +2301,7 @@ var (
 	MU = Country{
 		Alpha2:          "MU",
 		Alpha3:          "MUS",
+		Numeric:         "480",
 		ShortName:       "Mauritius",
 		LongName:        "The Republic of Mauritius",
 		CurrencyCode:    "MUR",
@@ -2162,6 +2316,7 @@ var (
 	MV = Country{
 		Alpha2:          "MV",
 		Alpha3:          "MDV",
+		Numeric:         "462",
 		ShortName:       "Maldives",
 		LongName:        "The Republic of Maldives",
 		CurrencyCode:    "MVR",
@@ -2176,6 +2331,7 @@ var (
 	MW = Country{
 		Alpha2:          "MW",
 		Alpha3:          "MWI",
+		Numeric:         "454",
 		ShortName:       "Malawi",
 		LongName:        "The Republic of Malawi",
 		CurrencyCode:    "MWK",
@@ -2190,6 +2346,7 @@ var (
 	MX = Country{
 		Alpha2:          "MX",
 		Alpha3:          "MEX",
+		Numeric:         "484",
 		ShortName:       "Mexico",
 		LongName:        "The United Mexican States",
 		CurrencyCode:    "MXN",
@@ -2204,6 +2361,7 @@ var (
 	MY = Country{
 		Alpha2:          "MY",
 		Alpha3:          "MYS",
+		Numeric:         "458",
 		ShortName:       "Malaysia",
 		LongName:        "Malaysia",
 		CurrencyCode:    "MYR",
@@ -2218,6 +2376,7 @@ var (
 	MZ = Country{
 		Alpha2:          "MZ",
 		Alpha3:          "MOZ",
+		Numeric:         "508",
 		ShortName:       "Mozambique",
 		LongName:        "The Republic of Mozambique",
 		CurrencyCode:    "MZN",
@@ -2232,6 +2391,7 @@ var (
 	NA = Country{
 		Alpha2:          "NA",
 		Alpha3:          "NAM",
+		Numeric:         "516",
 		ShortName:       "Namibia",
 		LongName:        "The Republic of Namibia",
 		CurrencyCode:    "NAD",
@@ -2246,6 +2406,7 @@ var (
 	NC = Country{
 		Alpha2:          "NC",
 		Alpha3:          "NCL",
+		Numeric:         "540",
 		ShortName:       "New Caledonia",
 		LongName:        "New Caledonia",
 		CurrencyCode:    "XPF",
@@ -2260,7 +2421,8 @@ var (
 	NE = Country{
 		Alpha2:          "NE",
 		Alpha3:          "NER",
-		ShortName:       "Niger (the)",
+		Numeric:         "562",
+		ShortName:       "Niger",
 		LongName:        "The Republic of the Niger",
 		CurrencyCode:    "XOF",
 		DistanceUnit:    "KM",
@@ -2274,6 +2436,7 @@ var (
 	NF = Country{
 		Alpha2:          "NF",
 		Alpha3:          "NFK",
+		Numeric:         "574",
 		ShortName:       "Norfolk Island",
 		LongName:        "The Territory of Norfolk Island",
 		CurrencyCode:    "AUD",
@@ -2288,6 +2451,7 @@ var (
 	NG = Country{
 		Alpha2:          "NG",
 		Alpha3:          "NGA",
+		Numeric:         "566",
 		ShortName:       "Nigeria",
 		LongName:        "The Federal Republic of Nigeria",
 		CurrencyCode:    "NGN",
@@ -2302,6 +2466,7 @@ var (
 	NI = Country{
 		Alpha2:          "NI",
 		Alpha3:          "NIC",
+		Numeric:         "558",
 		ShortName:       "Nicaragua",
 		LongName:        "The Republic of Nicaragua",
 		CurrencyCode:    "NIO",
@@ -2316,7 +2481,8 @@ var (
 	NL = Country{
 		Alpha2:          "NL",
 		Alpha3:          "NLD",
-		ShortName:       "Netherlands (the)",
+		Numeric:         "528",
+		ShortName:       "Netherlands",
 		LongName:        "The Kingdom of the Netherlands",
 		CurrencyCode:    "EUR",
 		DistanceUnit:    "KM",
@@ -2330,6 +2496,7 @@ var (
 	NO = Country{
 		Alpha2:          "NO",
 		Alpha3:          "NOR",
+		Numeric:         "578",
 		ShortName:       "Norway",
 		LongName:        "The Kingdom of Norway",
 		CurrencyCode:    "NOK",
@@ -2344,6 +2511,7 @@ var (
 	NP = Country{
 		Alpha2:          "NP",
 		Alpha3:          "NPL",
+		Numeric:         "524",
 		ShortName:       "Nepal",
 		LongName:        "The Federal Democratic Republic of Nepal",
 		CurrencyCode:    "NPR",
@@ -2358,6 +2526,7 @@ var (
 	NR = Country{
 		Alpha2:          "NR",
 		Alpha3:          "NRU",
+		Numeric:         "520",
 		ShortName:       "Nauru",
 		LongName:        "The Republic of Nauru",
 		CurrencyCode:    "AUD",
@@ -2372,6 +2541,7 @@ var (
 	NU = Country{
 		Alpha2:          "NU",
 		Alpha3:          "NIU",
+		Numeric:         "570",
 		ShortName:       "Niue",
 		LongName:        "Niue",
 		CurrencyCode:    "NZD",
@@ -2386,6 +2556,7 @@ var (
 	NZ = Country{
 		Alpha2:          "NZ",
 		Alpha3:          "NZL",
+		Numeric:         "554",
 		ShortName:       "New Zealand",
 		LongName:        "New Zealand",
 		CurrencyCode:    "NZD",
@@ -2400,6 +2571,7 @@ var (
 	OM = Country{
 		Alpha2:          "OM",
 		Alpha3:          "OMN",
+		Numeric:         "512",
 		ShortName:       "Oman",
 		LongName:        "The Sultanate of Oman",
 		CurrencyCode:    "OMR",
@@ -2414,6 +2586,7 @@ var (
 	PA = Country{
 		Alpha2:          "PA",
 		Alpha3:          "PAN",
+		Numeric:         "591",
 		ShortName:       "Panama",
 		LongName:        "The Republic of Panamá",
 		CurrencyCode:    "PAB",
@@ -2428,6 +2601,7 @@ var (
 	PE = Country{
 		Alpha2:          "PE",
 		Alpha3:          "PER",
+		Numeric:         "604",
 		ShortName:       "Peru",
 		LongName:        "The Republic of Perú",
 		CurrencyCode:    "PEN",
@@ -2442,6 +2616,7 @@ var (
 	PF = Country{
 		Alpha2:          "PF",
 		Alpha3:          "PYF",
+		Numeric:         "258",
 		ShortName:       "French Polynesia",
 		LongName:        "French Polynesia",
 		CurrencyCode:    "XPF",
@@ -2456,6 +2631,7 @@ var (
 	PG = Country{
 		Alpha2:          "PG",
 		Alpha3:          "PNG",
+		Numeric:         "598",
 		ShortName:       "Papua New Guinea",
 		LongName:        "The Independent State of Papua New Guinea",
 		CurrencyCode:    "PGK",
@@ -2470,7 +2646,8 @@ var (
 	PH = Country{
 		Alpha2:          "PH",
 		Alpha3:          "PHL",
-		ShortName:       "Philippines (the)",
+		Numeric:         "608",
+		ShortName:       "Philippines",
 		LongName:        "The Republic of the Philippines",
 		CurrencyCode:    "PHP",
 		DistanceUnit:    "KM",
@@ -2484,6 +2661,7 @@ var (
 	PK = Country{
 		Alpha2:          "PK",
 		Alpha3:          "PAK",
+		Numeric:         "586",
 		ShortName:       "Pakistan",
 		LongName:        "The Islamic Republic of Pakistan",
 		CurrencyCode:    "PKR",
@@ -2498,6 +2676,7 @@ var (
 	PL = Country{
 		Alpha2:          "PL",
 		Alpha3:          "POL",
+		Numeric:         "616",
 		ShortName:       "Poland",
 		LongName:        "The Republic of Poland",
 		CurrencyCode:    "PLN",
@@ -2512,6 +2691,7 @@ var (
 	PM = Country{
 		Alpha2:          "PM",
 		Alpha3:          "SPM",
+		Numeric:         "666",
 		ShortName:       "Saint Pierre and Miquelon",
 		LongName:        "The Overseas Collectivity of Saint-Pierre and Miquelon",
 		CurrencyCode:    "EUR",
@@ -2526,6 +2706,7 @@ var (
 	PN = Country{
 		Alpha2:          "PN",
 		Alpha3:          "PCN",
+		Numeric:         "612",
 		ShortName:       "Pitcairn",
 		LongName:        "The Pitcairn, Henderson, Ducie and Oeno Islands",
 		CurrencyCode:    "NZD",
@@ -2540,6 +2721,7 @@ var (
 	PR = Country{
 		Alpha2:          "PR",
 		Alpha3:          "PRI",
+		Numeric:         "630",
 		ShortName:       "Puerto Rico",
 		LongName:        "The Commonwealth of Puerto Rico",
 		CurrencyCode:    "USD",
@@ -2554,6 +2736,7 @@ var (
 	PS = Country{
 		Alpha2:          "PS",
 		Alpha3:          "PSE",
+		Numeric:         "275",
 		ShortName:       "Palestine, State of",
 		LongName:        "The State of Palestine",
 		CurrencyCode:    "ILS",
@@ -2568,6 +2751,7 @@ var (
 	PT = Country{
 		Alpha2:          "PT",
 		Alpha3:          "PRT",
+		Numeric:         "620",
 		ShortName:       "Portugal",
 		LongName:        "The Portuguese Republic",
 		CurrencyCode:    "EUR",
@@ -2582,6 +2766,7 @@ var (
 	PW = Country{
 		Alpha2:          "PW",
 		Alpha3:          "PLW",
+		Numeric:         "585",
 		ShortName:       "Palau",
 		LongName:        "The Republic of Palau",
 		CurrencyCode:    "USD",
@@ -2596,6 +2781,7 @@ var (
 	PY = Country{
 		Alpha2:          "PY",
 		Alpha3:          "PRY",
+		Numeric:         "600",
 		ShortName:       "Paraguay",
 		LongName:        "The Republic of Paraguay",
 		CurrencyCode:    "PYG",
@@ -2610,6 +2796,7 @@ var (
 	QA = Country{
 		Alpha2:          "QA",
 		Alpha3:          "QAT",
+		Numeric:         "634",
 		ShortName:       "Qatar",
 		LongName:        "The State of Qatar",
 		CurrencyCode:    "QAR",
@@ -2624,11 +2811,12 @@ var (
 	RE = Country{
 		Alpha2:          "RE",
 		Alpha3:          "REU",
+		Numeric:         "638",
 		ShortName:       "Réunion",
 		LongName:        "Réunion",
 		CurrencyCode:    "EUR",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Réunion", "Reunión", "Reunion", "レユニオン"},
+		UnofficialNames: []string{"La Réunion", "Réunion", "Reunión", "Reunion", "レユニオン"},
 		Region:          "EMEA",
 		Subregion:       "Eastern Africa",
 		Continent:       "Africa",
@@ -2638,6 +2826,7 @@ var (
 	RO = Country{
 		Alpha2:          "RO",
 		Alpha3:          "ROU",
+		Numeric:         "642",
 		ShortName:       "Romania",
 		LongName:        "Romania",
 		CurrencyCode:    "RON",
@@ -2652,6 +2841,7 @@ var (
 	RS = Country{
 		Alpha2:          "RS",
 		Alpha3:          "SRB",
+		Numeric:         "688",
 		ShortName:       "Serbia",
 		LongName:        "The Republic of Serbia",
 		CurrencyCode:    "RSD",
@@ -2666,11 +2856,12 @@ var (
 	RU = Country{
 		Alpha2:          "RU",
 		Alpha3:          "RUS",
-		ShortName:       "Russian Federation (the)",
+		Numeric:         "643",
+		ShortName:       "Russian Federation",
 		LongName:        "The Russian Federation",
 		CurrencyCode:    "RUB",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Russia", "Russland", "Russie", "Rusia", "ロシア連邦", "Rusland", "Россия", "Расія"},
+		UnofficialNames: []string{"Russia", "Russian Federation", "Russland", "Russie", "Rusia", "ロシア連邦", "Rusland", "Россия", "Расія"},
 		Region:          "EMEA",
 		Subregion:       "Eastern Europe",
 		Continent:       "Europe",
@@ -2680,6 +2871,7 @@ var (
 	RW = Country{
 		Alpha2:          "RW",
 		Alpha3:          "RWA",
+		Numeric:         "646",
 		ShortName:       "Rwanda",
 		LongName:        "The Republic of Rwanda",
 		CurrencyCode:    "RWF",
@@ -2694,6 +2886,7 @@ var (
 	SA = Country{
 		Alpha2:          "SA",
 		Alpha3:          "SAU",
+		Numeric:         "682",
 		ShortName:       "Saudi Arabia",
 		LongName:        "The Kingdom of Saudi Arabia",
 		CurrencyCode:    "SAR",
@@ -2708,6 +2901,7 @@ var (
 	SB = Country{
 		Alpha2:          "SB",
 		Alpha3:          "SLB",
+		Numeric:         "090",
 		ShortName:       "Solomon Islands",
 		LongName:        "The Solomon Islands",
 		CurrencyCode:    "SBD",
@@ -2722,6 +2916,7 @@ var (
 	SC = Country{
 		Alpha2:          "SC",
 		Alpha3:          "SYC",
+		Numeric:         "690",
 		ShortName:       "Seychelles",
 		LongName:        "The Republic of Seychelles",
 		CurrencyCode:    "SCR",
@@ -2736,7 +2931,8 @@ var (
 	SD = Country{
 		Alpha2:          "SD",
 		Alpha3:          "SDN",
-		ShortName:       "Sudan (the)",
+		Numeric:         "729",
+		ShortName:       "Sudan",
 		LongName:        "The Republic of the Sudan",
 		CurrencyCode:    "SDG",
 		DistanceUnit:    "KM",
@@ -2750,6 +2946,7 @@ var (
 	SE = Country{
 		Alpha2:          "SE",
 		Alpha3:          "SWE",
+		Numeric:         "752",
 		ShortName:       "Sweden",
 		LongName:        "The Kingdom of Sweden",
 		CurrencyCode:    "SEK",
@@ -2764,6 +2961,7 @@ var (
 	SG = Country{
 		Alpha2:          "SG",
 		Alpha3:          "SGP",
+		Numeric:         "702",
 		ShortName:       "Singapore",
 		LongName:        "The Republic of Singapore",
 		CurrencyCode:    "SGD",
@@ -2778,6 +2976,7 @@ var (
 	SH = Country{
 		Alpha2:          "SH",
 		Alpha3:          "SHN",
+		Numeric:         "654",
 		ShortName:       "Saint Helena, Ascension and Tristan da Cunha",
 		LongName:        "Saint Helena, Ascension and Tristan da Cunha",
 		CurrencyCode:    "SHP",
@@ -2792,6 +2991,7 @@ var (
 	SI = Country{
 		Alpha2:          "SI",
 		Alpha3:          "SVN",
+		Numeric:         "705",
 		ShortName:       "Slovenia",
 		LongName:        "The Republic of Slovenia",
 		CurrencyCode:    "EUR",
@@ -2806,6 +3006,7 @@ var (
 	SJ = Country{
 		Alpha2:          "SJ",
 		Alpha3:          "SJM",
+		Numeric:         "744",
 		ShortName:       "Svalbard and Jan Mayen",
 		LongName:        "Svalbard and Jan Mayen",
 		CurrencyCode:    "NOK",
@@ -2820,6 +3021,7 @@ var (
 	SK = Country{
 		Alpha2:          "SK",
 		Alpha3:          "SVK",
+		Numeric:         "703",
 		ShortName:       "Slovakia",
 		LongName:        "The Slovak Republic",
 		CurrencyCode:    "EUR",
@@ -2834,6 +3036,7 @@ var (
 	SL = Country{
 		Alpha2:          "SL",
 		Alpha3:          "SLE",
+		Numeric:         "694",
 		ShortName:       "Sierra Leone",
 		LongName:        "The Republic of Sierra Leone",
 		CurrencyCode:    "SLE",
@@ -2848,6 +3051,7 @@ var (
 	SM = Country{
 		Alpha2:          "SM",
 		Alpha3:          "SMR",
+		Numeric:         "674",
 		ShortName:       "San Marino",
 		LongName:        "The Republic of San Marino",
 		CurrencyCode:    "EUR",
@@ -2862,6 +3066,7 @@ var (
 	SN = Country{
 		Alpha2:          "SN",
 		Alpha3:          "SEN",
+		Numeric:         "686",
 		ShortName:       "Senegal",
 		LongName:        "The Republic of Senegal",
 		CurrencyCode:    "XOF",
@@ -2876,6 +3081,7 @@ var (
 	SO = Country{
 		Alpha2:          "SO",
 		Alpha3:          "SOM",
+		Numeric:         "706",
 		ShortName:       "Somalia",
 		LongName:        "The Federal Republic of Somalia",
 		CurrencyCode:    "SOS",
@@ -2890,6 +3096,7 @@ var (
 	SR = Country{
 		Alpha2:          "SR",
 		Alpha3:          "SUR",
+		Numeric:         "740",
 		ShortName:       "Suriname",
 		LongName:        "The Republic of Suriname",
 		CurrencyCode:    "SRD",
@@ -2904,6 +3111,7 @@ var (
 	SS = Country{
 		Alpha2:          "SS",
 		Alpha3:          "SSD",
+		Numeric:         "728",
 		ShortName:       "South Sudan",
 		LongName:        "The Republic of South Sudan",
 		CurrencyCode:    "SSP",
@@ -2918,6 +3126,7 @@ var (
 	ST = Country{
 		Alpha2:          "ST",
 		Alpha3:          "STP",
+		Numeric:         "678",
 		ShortName:       "Sao Tome and Principe",
 		LongName:        "The Democratic Republic of São Tomé and Príncipe",
 		CurrencyCode:    "STN",
@@ -2932,6 +3141,7 @@ var (
 	SV = Country{
 		Alpha2:          "SV",
 		Alpha3:          "SLV",
+		Numeric:         "222",
 		ShortName:       "El Salvador",
 		LongName:        "The Republic of El Salvador",
 		CurrencyCode:    "USD",
@@ -2946,6 +3156,7 @@ var (
 	SX = Country{
 		Alpha2:          "SX",
 		Alpha3:          "SXM",
+		Numeric:         "534",
 		ShortName:       "Sint Maarten (Dutch part)",
 		LongName:        "Sint Maarten",
 		CurrencyCode:    "XCG",
@@ -2960,6 +3171,7 @@ var (
 	SY = Country{
 		Alpha2:          "SY",
 		Alpha3:          "SYR",
+		Numeric:         "760",
 		ShortName:       "Syrian Arab Republic",
 		LongName:        "The Syrian Arab Republic",
 		CurrencyCode:    "SYP",
@@ -2974,6 +3186,7 @@ var (
 	SZ = Country{
 		Alpha2:          "SZ",
 		Alpha3:          "SWZ",
+		Numeric:         "748",
 		ShortName:       "Eswatini",
 		LongName:        "The Kingdom of Eswatini",
 		CurrencyCode:    "SZL",
@@ -2988,7 +3201,8 @@ var (
 	TC = Country{
 		Alpha2:          "TC",
 		Alpha3:          "TCA",
-		ShortName:       "Turks and Caicos Islands (the)",
+		Numeric:         "796",
+		ShortName:       "Turks and Caicos Islands",
 		LongName:        "The Turks and Caicos Islands",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "MI",
@@ -3002,6 +3216,7 @@ var (
 	TD = Country{
 		Alpha2:          "TD",
 		Alpha3:          "TCD",
+		Numeric:         "148",
 		ShortName:       "Chad",
 		LongName:        "The Republic of Chad",
 		CurrencyCode:    "XAF",
@@ -3016,7 +3231,8 @@ var (
 	TF = Country{
 		Alpha2:          "TF",
 		Alpha3:          "ATF",
-		ShortName:       "French Southern Territories (the)",
+		Numeric:         "260",
+		ShortName:       "French Southern Territories",
 		LongName:        "The French Southern and Antarctic Lands",
 		CurrencyCode:    "EUR",
 		DistanceUnit:    "KM",
@@ -3030,6 +3246,7 @@ var (
 	TG = Country{
 		Alpha2:          "TG",
 		Alpha3:          "TGO",
+		Numeric:         "768",
 		ShortName:       "Togo",
 		LongName:        "The Togolese Republic",
 		CurrencyCode:    "XOF",
@@ -3044,6 +3261,7 @@ var (
 	TH = Country{
 		Alpha2:          "TH",
 		Alpha3:          "THA",
+		Numeric:         "764",
 		ShortName:       "Thailand",
 		LongName:        "The Kingdom of Thailand",
 		CurrencyCode:    "THB",
@@ -3058,6 +3276,7 @@ var (
 	TJ = Country{
 		Alpha2:          "TJ",
 		Alpha3:          "TJK",
+		Numeric:         "762",
 		ShortName:       "Tajikistan",
 		LongName:        "The Republic of Tajikistan",
 		CurrencyCode:    "TJS",
@@ -3072,6 +3291,7 @@ var (
 	TK = Country{
 		Alpha2:          "TK",
 		Alpha3:          "TKL",
+		Numeric:         "772",
 		ShortName:       "Tokelau",
 		LongName:        "Tokelau",
 		CurrencyCode:    "NZD",
@@ -3086,6 +3306,7 @@ var (
 	TL = Country{
 		Alpha2:          "TL",
 		Alpha3:          "TLS",
+		Numeric:         "626",
 		ShortName:       "Timor-Leste",
 		LongName:        "The Democratic Republic of Timor-Leste",
 		CurrencyCode:    "IDR",
@@ -3100,6 +3321,7 @@ var (
 	TM = Country{
 		Alpha2:          "TM",
 		Alpha3:          "TKM",
+		Numeric:         "795",
 		ShortName:       "Turkmenistan",
 		LongName:        "Turkmenistan",
 		CurrencyCode:    "TMT",
@@ -3114,6 +3336,7 @@ var (
 	TN = Country{
 		Alpha2:          "TN",
 		Alpha3:          "TUN",
+		Numeric:         "788",
 		ShortName:       "Tunisia",
 		LongName:        "The Republic of Tunisia",
 		CurrencyCode:    "TND",
@@ -3128,6 +3351,7 @@ var (
 	TO = Country{
 		Alpha2:          "TO",
 		Alpha3:          "TON",
+		Numeric:         "776",
 		ShortName:       "Tonga",
 		LongName:        "The Kingdom of Tonga",
 		CurrencyCode:    "TOP",
@@ -3142,6 +3366,7 @@ var (
 	TR = Country{
 		Alpha2:          "TR",
 		Alpha3:          "TUR",
+		Numeric:         "792",
 		ShortName:       "Türkiye",
 		LongName:        "The Republic of Türkiye",
 		CurrencyCode:    "TRY",
@@ -3156,6 +3381,7 @@ var (
 	TT = Country{
 		Alpha2:          "TT",
 		Alpha3:          "TTO",
+		Numeric:         "780",
 		ShortName:       "Trinidad and Tobago",
 		LongName:        "The Republic of Trinidad and Tobago",
 		CurrencyCode:    "TTD",
@@ -3170,6 +3396,7 @@ var (
 	TV = Country{
 		Alpha2:          "TV",
 		Alpha3:          "TUV",
+		Numeric:         "798",
 		ShortName:       "Tuvalu",
 		LongName:        "Tuvalu",
 		CurrencyCode:    "AUD",
@@ -3184,11 +3411,12 @@ var (
 	TW = Country{
 		Alpha2:          "TW",
 		Alpha3:          "TWN",
-		ShortName:       "Taiwan (Province of China)",
+		Numeric:         "158",
+		ShortName:       "Taiwan, Province of China",
 		LongName:        "Taiwan, Province of China",
 		CurrencyCode:    "TWD",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Taiwan", "Taiwán", "台灣", "臺灣", "台湾"},
+		UnofficialNames: []string{"Taiwan, Province of China", "Taiwan", "Taiwán", "台灣", "臺灣", "台湾"},
 		Region:          "APAC",
 		Subregion:       "Eastern Asia",
 		Continent:       "Asia",
@@ -3198,6 +3426,7 @@ var (
 	TZ = Country{
 		Alpha2:          "TZ",
 		Alpha3:          "TZA",
+		Numeric:         "834",
 		ShortName:       "Tanzania, United Republic of",
 		LongName:        "The United Republic of Tanzania",
 		CurrencyCode:    "TZS",
@@ -3212,6 +3441,7 @@ var (
 	UA = Country{
 		Alpha2:          "UA",
 		Alpha3:          "UKR",
+		Numeric:         "804",
 		ShortName:       "Ukraine",
 		LongName:        "Ukraine",
 		CurrencyCode:    "UAH",
@@ -3226,6 +3456,7 @@ var (
 	UG = Country{
 		Alpha2:          "UG",
 		Alpha3:          "UGA",
+		Numeric:         "800",
 		ShortName:       "Uganda",
 		LongName:        "The Republic of Uganda",
 		CurrencyCode:    "UGX",
@@ -3240,7 +3471,8 @@ var (
 	UM = Country{
 		Alpha2:          "UM",
 		Alpha3:          "UMI",
-		ShortName:       "United States Minor Outlying Islands (the)",
+		Numeric:         "581",
+		ShortName:       "United States Minor Outlying Islands",
 		LongName:        "United States Minor Outlying Islands",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "KM",
@@ -3254,11 +3486,12 @@ var (
 	US = Country{
 		Alpha2:          "US",
 		Alpha3:          "USA",
-		ShortName:       "United States of America (the)",
+		Numeric:         "840",
+		ShortName:       "United States of America",
 		LongName:        "The United States of America",
 		CurrencyCode:    "USD",
 		DistanceUnit:    "MI",
-		UnofficialNames: []string{"United States", "USA", "Vereinigte Staaten von Amerika", "États-Unis", "Estados Unidos", "アメリカ合衆国", "Verenigde Staten", "Соединенные Штаты Америки"},
+		UnofficialNames: []string{"United States", "United States of America", "USA", "Vereinigte Staaten von Amerika", "États-Unis", "Estados Unidos", "アメリカ合衆国", "Verenigde Staten", "Соединенные Штаты Америки"},
 		Region:          "AMER",
 		Subregion:       "Northern America",
 		Continent:       "North America",
@@ -3268,6 +3501,7 @@ var (
 	UY = Country{
 		Alpha2:          "UY",
 		Alpha3:          "URY",
+		Numeric:         "858",
 		ShortName:       "Uruguay",
 		LongName:        "The Oriental Republic of Uruguay",
 		CurrencyCode:    "UYU",
@@ -3282,6 +3516,7 @@ var (
 	UZ = Country{
 		Alpha2:          "UZ",
 		Alpha3:          "UZB",
+		Numeric:         "860",
 		ShortName:       "Uzbekistan",
 		LongName:        "The Republic of Uzbekistan",
 		CurrencyCode:    "UZS",
@@ -3296,11 +3531,12 @@ var (
 	VA = Country{
 		Alpha2:          "VA",
 		Alpha3:          "VAT",
-		ShortName:       "Holy See (the)",
+		Numeric:         "336",
+		ShortName:       "Holy See",
 		LongName:        "The Holy See",
 		CurrencyCode:    "EUR",
 		DistanceUnit:    "KM",
-		UnofficialNames: []string{"Vatican City", "Vatikan", "Cité du Vatican", "Ciudad del Vaticano", "バチカン市国", "Vaticaanstad", "Vatican City State (Holy See)"},
+		UnofficialNames: []string{"Vatican City", "Holy See", "Vatikan", "Cité du Vatican", "Ciudad del Vaticano", "バチカン市国", "Vaticaanstad", "Vatican City State (Holy See)"},
 		Region:          "EMEA",
 		Subregion:       "Southern Europe",
 		Continent:       "Europe",
@@ -3310,6 +3546,7 @@ var (
 	VC = Country{
 		Alpha2:          "VC",
 		Alpha3:          "VCT",
+		Numeric:         "670",
 		ShortName:       "Saint Vincent and the Grenadines",
 		LongName:        "Saint Vincent and the Grenadines",
 		CurrencyCode:    "XCD",
@@ -3324,6 +3561,7 @@ var (
 	VE = Country{
 		Alpha2:          "VE",
 		Alpha3:          "VEN",
+		Numeric:         "862",
 		ShortName:       "Venezuela (Bolivarian Republic of)",
 		LongName:        "The Bolivarian Republic of Venezuela",
 		CurrencyCode:    "VES",
@@ -3338,6 +3576,7 @@ var (
 	VG = Country{
 		Alpha2:          "VG",
 		Alpha3:          "VGB",
+		Numeric:         "092",
 		ShortName:       "Virgin Islands (British)",
 		LongName:        "The Virgin Islands",
 		CurrencyCode:    "USD",
@@ -3352,6 +3591,7 @@ var (
 	VI = Country{
 		Alpha2:          "VI",
 		Alpha3:          "VIR",
+		Numeric:         "850",
 		ShortName:       "Virgin Islands (U.S.)",
 		LongName:        "The Virgin Islands of the United States",
 		CurrencyCode:    "USD",
@@ -3366,6 +3606,7 @@ var (
 	VN = Country{
 		Alpha2:          "VN",
 		Alpha3:          "VNM",
+		Numeric:         "704",
 		ShortName:       "Viet Nam",
 		LongName:        "The Socialist Republic of Viet Nam",
 		CurrencyCode:    "VND",
@@ -3380,6 +3621,7 @@ var (
 	VU = Country{
 		Alpha2:          "VU",
 		Alpha3:          "VUT",
+		Numeric:         "548",
 		ShortName:       "Vanuatu",
 		LongName:        "The Republic of Vanuatu",
 		CurrencyCode:    "VUV",
@@ -3394,6 +3636,7 @@ var (
 	WF = Country{
 		Alpha2:          "WF",
 		Alpha3:          "WLF",
+		Numeric:         "876",
 		ShortName:       "Wallis and Futuna",
 		LongName:        "The Territory of the Wallis and Futuna Islands",
 		CurrencyCode:    "XPF",
@@ -3408,6 +3651,7 @@ var (
 	WS = Country{
 		Alpha2:          "WS",
 		Alpha3:          "WSM",
+		Numeric:         "882",
 		ShortName:       "Samoa",
 		LongName:        "The Independent State of Samoa",
 		CurrencyCode:    "WST",
@@ -3422,6 +3666,7 @@ var (
 	YE = Country{
 		Alpha2:          "YE",
 		Alpha3:          "YEM",
+		Numeric:         "887",
 		ShortName:       "Yemen",
 		LongName:        "The Republic of Yemen",
 		CurrencyCode:    "YER",
@@ -3436,6 +3681,7 @@ var (
 	YT = Country{
 		Alpha2:          "YT",
 		Alpha3:          "MYT",
+		Numeric:         "175",
 		ShortName:       "Mayotte",
 		LongName:        "The Department of Mayotte",
 		CurrencyCode:    "EUR",
@@ -3450,6 +3696,7 @@ var (
 	ZA = Country{
 		Alpha2:          "ZA",
 		Alpha3:          "ZAF",
+		Numeric:         "710",
 		ShortName:       "South Africa",
 		LongName:        "The Republic of South Africa",
 		CurrencyCode:    "ZAR",
@@ -3464,6 +3711,7 @@ var (
 	ZM = Country{
 		Alpha2:          "ZM",
 		Alpha3:          "ZMB",
+		Numeric:         "894",
 		ShortName:       "Zambia",
 		LongName:        "The Republic of Zambia",
 		CurrencyCode:    "ZMW",
@@ -3478,6 +3726,7 @@ var (
 	ZW = Country{
 		Alpha2:          "ZW",
 		Alpha3:          "ZWE",
+		Numeric:         "716",
 		ShortName:       "Zimbabwe",
 		LongName:        "The Republic of Zimbabwe",
 		CurrencyCode:    "USD",
@@ -4249,5 +4498,129 @@ var alpha3Lookup = [26][26][26]*Country{
 		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
 		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
 		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+	},
+}
+
+// ISO-3166-1 Numeric Code Lookup Table
+var codeLookup = [10][10][10]*Country{
+	{
+		{nil, nil, nil, nil, &AF, nil, nil, nil, &AL, nil},
+		{&AQ, nil, &DZ, nil, nil, nil, &AS, nil, nil, nil},
+		{&AD, nil, nil, nil, &AO, nil, nil, nil, &AG, nil},
+		{nil, &AZ, &AR, nil, nil, nil, &AU, nil, nil, nil},
+		{&AT, nil, nil, nil, &BS, nil, nil, nil, &BH, nil},
+		{&BD, &AM, &BB, nil, nil, nil, &BE, nil, nil, nil},
+		{&BM, nil, nil, nil, &BT, nil, nil, nil, &BO, nil},
+		{&BA, nil, &BW, nil, &BV, nil, &BR, nil, nil, nil},
+		{nil, nil, nil, nil, &BZ, nil, &IO, nil, nil, nil},
+		{&SB, nil, &VG, nil, nil, nil, &BN, nil, nil, nil},
+	},
+	{
+		{&BG, nil, nil, nil, &MM, nil, nil, nil, &BI, nil},
+		{nil, nil, &BY, nil, nil, nil, &KH, nil, nil, nil},
+		{&CM, nil, nil, nil, &CA, nil, nil, nil, nil, nil},
+		{nil, nil, &CV, nil, nil, nil, &KY, nil, nil, nil},
+		{&CF, nil, nil, nil, &LK, nil, nil, nil, &TD, nil},
+		{nil, nil, &CL, nil, nil, nil, &CN, nil, &TW, nil},
+		{nil, nil, &CX, nil, nil, nil, &CC, nil, nil, nil},
+		{&CO, nil, nil, nil, &KM, &YT, nil, nil, &CG, nil},
+		{&CD, nil, nil, nil, &CK, nil, nil, nil, &CR, nil},
+		{nil, &HR, &CU, nil, nil, nil, &CY, nil, nil, nil},
+	},
+	{
+		{nil, nil, nil, &CZ, &BJ, nil, nil, nil, &DK, nil},
+		{nil, nil, &DM, nil, &DO, nil, nil, nil, &EC, nil},
+		{nil, nil, &SV, nil, nil, nil, &GQ, nil, nil, nil},
+		{nil, &ET, &ER, &EE, &FO, nil, nil, nil, &FK, &GS},
+		{nil, nil, &FJ, nil, nil, nil, &FI, nil, &AX, nil},
+		{&FR, nil, nil, nil, &GF, nil, nil, nil, &PF, nil},
+		{&TF, nil, &DJ, nil, nil, nil, &GA, nil, &GE, nil},
+		{&GM, nil, nil, nil, nil, &PS, &DE, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, &GH, nil},
+		{nil, nil, &GI, nil, nil, nil, &KI, nil, nil, nil},
+	},
+	{
+		{&GR, nil, nil, nil, &GL, nil, nil, nil, &GD, nil},
+		{nil, nil, &GP, nil, nil, nil, &GU, nil, nil, nil},
+		{&GT, nil, nil, nil, &GN, nil, nil, nil, &GY, nil},
+		{nil, nil, &HT, nil, &HM, nil, &VA, nil, nil, nil},
+		{&HN, nil, nil, nil, &HK, nil, nil, nil, &HU, nil},
+		{nil, nil, &IS, nil, nil, nil, &IN, nil, nil, nil},
+		{&ID, nil, nil, nil, &IR, nil, nil, nil, &IQ, nil},
+		{nil, nil, &IE, nil, nil, nil, &IL, nil, nil, nil},
+		{&IT, nil, nil, nil, &CI, nil, nil, nil, &JM, nil},
+		{nil, nil, &JP, nil, nil, nil, nil, nil, &KZ, nil},
+	},
+	{
+		{&JO, nil, nil, nil, &KE, nil, nil, nil, &KP, nil},
+		{&KR, nil, nil, nil, &KW, nil, nil, &KG, &LA, nil},
+		{nil, nil, &LB, nil, nil, nil, &LS, nil, &LV, nil},
+		{&LR, nil, nil, nil, &LY, nil, nil, nil, &LI, nil},
+		{&LT, nil, &LU, nil, nil, nil, &MO, nil, nil, nil},
+		{&MG, nil, nil, nil, &MW, nil, nil, nil, &MY, nil},
+		{nil, nil, &MV, nil, nil, nil, &ML, nil, nil, nil},
+		{&MT, nil, nil, nil, &MQ, nil, nil, nil, &MR, nil},
+		{&MU, nil, nil, nil, &MX, nil, nil, nil, nil, nil},
+		{nil, nil, &MC, nil, nil, nil, &MN, nil, &MD, &ME},
+	},
+	{
+		{&MS, nil, nil, nil, &MA, nil, nil, nil, &MZ, nil},
+		{nil, nil, &OM, nil, nil, nil, &NA, nil, nil, nil},
+		{&NR, nil, nil, nil, &NP, nil, nil, nil, &NL, nil},
+		{nil, &CW, nil, &AW, &SX, &BQ, nil, nil, nil, nil},
+		{&NC, nil, nil, nil, nil, nil, nil, nil, &VU, nil},
+		{nil, nil, nil, nil, &NZ, nil, nil, nil, &NI, nil},
+		{nil, nil, &NE, nil, nil, nil, &NG, nil, nil, nil},
+		{&NU, nil, nil, nil, &NF, nil, nil, nil, &NO, nil},
+		{&MP, &UM, nil, &FM, &MH, &PW, &PK, nil, nil, nil},
+		{nil, &PA, nil, nil, nil, nil, nil, nil, &PG, nil},
+	},
+	{
+		{&PY, nil, nil, nil, &PE, nil, nil, nil, &PH, nil},
+		{nil, nil, &PN, nil, nil, nil, &PL, nil, nil, nil},
+		{&PT, nil, nil, nil, &GW, nil, &TL, nil, nil, nil},
+		{&PR, nil, nil, nil, &QA, nil, nil, nil, &RE, nil},
+		{nil, nil, &RO, &RU, nil, nil, &RW, nil, nil, nil},
+		{nil, nil, &BL, nil, &SH, nil, nil, nil, nil, &KN},
+		{&AI, nil, &LC, &MF, nil, nil, &PM, nil, nil, nil},
+		{&VC, nil, nil, nil, &SM, nil, nil, nil, &ST, nil},
+		{nil, nil, &SA, nil, nil, nil, &SN, nil, &RS, nil},
+		{&SC, nil, nil, nil, &SL, nil, nil, nil, nil, nil},
+	},
+	{
+		{nil, nil, &SG, &SK, &VN, &SI, &SO, nil, nil, nil},
+		{&ZA, nil, nil, nil, nil, nil, &ZW, nil, nil, nil},
+		{nil, nil, nil, nil, &ES, nil, nil, nil, &SS, &SD},
+		{nil, nil, &EH, nil, nil, nil, nil, nil, nil, nil},
+		{&SR, nil, nil, nil, &SJ, nil, nil, nil, &SZ, nil},
+		{nil, nil, &SE, nil, nil, nil, &CH, nil, nil, nil},
+		{&SY, nil, &TJ, nil, &TH, nil, nil, nil, &TG, nil},
+		{nil, nil, &TK, nil, nil, nil, &TO, nil, nil, nil},
+		{&TT, nil, nil, nil, &AE, nil, nil, nil, &TN, nil},
+		{nil, nil, &TR, nil, nil, &TM, &TC, nil, &TV, nil},
+	},
+	{
+		{&UG, nil, nil, nil, &UA, nil, nil, &MK, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, &EG, nil},
+		{nil, nil, nil, nil, nil, nil, &GB, nil, nil, nil},
+		{nil, &GG, &JE, &IM, &TZ, nil, nil, nil, nil, nil},
+		{&US, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{&VI, nil, nil, nil, &BF, nil, nil, nil, &UY, nil},
+		{&UZ, nil, &VE, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, &WF, nil, nil, nil},
+		{nil, nil, &WS, nil, nil, nil, nil, &YE, nil, nil},
+		{nil, nil, nil, nil, &ZM, nil, nil, nil, nil, nil},
+	},
+	{
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
+		{nil, nil, nil, nil, nil, nil, nil, nil, nil, nil},
 	},
 }
