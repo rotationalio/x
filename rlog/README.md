@@ -2,6 +2,8 @@
 
 **rlog** wraps Go’s [`log/slog`](https://pkg.go.dev/log/slog) with extra severity levels—**Trace** (more verbose than Debug), **Fatal**, and **Panic**—and helpers that mirror slog’s patterns (key/value `Log`, `LogAttrs`-style methods, and context variants). **Fatal** logs then runs an exit hook (default `os.Exit(1)`); **Panic** logs then `panic`s with the message string. Use `rlog.MergeWithCustomLevels` on your `slog.HandlerOptions` so handlers emit readable level names (`TRACE`, `FATAL`, `PANIC`) instead of numeric offsets for those levels.
 
+The 'r' is for "Rotational"!
+
 ## Setup
 
 Set `HandlerOptions.Level` high enough for the lines you need (use `rlog.LevelTrace` to allow Trace). Pass `rlog.MergeWithCustomLevels(opts)` into your handler constructor. Wrap the resulting `*slog.Logger` with `rlog.New`. Optionally call `SetExitFunc` on the `*rlog.Logger` to control what happens after Fatal (default: `os.Exit(1)`).
