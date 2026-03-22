@@ -21,7 +21,7 @@ import (
 //		},
 //	}
 //	logger := slog.New(slog.NewJSONHandler(w, MergeWithCustomLevels(opts)))
-//	logger.Log(context.Background(), LevelTrace, "messge", "hello" "world", "drop", "dropped")
+//	logger.Log(context.Background(), LevelTrace, "message", "hello", "world", "drop", "dropped")
 //	// Output example: {"level":"TRACE","msg":"message","hello":"world"}
 func MergeWithCustomLevels(opts *slog.HandlerOptions) *slog.HandlerOptions {
 	var merged slog.HandlerOptions
