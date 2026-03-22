@@ -63,12 +63,55 @@ func TestEnabled_ordering(t *testing.T) {
 	assert.True(t, logger.Enabled(context.Background(), rlog.LevelPanic), "Panic should be enabled when min is Error")
 }
 
+func TestDefaultAttrs(t *testing.T) {
+	t.Run("DebugAttrs", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+		logger.DebugAttrs(context.Background(), "hello", slog.String("k", "v"))
+		out := buf.String()
+		assert.Contains(t, out, `"level":"DEBUG"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
+	})
+
+	t.Run("InfoAttrs", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelInfo})
+		logger.InfoAttrs(context.Background(), "hello", slog.String("k", "v"))
+		out := buf.String()
+		assert.Contains(t, out, `"level":"INFO"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
+	})
+
+	t.Run("WarnAttrs", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+		logger.WarnAttrs(context.Background(), "hello", slog.String("k", "v"))
+		out := buf.String()
+		assert.Contains(t, out, `"level":"WARN"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
+	})
+
+	t.Run("ErrorAttrs", func(t *testing.T) {
+		var buf bytes.Buffer
+		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelError})
+		logger.ErrorAttrs(context.Background(), "hello", slog.String("k", "v"))
+		out := buf.String()
+		assert.Contains(t, out, `"level":"ERROR"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
+	})
+}
+
 func TestTrace(t *testing.T) {
 	t.Run("Trace", func(t *testing.T) {
 		var buf bytes.Buffer
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.Trace("hello", "k", "v")
 		out := buf.String()
+		assert.Contains(t, out, `"level":"TRACE"`)
 		assert.Contains(t, out, `"msg":"hello"`)
 		assert.Contains(t, out, `"k":"v"`)
 	})
@@ -78,6 +121,7 @@ func TestTrace(t *testing.T) {
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.TraceContext(context.Background(), "hello", "k", "v")
 		out := buf.String()
+		assert.Contains(t, out, `"level":"TRACE"`)
 		assert.Contains(t, out, `"msg":"hello"`)
 		assert.Contains(t, out, `"k":"v"`)
 	})
@@ -87,6 +131,7 @@ func TestTrace(t *testing.T) {
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.TraceAttrs(context.Background(), "hello", slog.String("k", "v"))
 		out := buf.String()
+		assert.Contains(t, out, `"level":"TRACE"`)
 		assert.Contains(t, out, `"msg":"hello"`)
 		assert.Contains(t, out, `"k":"v"`)
 	})
@@ -101,7 +146,9 @@ func TestFatal(t *testing.T) {
 		defer logger.SetExitFunc(func() { os.Exit(1) })
 		logger.Fatal("bye")
 		assert.True(t, exited)
-		assert.Contains(t, buf.String(), `"msg":"bye"`)
+		out := buf.String()
+		assert.Contains(t, out, `"level":"FATAL"`)
+		assert.Contains(t, out, `"msg":"bye"`)
 	})
 
 	t.Run("FatalContext", func(t *testing.T) {
@@ -112,7 +159,9 @@ func TestFatal(t *testing.T) {
 		defer logger.SetExitFunc(func() { os.Exit(1) })
 		logger.FatalContext(context.Background(), "bye")
 		assert.True(t, exited)
-		assert.Contains(t, buf.String(), `"msg":"bye"`)
+		out := buf.String()
+		assert.Contains(t, out, `"level":"FATAL"`)
+		assert.Contains(t, out, `"msg":"bye"`)
 	})
 
 	t.Run("FatalAttrs", func(t *testing.T) {
@@ -124,6 +173,7 @@ func TestFatal(t *testing.T) {
 		logger.FatalAttrs(context.Background(), "bye", slog.String("k", "v"))
 		assert.True(t, exited)
 		out := buf.String()
+		assert.Contains(t, out, `"level":"FATAL"`)
 		assert.Contains(t, out, `"msg":"bye"`)
 		assert.Contains(t, out, `"k":"v"`)
 	})
@@ -136,7 +186,9 @@ func TestPanic(t *testing.T) {
 		assert.PanicsWithValue(t, "boom", func() {
 			logger.Panic("boom")
 		})
-		assert.Contains(t, buf.String(), `"msg":"boom"`)
+		out := buf.String()
+		assert.Contains(t, out, `"level":"PANIC"`)
+		assert.Contains(t, out, `"msg":"boom"`)
 	})
 
 	t.Run("PanicContext", func(t *testing.T) {
@@ -145,7 +197,9 @@ func TestPanic(t *testing.T) {
 		assert.PanicsWithValue(t, "ctx", func() {
 			logger.PanicContext(context.Background(), "ctx")
 		})
-		assert.Contains(t, buf.String(), `"msg":"ctx"`)
+		out := buf.String()
+		assert.Contains(t, out, `"level":"PANIC"`)
+		assert.Contains(t, out, `"msg":"ctx"`)
 	})
 
 	t.Run("PanicAttrs", func(t *testing.T) {
@@ -155,6 +209,7 @@ func TestPanic(t *testing.T) {
 			logger.PanicAttrs(context.Background(), "attrs", slog.String("k", "v"))
 		})
 		out := buf.String()
+		assert.Contains(t, out, `"level":"PANIC"`)
 		assert.Contains(t, out, `"msg":"attrs"`)
 		assert.Contains(t, out, `"k":"v"`)
 	})

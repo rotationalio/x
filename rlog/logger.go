@@ -40,6 +40,30 @@ func New(logger *slog.Logger) *Logger {
 }
 
 //=============================================================================
+// Attrs Functions for default slog levels
+//=============================================================================
+
+// DebugAttrs logs at slog.LevelDebug with ctx and attrs. Uses slog.LogAttrs for efficiency.
+func (l *Logger) DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	l.Logger.LogAttrs(ctx, slog.LevelDebug, msg, attrs...)
+}
+
+// InfoAttrs logs at slog.LevelInfo with ctx and attrs. Uses slog.LogAttrs for efficiency.
+func (l *Logger) InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	l.Logger.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
+}
+
+// WarnAttrs logs at slog.LevelWarn with ctx and attrs. Uses slog.LogAttrs for efficiency.
+func (l *Logger) WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	l.Logger.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
+}
+
+// ErrorAttrs logs at slog.LevelError with ctx and attrs. Uses slog.LogAttrs for efficiency.
+func (l *Logger) ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	l.Logger.LogAttrs(ctx, slog.LevelError, msg, attrs...)
+}
+
+//=============================================================================
 // Trace Functions
 //=============================================================================
 
