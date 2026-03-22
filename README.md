@@ -6,7 +6,7 @@
 
 To get these packages into your project, it's as easy as:
 
-    $ go get go.rtnl.ai/x/[pkg]
+    go get go.rtnl.ai/x/[pkg]
 
 Where `[pkg]` is the name of the package you want to use in your project. Note that the go modules are at the top level of the toolkit, so please specify the latest version of the `x` package that has the tools that you need.
 
@@ -31,6 +31,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [region](https://go.rtnl.ai/x/region): enumerates the clouds and regions that Rotational services can be deployed to
+- [rlog](https://go.rtnl.ai/x/rlog): extends the `log/slog` logger with additional custom levels and features
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
