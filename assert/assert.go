@@ -14,12 +14,13 @@ import (
 	"math"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 )
 
 // Assert fails the test if the condition is false.
-func Assert(tb testing.TB, condition bool, msg string, v ...interface{}) {
+func Assert(tb testing.TB, condition bool, msg string, v ...any) {
 	tb.Helper()
 	if !condition {
 		tb.Logf("\n"+msg+"\n", v...)
@@ -27,24 +28,46 @@ func Assert(tb testing.TB, condition bool, msg string, v ...interface{}) {
 	}
 }
 
-type BoolAssertion func(testing.TB, bool, ...interface{})
+type BoolAssertion func(testing.TB, bool, ...any)
 
 // True asserts that the condition is true.
-func True(tb testing.TB, condition bool, msgAndArgs ...interface{}) {
+func True(tb testing.TB, condition bool, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("expected condition to be true", msgAndArgs...)
 	Assert(tb, condition, msg)
 }
 
 // False asserts that the condition is false.
-func False(tb testing.TB, condition bool, msgAndArgs ...interface{}) {
+func False(tb testing.TB, condition bool, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("expected condition to be false", msgAndArgs...)
 	Assert(tb, !condition, msg)
 }
 
+// Contains asserts that s contains substr.
+func Contains(tb testing.TB, s, substr string, msgAndArgs ...any) {
+	tb.Helper()
+	if strings.Contains(s, substr) {
+		return
+	}
+	tb.Logf("\n%q does not contain %q\n", s, substr)
+	makeLogf(tb, msgAndArgs...)
+	tb.FailNow()
+}
+
+// NotContains asserts that s does not contain substr.
+func NotContains(tb testing.TB, s, substr string, msgAndArgs ...any) {
+	tb.Helper()
+	if !strings.Contains(s, substr) {
+		return
+	}
+	tb.Logf("\n%q contains %q but should not\n", s, substr)
+	makeLogf(tb, msgAndArgs...)
+	tb.FailNow()
+}
+
 // Ok fails the test if an err is not nil.
-func Ok(tb testing.TB, err error, msgAndArgs ...interface{}) {
+func Ok(tb testing.TB, err error, msgAndArgs ...any) {
 	tb.Helper()
 	if err != nil {
 		tb.Logf("\nunexpected error: %q\n", err.Error())
@@ -54,7 +77,7 @@ func Ok(tb testing.TB, err error, msgAndArgs ...interface{}) {
 }
 
 // Equal fails the test if exp (expected) is not equal to act (actual).
-func Equal(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+func Equal(tb testing.TB, exp, act any, msgAndArgs ...any) {
 	tb.Helper()
 	if !reflect.DeepEqual(exp, act) {
 		tb.Logf("\nactual value did not match expected:\n\n\t- exp: %#v\n\t- got: %#v\n", exp, act)
@@ -63,8 +86,19 @@ func Equal(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
 	}
 }
 
+// PanicsWithValue asserts that fn panics and that recover() equals want.
+func PanicsWithValue(tb testing.TB, want any, fn func(), msgAndArgs ...any) {
+	tb.Helper()
+	var got any
+	func() {
+		defer func() { got = recover() }()
+		fn()
+	}()
+	Equal(tb, want, got, msgAndArgs...)
+}
+
 // NotEqual fails the text if exp (expected) is equal to act (actual).
-func NotEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+func NotEqual(tb testing.TB, exp, act any, msgAndArgs ...any) {
 	tb.Helper()
 	if reflect.DeepEqual(exp, act) {
 		tb.Logf("\nactual value equals expected:\n\n\t- exp: %#v\n\t- got: %#v\n", exp, act)
@@ -74,7 +108,7 @@ func NotEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
 }
 
 // LessEqual fails the test if act (actual) is not less than or equal to exp (expected).
-func LessEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+func LessEqual(tb testing.TB, exp, act any, msgAndArgs ...any) {
 	tb.Helper()
 	expectedValue := reflect.ValueOf(exp)
 	actualValue := reflect.ValueOf(act)
@@ -99,7 +133,7 @@ func LessEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
 }
 
 // GreaterEqual fails the test if act (actual) is not greater than or equal to exp (expected).
-func GreaterEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}) {
+func GreaterEqual(tb testing.TB, exp, act any, msgAndArgs ...any) {
 	tb.Helper()
 	expectedValue := reflect.ValueOf(exp)
 	actualValue := reflect.ValueOf(act)
@@ -124,14 +158,14 @@ func GreaterEqual(tb testing.TB, exp, act interface{}, msgAndArgs ...interface{}
 }
 
 // ErrorIs fails the test if the err does not match the target.
-func ErrorIs(tb testing.TB, err, target error, msgAndArgs ...interface{}) {
+func ErrorIs(tb testing.TB, err, target error, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("expected target to be in error chain", msgAndArgs...)
 	Assert(tb, errors.Is(err, target), msg)
 }
 
 // EqualError fails the test if the error message does not match the expected message.
-func EqualError(tb testing.TB, err error, expected string, msgAndArgs ...interface{}) {
+func EqualError(tb testing.TB, err error, expected string, msgAndArgs ...any) {
 	tb.Helper()
 	if err == nil {
 		tb.Logf("\nexpected error but got nil\n")
@@ -146,7 +180,7 @@ func EqualError(tb testing.TB, err error, expected string, msgAndArgs ...interfa
 }
 
 // Len asserts that the specified container has specific length.
-func Len(tb testing.TB, container interface{}, length int, msgAndArgs ...interface{}) {
+func Len(tb testing.TB, container any, length int, msgAndArgs ...any) {
 	tb.Helper()
 	l, ok := getLen(container)
 	if !ok {
@@ -162,7 +196,7 @@ func Len(tb testing.TB, container interface{}, length int, msgAndArgs ...interfa
 }
 
 // IsType asserts that the specified object is of the expected type.
-func IsType(tb testing.TB, expectedType interface{}, object interface{}, msgAndArgs ...interface{}) {
+func IsType(tb testing.TB, expectedType any, object any, msgAndArgs ...any) {
 	tb.Helper()
 	expectedTypeName := reflect.TypeOf(expectedType).String()
 	actualTypeName := reflect.TypeOf(object).String()
@@ -174,28 +208,28 @@ func IsType(tb testing.TB, expectedType interface{}, object interface{}, msgAndA
 }
 
 // Regexp asserts that a specified regular expression matches a string.
-func Regexp(tb testing.TB, rx *regexp.Regexp, str string, msgAndArgs ...interface{}) {
+func Regexp(tb testing.TB, rx *regexp.Regexp, str string, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("regular expression did not match target string", msgAndArgs...)
 	Assert(tb, rx.MatchString(str), msg)
 }
 
 // Nil asserts that the specified object is nil.
-func Nil(tb testing.TB, object interface{}, msgAndArgs ...interface{}) {
+func Nil(tb testing.TB, object any, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("expected nil, but got non-nil", msgAndArgs...)
 	Assert(tb, object == nil || reflect.ValueOf(object).IsNil(), msg)
 }
 
 // NotNil asserts that the specified object is not nil.
-func NotNil(tb testing.TB, object interface{}, msgAndArgs ...interface{}) {
+func NotNil(tb testing.TB, object any, msgAndArgs ...any) {
 	tb.Helper()
 	msg := makeMessage("expected non-nil, but got nil", msgAndArgs...)
 	Assert(tb, object != nil && !reflect.ValueOf(object).IsNil(), msg)
 }
 
 // InDelta asserts that the two numerals are within delta of each other.
-func InDelta(tb testing.TB, expected, actual any, delta float64, msgAndArgs ...interface{}) {
+func InDelta(tb testing.TB, expected, actual any, delta float64, msgAndArgs ...any) {
 	tb.Helper()
 
 	af, aok := toFloat(expected)
@@ -215,7 +249,7 @@ func InDelta(tb testing.TB, expected, actual any, delta float64, msgAndArgs ...i
 	Assert(tb, !(d < -delta || d > delta), makeMessage(fmt.Sprintf("expected %v to be within %v of %v", actual, delta, expected), msgAndArgs...))
 }
 
-func makeMessage(msg string, msgAndArgs ...interface{}) string {
+func makeMessage(msg string, msgAndArgs ...any) string {
 	switch len(msgAndArgs) {
 	case 0:
 		return msg
@@ -226,7 +260,7 @@ func makeMessage(msg string, msgAndArgs ...interface{}) string {
 	}
 }
 
-func makeLogf(tb testing.TB, msgAndArgs ...interface{}) {
+func makeLogf(tb testing.TB, msgAndArgs ...any) {
 	switch len(msgAndArgs) {
 	case 0:
 		return
@@ -239,7 +273,7 @@ func makeLogf(tb testing.TB, msgAndArgs ...interface{}) {
 
 // getLen tries to get the length of an object.
 // It returns (0, false) if impossible.
-func getLen(x interface{}) (length int, ok bool) {
+func getLen(x any) (length int, ok bool) {
 	v := reflect.ValueOf(x)
 	defer func() {
 		ok = recover() == nil
@@ -249,7 +283,7 @@ func getLen(x interface{}) (length int, ok bool) {
 
 // toFloat tries to convert an interface to a float64.
 // It returns (0, false) if impossible.
-func toFloat(x interface{}) (float64, bool) {
+func toFloat(x any) (float64, bool) {
 	var v float64
 	ok := true
 

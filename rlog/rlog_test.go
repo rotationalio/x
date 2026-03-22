@@ -8,9 +8,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
-	"go.rtnl.ai/endeavor/pkg/rlog"
+	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/rlog"
 )
 
 // JSON output uses "TRACE", "FATAL", and "PANIC" for the custom levels and the
@@ -30,7 +29,7 @@ func TestMergeHandlerOptions_levelStrings(t *testing.T) {
 
 	out := buf.String()
 	for _, want := range []string{`"level":"TRACE"`, `"level":"DEBUG"`, `"level":"INFO"`, `"level":"WARN"`, `"level":"ERROR"`, `"level":"FATAL"`, `"level":"PANIC"`, `"level":"ERROR+12"`} {
-		require.Contains(t, out, want, "output missing level substring")
+		assert.Contains(t, out, want, "output missing level substring: %s", want)
 	}
 }
 
@@ -51,17 +50,17 @@ func TestMergeHandlerOptions_chainsUserReplaceAttr(t *testing.T) {
 	logger.Log(context.Background(), rlog.LevelTrace, "x", "drop", true, "keep", "y")
 
 	out := buf.String()
-	require.NotContains(t, out, "drop", "user ReplaceAttr should drop key")
-	require.Contains(t, out, `"level":"TRACE"`)
-	require.Contains(t, out, "keep")
+	assert.NotContains(t, out, "drop", "user ReplaceAttr should drop key")
+	assert.Contains(t, out, `"level":"TRACE"`)
+	assert.Contains(t, out, "keep")
 }
 
 // Min level Error: Trace is below threshold, Panic is not.
 func TestEnabled_ordering(t *testing.T) {
 	var buf bytes.Buffer
 	logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelError})
-	require.False(t, logger.Enabled(context.Background(), rlog.LevelTrace), "Trace should be disabled when min is Error")
-	require.True(t, logger.Enabled(context.Background(), rlog.LevelPanic), "Panic should be enabled when min is Error")
+	assert.False(t, logger.Enabled(context.Background(), rlog.LevelTrace), "Trace should be disabled when min is Error")
+	assert.True(t, logger.Enabled(context.Background(), rlog.LevelPanic), "Panic should be enabled when min is Error")
 }
 
 func TestTrace(t *testing.T) {
@@ -70,8 +69,8 @@ func TestTrace(t *testing.T) {
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.Trace("hello", "k", "v")
 		out := buf.String()
-		require.Contains(t, out, `"msg":"hello"`)
-		require.Contains(t, out, `"k":"v"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
 	})
 
 	t.Run("TraceContext", func(t *testing.T) {
@@ -79,8 +78,8 @@ func TestTrace(t *testing.T) {
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.TraceContext(context.Background(), "hello", "k", "v")
 		out := buf.String()
-		require.Contains(t, out, `"msg":"hello"`)
-		require.Contains(t, out, `"k":"v"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
 	})
 
 	t.Run("TraceAttrs", func(t *testing.T) {
@@ -88,8 +87,8 @@ func TestTrace(t *testing.T) {
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
 		logger.TraceAttrs(context.Background(), "hello", slog.String("k", "v"))
 		out := buf.String()
-		require.Contains(t, out, `"msg":"hello"`)
-		require.Contains(t, out, `"k":"v"`)
+		assert.Contains(t, out, `"msg":"hello"`)
+		assert.Contains(t, out, `"k":"v"`)
 	})
 }
 
@@ -101,8 +100,8 @@ func TestFatal(t *testing.T) {
 		logger.SetExitFunc(func() { exited = true })
 		defer logger.SetExitFunc(func() { os.Exit(1) })
 		logger.Fatal("bye")
-		require.True(t, exited)
-		require.Contains(t, buf.String(), `"msg":"bye"`)
+		assert.True(t, exited)
+		assert.Contains(t, buf.String(), `"msg":"bye"`)
 	})
 
 	t.Run("FatalContext", func(t *testing.T) {
@@ -112,8 +111,8 @@ func TestFatal(t *testing.T) {
 		logger.SetExitFunc(func() { exited = true })
 		defer logger.SetExitFunc(func() { os.Exit(1) })
 		logger.FatalContext(context.Background(), "bye")
-		require.True(t, exited)
-		require.Contains(t, buf.String(), `"msg":"bye"`)
+		assert.True(t, exited)
+		assert.Contains(t, buf.String(), `"msg":"bye"`)
 	})
 
 	t.Run("FatalAttrs", func(t *testing.T) {
@@ -123,10 +122,10 @@ func TestFatal(t *testing.T) {
 		logger.SetExitFunc(func() { exited = true })
 		defer logger.SetExitFunc(func() { os.Exit(1) })
 		logger.FatalAttrs(context.Background(), "bye", slog.String("k", "v"))
-		require.True(t, exited)
+		assert.True(t, exited)
 		out := buf.String()
-		require.Contains(t, out, `"msg":"bye"`)
-		require.Contains(t, out, `"k":"v"`)
+		assert.Contains(t, out, `"msg":"bye"`)
+		assert.Contains(t, out, `"k":"v"`)
 	})
 }
 
@@ -134,30 +133,30 @@ func TestPanic(t *testing.T) {
 	t.Run("Panic", func(t *testing.T) {
 		var buf bytes.Buffer
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelPanic})
-		require.PanicsWithValue(t, "boom", func() {
+		assert.PanicsWithValue(t, "boom", func() {
 			logger.Panic("boom")
 		})
-		require.Contains(t, buf.String(), `"msg":"boom"`)
+		assert.Contains(t, buf.String(), `"msg":"boom"`)
 	})
 
 	t.Run("PanicContext", func(t *testing.T) {
 		var buf bytes.Buffer
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelPanic})
-		require.PanicsWithValue(t, "ctx", func() {
+		assert.PanicsWithValue(t, "ctx", func() {
 			logger.PanicContext(context.Background(), "ctx")
 		})
-		require.Contains(t, buf.String(), `"msg":"ctx"`)
+		assert.Contains(t, buf.String(), `"msg":"ctx"`)
 	})
 
 	t.Run("PanicAttrs", func(t *testing.T) {
 		var buf bytes.Buffer
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelPanic})
-		require.PanicsWithValue(t, "attrs", func() {
+		assert.PanicsWithValue(t, "attrs", func() {
 			logger.PanicAttrs(context.Background(), "attrs", slog.String("k", "v"))
 		})
 		out := buf.String()
-		require.Contains(t, out, `"msg":"attrs"`)
-		require.Contains(t, out, `"k":"v"`)
+		assert.Contains(t, out, `"msg":"attrs"`)
+		assert.Contains(t, out, `"k":"v"`)
 	})
 }
 
@@ -168,8 +167,8 @@ func TestJSON_shape(t *testing.T) {
 	logger.Log(context.Background(), rlog.LevelTrace, "x")
 
 	var m map[string]any
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &m))
-	require.Equal(t, "TRACE", m["level"])
+	assert.Ok(t, json.Unmarshal(buf.Bytes(), &m))
+	assert.Equal(t, "TRACE", m["level"])
 }
 
 func newTestLogger(t *testing.T, buf *bytes.Buffer, opts *slog.HandlerOptions) *rlog.Logger {
