@@ -135,6 +135,7 @@ func (l *Logger) SetExitFunc(fn func()) {
 func (l *Logger) exit() {
 	if l.exitFunc == nil {
 		defaultExitFunc()
+		return // this should never be reached but the linter is complaining about calling a nil l.exitFunc later
 	}
 	l.exitFunc()
 }
