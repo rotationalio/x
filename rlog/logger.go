@@ -24,42 +24,43 @@ func New(logger *slog.Logger) *Logger {
 }
 
 //=============================================================================
-// Global Logger
+// Global Logger Init and Management
 //=============================================================================
 
 // Global variables for the default (global) [Logger].
 var (
-	globalLogger *Logger
-	loggerMu     sync.Mutex
-
-	globalLevel *slog.LevelVar // [slog.LevelVar] is concurrency safe
+	initOnce     sync.Once
+	globalLogger Logger
+	loggerMu     sync.RWMutex   // protects reads and writes to the globalLogger
+	globalLevel  *slog.LevelVar = &slog.LevelVar{}
 )
+
+// Initializes the global logger and level once. Is a no-op if already initialized.
+func Initialize() {
+	initOnce.Do(func() {
+		globalLevel.Set(slog.LevelInfo)
+		loggerMu.Lock()
+		defer loggerMu.Unlock()
+		globalLogger = *newDefaultGlobalLogger()
+	})
+}
 
 // Default returns the default (global) [Logger], creating it if it doesn't
 // exist. Use [SetDefault] to set the default [Logger]. If no default [Logger]
 // is set, a new JSON logger to stdout is created with the default
 // [slog.HandlerOptions] and level [slog.LevelInfo]. Safe to use concurrently.
 func Default() *Logger {
-	loggerMu.Lock()
-	defer loggerMu.Unlock()
-	if globalLogger == nil {
-		// A [slog.LevelVar] allows us to change the global log level at anytime
-		globalLevel.Set(slog.LevelInfo)
-		globalLogger = New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
-	}
-	return globalLogger
+	loggerMu.RLock()
+	l := globalLogger
+	loggerMu.RUnlock()
+	return &l
 }
 
 // SetDefault sets the default (global) [Logger]. Safe to use concurrently.
 func SetDefault(logger *Logger) {
 	loggerMu.Lock()
 	defer loggerMu.Unlock()
-	globalLogger = logger
-}
-
-// SetLevel sets the global log level. Safe to use concurrently.
-func SetLevel(level slog.Level) {
-	globalLevel.Set(level)
+	globalLogger = *logger
 }
 
 // Level returns the global log level. Safe to use concurrently.
@@ -71,6 +72,173 @@ func Level() slog.Level {
 // Safe to use concurrently.
 func LevelString() string {
 	return LevelDecoder(Level()).String()
+}
+
+// SetLevel sets the global log level. Safe to use concurrently.
+func SetLevel(level slog.Level) {
+	globalLevel.Set(level)
+}
+
+// newDefaultGlobalLogger creates a new default global [Logger] with a JSON stdout
+// handler with the global level.
+func newDefaultGlobalLogger() *Logger {
+	return New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
+}
+
+// Initialize on package init.
+func init() {
+	Initialize()
+}
+
+//=============================================================================
+// Global Logger Functions
+// NOTE: These functions are aliases for the [Logger] methods with the default [Logger].
+//=============================================================================
+
+// Log emits a log record with the given level and message using the [Default] logger.
+// Arguments are handled like [slog.Logger.Log].
+func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	Default().Log(ctx, level, msg, args...)
+}
+
+// LogAttrs is like [Log] but accepts attrs only; it uses [slog.LogAttrs] for efficiency.
+func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	Default().LogAttrs(ctx, level, msg, attrs...)
+}
+
+// Trace logs at [LevelTrace] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Trace(msg string, args ...any) {
+	Default().Trace(msg, args...)
+}
+
+// Debug logs at [slog.LevelDebug] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Debug(msg string, args ...any) {
+	Default().Debug(msg, args...)
+}
+
+// Info logs at [slog.LevelInfo] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Info(msg string, args ...any) {
+	Default().Info(msg, args...)
+}
+
+// Warn logs at [slog.LevelWarn] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Warn(msg string, args ...any) {
+	Default().Warn(msg, args...)
+}
+
+// Error logs at [slog.LevelError] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Error(msg string, args ...any) {
+	Default().Error(msg, args...)
+}
+
+// Fatal logs at [LevelFatal] using the [Default] logger, then calls the exit hook if set,
+// otherwise [os.Exit] with code 1. It does not return. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Fatal(msg string, args ...any) {
+	Default().Fatal(msg, args...)
+}
+
+// Panic logs at [LevelPanic] using the [Default] logger, then panics with msg. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func Panic(msg string, args ...any) {
+	Default().Panic(msg, args...)
+}
+
+// TraceContext logs at [LevelTrace] with ctx using the [Default] logger. Arguments are handled
+// like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func TraceContext(ctx context.Context, msg string, args ...any) {
+	Default().TraceContext(ctx, msg, args...)
+}
+
+// DebugContext logs at [slog.LevelDebug] with ctx using the [Default] logger. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func DebugContext(ctx context.Context, msg string, args ...any) {
+	Default().DebugContext(ctx, msg, args...)
+}
+
+// InfoContext logs at [slog.LevelInfo] with ctx using the [Default] logger. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func InfoContext(ctx context.Context, msg string, args ...any) {
+	Default().InfoContext(ctx, msg, args...)
+}
+
+// WarnContext logs at [slog.LevelWarn] with ctx using the [Default] logger. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func WarnContext(ctx context.Context, msg string, args ...any) {
+	Default().WarnContext(ctx, msg, args...)
+}
+
+// ErrorContext logs at [slog.LevelError] with ctx using the [Default] logger. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func ErrorContext(ctx context.Context, msg string, args ...any) {
+	Default().ErrorContext(ctx, msg, args...)
+}
+
+// FatalContext logs at [LevelFatal] with ctx using the [Default] logger, then calls the exit
+// hook if set, otherwise [os.Exit] with code 1. It does not return. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func FatalContext(ctx context.Context, msg string, args ...any) {
+	Default().FatalContext(ctx, msg, args...)
+}
+
+// PanicContext logs at [LevelPanic] with ctx using the [Default] logger, then panics with msg.
+// Arguments are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or
+// [slog.Attr] objects.
+func PanicContext(ctx context.Context, msg string, args ...any) {
+	Default().PanicContext(ctx, msg, args...)
+}
+
+// TraceAttrs logs at [LevelTrace] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().TraceAttrs(ctx, msg, attrs...)
+}
+
+// DebugAttrs logs at [slog.LevelDebug] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().DebugAttrs(ctx, msg, attrs...)
+}
+
+// InfoAttrs logs at [slog.LevelInfo] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().InfoAttrs(ctx, msg, attrs...)
+}
+
+// WarnAttrs logs at [slog.LevelWarn] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().WarnAttrs(ctx, msg, attrs...)
+}
+
+// ErrorAttrs logs at [slog.LevelError] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().ErrorAttrs(ctx, msg, attrs...)
+}
+
+// FatalAttrs logs at [LevelFatal] with attrs using the [Default] logger, then calls the exit
+// hook if set, otherwise [os.Exit] with code 1. It does not return. Uses [slog.LogAttrs] for
+// efficiency.
+func FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().FatalAttrs(ctx, msg, attrs...)
+}
+
+// PanicAttrs logs at [LevelPanic] with attrs using the [Default] logger, then panics with msg.
+// Uses [slog.LogAttrs] for efficiency.
+func PanicAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	Default().PanicAttrs(ctx, msg, attrs...)
 }
 
 //=============================================================================

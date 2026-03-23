@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
@@ -230,4 +233,147 @@ func newTestLogger(t *testing.T, buf *bytes.Buffer, opts *slog.HandlerOptions) *
 	t.Helper()
 	inner := slog.New(slog.NewJSONHandler(buf, rlog.MergeWithCustomLevels(opts)))
 	return rlog.New(inner)
+}
+
+// Default and SetDefault must remain safe under heavy concurrent use (run with -race).
+func TestDefaultSetDefault_concurrent(t *testing.T) {
+	const (
+		goroutines = 128
+		iterations = 400
+		poolSize   = 16
+	)
+
+	prev := rlog.Default()
+	t.Cleanup(func() { rlog.SetDefault(prev) })
+
+	pool := make([]*rlog.Logger, poolSize)
+	for i := range pool {
+		h := slog.NewJSONHandler(io.Discard, rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: rlog.LevelTrace}))
+		pool[i] = rlog.New(slog.New(h))
+	}
+
+	var wg sync.WaitGroup
+	var nilDefaults atomic.Int32
+	wg.Add(goroutines)
+	for g := range goroutines {
+		go func(id int) {
+			defer wg.Done()
+			for n := range iterations {
+				switch (id + n) % 4 {
+				case 0:
+					rlog.SetDefault(pool[(id+n)%poolSize])
+				case 1:
+					l := rlog.Default()
+					if l == nil {
+						nilDefaults.Add(1)
+						continue
+					}
+					l.Info("concurrent")
+				case 2:
+					l := rlog.Default()
+					if l == nil {
+						nilDefaults.Add(1)
+						continue
+					}
+					rlog.Info("concurrent-global")
+				case 3:
+					rlog.SetDefault(pool[(id*3+n)%poolSize])
+					l := rlog.Default()
+					if l == nil {
+						nilDefaults.Add(1)
+						continue
+					}
+					l.Info("after-set")
+				}
+			}
+		}(g)
+	}
+	wg.Wait()
+	assert.Equal(t, int32(0), nilDefaults.Load(), "Default() returned nil under concurrency")
+}
+
+// Global package functions must log through [rlog.SetDefault], not the library default.
+func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
+	var buf bytes.Buffer
+	opts := &slog.HandlerOptions{Level: rlog.LevelTrace}
+	inner := slog.New(slog.NewTextHandler(&buf, rlog.MergeWithCustomLevels(opts)))
+	lg := rlog.New(inner)
+	var exited bool
+	lg.SetExitFunc(func() { exited = true })
+
+	prev := rlog.Default()
+	t.Cleanup(func() { rlog.SetDefault(prev) })
+	rlog.SetDefault(lg)
+
+	ctx := context.Background()
+
+	type gCase struct {
+		name  string
+		run   func()
+		want  []string
+		fatal bool
+		panic bool
+	}
+
+	cases := []gCase{
+		{"Log", func() { rlog.Log(ctx, slog.LevelInfo, "log-msg") }, []string{"INFO", "log-msg"}, false, false},
+		{"LogAttrs", func() {
+			rlog.LogAttrs(ctx, slog.LevelWarn, "la-msg", slog.String("k", "v"))
+		}, []string{"WARN", "la-msg", "k=v"}, false, false},
+
+		{"Trace", func() { rlog.Trace("trace-msg") }, []string{"TRACE", "trace-msg"}, false, false},
+		{"Debug", func() { rlog.Debug("debug-msg") }, []string{"DEBUG", "debug-msg"}, false, false},
+		{"Info", func() { rlog.Info("info-msg") }, []string{"INFO", "info-msg"}, false, false},
+		{"Warn", func() { rlog.Warn("warn-msg") }, []string{"WARN", "warn-msg"}, false, false},
+		{"Error", func() { rlog.Error("error-msg") }, []string{"ERROR", "error-msg"}, false, false},
+		{"Fatal", func() { rlog.Fatal("fatal-msg") }, []string{"FATAL", "fatal-msg"}, true, false},
+		{"Panic", func() { rlog.Panic("panic-msg") }, []string{"PANIC", "panic-msg"}, false, true},
+
+		{"TraceContext", func() { rlog.TraceContext(ctx, "tc") }, []string{"TRACE", "tc"}, false, false},
+		{"DebugContext", func() { rlog.DebugContext(ctx, "dc") }, []string{"DEBUG", "dc"}, false, false},
+		{"InfoContext", func() { rlog.InfoContext(ctx, "ic") }, []string{"INFO", "ic"}, false, false},
+		{"WarnContext", func() { rlog.WarnContext(ctx, "wc") }, []string{"WARN", "wc"}, false, false},
+		{"ErrorContext", func() { rlog.ErrorContext(ctx, "ec") }, []string{"ERROR", "ec"}, false, false},
+		{"FatalContext", func() { rlog.FatalContext(ctx, "fc") }, []string{"FATAL", "fc"}, true, false},
+		{"PanicContext", func() { rlog.PanicContext(ctx, "pc") }, []string{"PANIC", "pc"}, false, true},
+
+		{"TraceAttrs", func() { rlog.TraceAttrs(ctx, "ta", slog.String("a", "1")) }, []string{"TRACE", "ta", "a=1"}, false, false},
+		{"DebugAttrs", func() { rlog.DebugAttrs(ctx, "da", slog.String("a", "1")) }, []string{"DEBUG", "da", "a=1"}, false, false},
+		{"InfoAttrs", func() { rlog.InfoAttrs(ctx, "ia", slog.String("a", "1")) }, []string{"INFO", "ia", "a=1"}, false, false},
+		{"WarnAttrs", func() { rlog.WarnAttrs(ctx, "wa", slog.String("a", "1")) }, []string{"WARN", "wa", "a=1"}, false, false},
+		{"ErrorAttrs", func() { rlog.ErrorAttrs(ctx, "ea", slog.String("a", "1")) }, []string{"ERROR", "ea", "a=1"}, false, false},
+		{"FatalAttrs", func() { rlog.FatalAttrs(ctx, "fa", slog.String("a", "1")) }, []string{"FATAL", "fa", "a=1"}, true, false},
+		{"PanicAttrs", func() { rlog.PanicAttrs(ctx, "pa", slog.String("a", "1")) }, []string{"PANIC", "pa", "a=1"}, false, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Reset()
+			exited = false
+
+			switch {
+			case tc.panic:
+				var sawPanic bool
+				func() {
+					defer func() {
+						if recover() != nil {
+							sawPanic = true
+						}
+					}()
+					tc.run()
+				}()
+				assert.True(t, sawPanic, "expected panic from %s", tc.name)
+			case tc.fatal:
+				tc.run()
+				assert.True(t, exited, "expected exit hook from %s", tc.name)
+			default:
+				tc.run()
+			}
+
+			out := buf.String()
+			for _, w := range tc.want {
+				assert.Contains(t, out, w)
+			}
+		})
+	}
 }
