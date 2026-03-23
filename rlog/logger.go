@@ -56,7 +56,9 @@ func Default() *Logger {
 	return &l
 }
 
-// SetDefault sets the default (global) [Logger]. Safe to use concurrently.
+// SetDefault sets the default (global) [Logger]. To use the global logger level
+// and custom levels, the handler must be constructed using [MergeWithCustomLevels]
+// and [WithGlobalLevel]. Safe to use concurrently.
 func SetDefault(logger *Logger) {
 	loggerMu.Lock()
 	defer loggerMu.Unlock()

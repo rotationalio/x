@@ -66,3 +66,13 @@ func replaceLevelKey(a slog.Attr) slog.Attr {
 
 	return a
 }
+
+// WithGlobalLevel returns a copy of opts (or a new [slog.HandlerOptions] if opts is nil)
+// with the global [slog.LevelVar] set as the level.
+func WithGlobalLevel(opts *slog.HandlerOptions) *slog.HandlerOptions {
+	if opts == nil {
+		opts = &slog.HandlerOptions{}
+	}
+	opts.Level = globalLevel
+	return opts
+}
