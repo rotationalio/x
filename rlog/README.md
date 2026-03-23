@@ -34,7 +34,9 @@ func main() {
  // --- Global default (before SetDefault): shared LevelVar + package-level helpers ---
  rlog.SetLevel(rlog.LevelTrace)
  rlog.Info("installed JSON default at init")
+ // Output: {"time":"…","level":"INFO","msg":"installed JSON default at init"}
  rlog.Trace("package-level Trace")
+ // Output: {"time":"…","level":"TRACE","msg":"package-level Trace"}
 
  // --- Build a logger and use *Logger methods (handler uses global LevelVar via WithGlobalLevel) ---
  opts := rlog.MergeWithCustomLevels(rlog.WithGlobalLevel(nil))
@@ -46,25 +48,33 @@ func main() {
 
  // Rlog-added level: key/value (Trace, Fatal, Panic have *Context and *Attrs too)
  log.Trace("trace-msg", "k", "v")
+ // Output: {"time":"…","level":"TRACE","msg":"trace-msg","k":"v"}
 
  // Standard slog level + context (same idea for InfoContext, WarnContext, …)
  log.DebugContext(ctx, "debug-msg", "k", "v")
+ // Output: {"time":"…","level":"DEBUG","msg":"debug-msg","k":"v"}
 
  // Standard slog level + slog.Attr (LogAttrs-style; same for WarnAttrs, ErrorAttrs, …)
  log.InfoAttrs(ctx, "info-msg", slog.String("k", "v"))
+ // Output: {"time":"…","level":"INFO","msg":"info-msg","k":"v"}
 
  log.Fatal("fatal-msg") // would os.Exit(1) without SetExitFunc
+ // Output: {"time":"…","level":"FATAL","msg":"fatal-msg"}
 
  func() {
   defer func() { recover() }()
   log.Panic("panic-msg") // logs then panic(message)
+  // Output: {"time":"…","level":"PANIC","msg":"panic-msg"}
  }()
 
  // --- Point package-level API at this logger ---
  rlog.SetDefault(log)
  rlog.Default().Warn("same logger as SetDefault")
+ // Output: {"time":"…","level":"WARN","msg":"same logger as SetDefault"}
  rlog.DebugContext(ctx, "same logger via package-level DebugContext")
+ // Output: {"time":"…","level":"DEBUG","msg":"same logger via package-level DebugContext"}
  rlog.InfoAttrs(ctx, "same logger via package-level InfoAttrs", slog.String("k", "v"))
+ // Output: {"time":"…","level":"INFO","msg":"same logger via package-level InfoAttrs","k":"v"}
 }
 ```
 
