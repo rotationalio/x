@@ -4,7 +4,12 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"sync"
 )
+
+//=============================================================================
+// Logger Type
+//=============================================================================
 
 // Logger is a wrapper around the standard library's slog.Logger that adds custom
 // severity levels with a custom exit function for logging Fatal messages.
@@ -16,6 +21,56 @@ type Logger struct {
 // New returns a new [Logger] using the given [slog.Logger].
 func New(logger *slog.Logger) *Logger {
 	return &Logger{Logger: logger}
+}
+
+//=============================================================================
+// Global Logger
+//=============================================================================
+
+// Global variables for the default (global) [Logger].
+var (
+	globalLogger *Logger
+	loggerMu     sync.Mutex
+
+	globalLevel *slog.LevelVar // [slog.LevelVar] is concurrency safe
+)
+
+// Default returns the default (global) [Logger], creating it if it doesn't
+// exist. Use [SetDefault] to set the default [Logger]. If no default [Logger]
+// is set, a new JSON logger to stdout is created with the default
+// [slog.HandlerOptions] and level [slog.LevelInfo]. Safe to use concurrently.
+func Default() *Logger {
+	loggerMu.Lock()
+	defer loggerMu.Unlock()
+	if globalLogger == nil {
+		// A [slog.LevelVar] allows us to change the global log level at anytime
+		globalLevel.Set(slog.LevelInfo)
+		globalLogger = New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
+	}
+	return globalLogger
+}
+
+// SetDefault sets the default (global) [Logger]. Safe to use concurrently.
+func SetDefault(logger *Logger) {
+	loggerMu.Lock()
+	defer loggerMu.Unlock()
+	globalLogger = logger
+}
+
+// SetLevel sets the global log level. Safe to use concurrently.
+func SetLevel(level slog.Level) {
+	globalLevel.Set(level)
+}
+
+// Level returns the global log level. Safe to use concurrently.
+func Level() slog.Level {
+	return globalLevel.Level()
+}
+
+// LevelString returns the global log level as a string using a [LevelDecoder].
+// Safe to use concurrently.
+func LevelString() string {
+	return LevelDecoder(Level()).String()
 }
 
 //=============================================================================
