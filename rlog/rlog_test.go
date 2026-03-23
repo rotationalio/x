@@ -229,14 +229,12 @@ func TestJSON_shape(t *testing.T) {
 	assert.Equal(t, "TRACE", m["level"])
 }
 
-func newTestLogger(t *testing.T, buf *bytes.Buffer, opts *slog.HandlerOptions) *rlog.Logger {
-	t.Helper()
-	inner := slog.New(slog.NewJSONHandler(buf, rlog.MergeWithCustomLevels(opts)))
-	return rlog.New(inner)
-}
-
 // Default and SetDefault must remain safe under heavy concurrent use (run with -race).
+// The race detector flags unsafe access to the package-global logger; atomics verify
+// that every goroutine ran its full loop and that logging paths executed as expected.
 func TestDefaultSetDefault_concurrent(t *testing.T) {
+	// Enough goroutines and iterations to interleave real workloads; poolSize > 1 so
+	// SetDefault swaps among different logger instances rather than one repeated value.
 	const (
 		goroutines = 128
 		iterations = 400
@@ -252,44 +250,60 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 		pool[i] = rlog.New(slog.New(h))
 	}
 
+	// Each inner-loop iteration runs exactly one switch arm; (id+n)%4 cycles all four
+	// equally over iterations, so per goroutine each arm runs iterations/4 times.
+	perG := iterations / 4
+	wantIterations := int64(goroutines * iterations)
+	wantLog := int64(goroutines * perG * 3) // only arms 1–3 log; each logs once per hit
+
 	var wg sync.WaitGroup
-	var nilDefaults atomic.Int32
+	var iterationsDone, logOps, nilishLoggers atomic.Int64
 	wg.Add(goroutines)
 	for g := range goroutines {
 		go func(id int) {
 			defer wg.Done()
 			for n := range iterations {
+				// Four interleavings: writer-only, read+log on *Logger, package-level
+				// Info (which calls Default again internally), and set-then-read-then-log.
 				switch (id + n) % 4 {
 				case 0:
 					rlog.SetDefault(pool[(id+n)%poolSize])
 				case 1:
 					l := rlog.Default()
-					if l == nil {
-						nilDefaults.Add(1)
-						continue
+					noteNilishLogger(l, &nilishLoggers)
+					if l != nil && l.Logger != nil {
+						l.Info("concurrent")
+						logOps.Add(1)
 					}
-					l.Info("concurrent")
 				case 2:
 					l := rlog.Default()
-					if l == nil {
-						nilDefaults.Add(1)
-						continue
-					}
+					noteNilishLogger(l, &nilishLoggers)
 					rlog.Info("concurrent-global")
+					logOps.Add(1)
 				case 3:
 					rlog.SetDefault(pool[(id*3+n)%poolSize])
 					l := rlog.Default()
-					if l == nil {
-						nilDefaults.Add(1)
-						continue
+					noteNilishLogger(l, &nilishLoggers)
+					if l != nil && l.Logger != nil {
+						l.Info("after-set")
+						logOps.Add(1)
 					}
-					l.Info("after-set")
 				}
+				iterationsDone.Add(1)
 			}
 		}(g)
 	}
 	wg.Wait()
-	assert.Equal(t, int32(0), nilDefaults.Load(), "Default() returned nil under concurrency")
+
+	// nilishLoggers: regression sentinel for a broken or torn default logger.
+	// iterationsDone: every inner-loop body completed (no panic, no stuck goroutine).
+	// logOps: arms that should emit a log did so the expected number of times.
+	assert.Equal(t, int64(0), nilishLoggers.Load(), "nil *Logger or nil embedded slog.Logger under concurrency")
+	assert.Equal(t, wantIterations, iterationsDone.Load())
+	assert.Equal(t, wantLog, logOps.Load())
+
+	// Smoke check: global default is still usable after concurrent churn.
+	rlog.Default().Info("post-stress")
 }
 
 // Global package functions must log through [rlog.SetDefault], not the library default.
@@ -375,5 +389,26 @@ func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
 				assert.Contains(t, out, w)
 			}
 		})
+	}
+}
+
+//=============================================================================
+// Helpers
+//=============================================================================
+
+func newTestLogger(t *testing.T, buf *bytes.Buffer, opts *slog.HandlerOptions) *rlog.Logger {
+	t.Helper()
+	inner := slog.New(slog.NewJSONHandler(buf, rlog.MergeWithCustomLevels(opts)))
+	return rlog.New(inner)
+}
+
+// noteNilishLogger increments cnt if l or its embedded [*slog.Logger] is nil.
+func noteNilishLogger(l *rlog.Logger, cnt *atomic.Int64) {
+	if l == nil {
+		cnt.Add(1)
+		return
+	}
+	if l.Logger == nil {
+		cnt.Add(1)
 	}
 }
