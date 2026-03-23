@@ -44,7 +44,8 @@ func False(tb testing.TB, condition bool, msgAndArgs ...any) {
 	Assert(tb, !condition, msg)
 }
 
-// Contains asserts that s contains substr.
+// Contains asserts that the specified string, list(array, slice...) or map contains the specified substring or element.
+// TODO: Currently only substr is implemented, we should implement array, slice, map handling as needed.
 func Contains(tb testing.TB, s, substr string, msgAndArgs ...any) {
 	tb.Helper()
 	if strings.Contains(s, substr) {
@@ -55,7 +56,8 @@ func Contains(tb testing.TB, s, substr string, msgAndArgs ...any) {
 	tb.FailNow()
 }
 
-// NotContains asserts that s does not contain substr.
+// NotContains asserts that the specified string, list(array, slice...) or map does NOT contain the specified substring or element.
+// TODO: Currently only substr is implemented, we should implement array, slice, map handling as needed.
 func NotContains(tb testing.TB, s, substr string, msgAndArgs ...any) {
 	tb.Helper()
 	if !strings.Contains(s, substr) {
