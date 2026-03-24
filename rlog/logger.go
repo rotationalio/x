@@ -36,9 +36,8 @@ var (
 
 // Initializes the global logger and level once. Is a no-op if already initialized.
 func init() {
-		globalLevel.Set(slog.LevelInfo)
-		globalLogger = *newDefaultGlobalLogger()
-	})
+	globalLevel.Set(slog.LevelInfo)
+	globalLogger = *newDefaultGlobalLogger()
 }
 
 // Default returns the default (global) [Logger], creating it if it doesn't
