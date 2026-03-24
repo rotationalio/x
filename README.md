@@ -31,6 +31,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [region](https://go.rtnl.ai/x/region): enumerates the clouds and regions that Rotational services can be deployed to
+- [rlog](https://go.rtnl.ai/x/rlog): extends the `log/slog` logger with additional custom levels and features (the 'r' is for "Rotational"!)
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.

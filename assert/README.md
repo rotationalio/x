@@ -3,7 +3,7 @@
 Because this is a library, we prefer to have no dependencies including our usual test
 dependencies (e.g. testify require). So we have some basic assertion helpers for tests.
 
-See: https://github.com/benbjohnson/testing
+See: <https://github.com/benbjohnson/testing>
 
 Usage:
 
@@ -26,5 +26,16 @@ func TestMyFunc(t *testing.T) {
 
     // Test the error is a specific error target
     assert.ErrorIs(t, err, MyError)
+
+    // Tests that a string contains a substring
+    assert.Contains(t, "foo bar", "bar", "expected the word 'bar'")
+
+    // Test that a string does NOT contain a substring
+    assert.NotContains(t, "foo bar", "baz", "should not contain 'baz'")
+
+    // Test that a function panics with a specific value
+    assert.PanicsWithValue(t, "boom", func() {
+        panic("boom")
+    }, "panic value should be 'boom'")
 }
 ```
