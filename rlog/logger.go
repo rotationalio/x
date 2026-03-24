@@ -29,7 +29,6 @@ func New(logger *slog.Logger) *Logger {
 
 // Global variables for the default (global) [Logger].
 var (
-	initOnce     sync.Once
 	globalLogger Logger
 	loggerMu     sync.RWMutex   // protects reads and writes to the globalLogger
 	globalLevel  *slog.LevelVar = &slog.LevelVar{}
@@ -82,11 +81,6 @@ func SetLevel(level slog.Level) {
 // handler with the global level.
 func newDefaultGlobalLogger() *Logger {
 	return New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
-}
-
-// Initialize on package init.
-func init() {
-	Initialize()
 }
 
 //=============================================================================
