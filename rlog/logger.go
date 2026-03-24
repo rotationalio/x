@@ -36,11 +36,8 @@ var (
 )
 
 // Initializes the global logger and level once. Is a no-op if already initialized.
-func Initialize() {
-	initOnce.Do(func() {
+func init() {
 		globalLevel.Set(slog.LevelInfo)
-		loggerMu.Lock()
-		defer loggerMu.Unlock()
 		globalLogger = *newDefaultGlobalLogger()
 	})
 }
