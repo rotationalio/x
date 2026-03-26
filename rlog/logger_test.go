@@ -199,7 +199,7 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 	wantLog := int64(goroutines * perG * 3)
 
 	var wg sync.WaitGroup
-	var iterationsDone, logOps, nilishLoggers atomic.Int64
+	var iterationsDone, logOps atomic.Int64
 	wg.Add(goroutines)
 	for g := range goroutines {
 		go func(id int) {
@@ -209,22 +209,16 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 				case 0: // swap global only
 					rlog.SetDefault(pool[(id+n)%poolSize])
 				case 1: // read default, method log
-					l := rlog.Default()
-					if l != nil && l.Logger != nil {
-						l.Info("concurrent")
-						logOps.Add(1)
-					}
+					rlog.Default().Info("concurrent")
+					logOps.Add(1)
 				case 2: // read default, package-level log
 					_ = rlog.Default()
 					rlog.Info("concurrent-global")
 					logOps.Add(1)
 				case 3: // swap then read and log
 					rlog.SetDefault(pool[(id*3+n)%poolSize])
-					l := rlog.Default()
-					if l != nil && l.Logger != nil {
-						l.Info("after-set")
-						logOps.Add(1)
-					}
+					rlog.Default().Info("after-set")
+					logOps.Add(1)
 				}
 				iterationsDone.Add(1)
 			}
@@ -232,8 +226,6 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// No nil default; full iteration count; logging arms ran expected times.
-	assert.Equal(t, int64(0), nilishLoggers.Load(), "nil *Logger or nil embedded slog.Logger under concurrency")
 	assert.Equal(t, wantIterations, iterationsDone.Load())
 	assert.Equal(t, wantLog, logOps.Load())
 
