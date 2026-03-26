@@ -333,6 +333,65 @@ func TestSlogSetDefault_alignedWithRlog(t *testing.T) {
 	assert.Contains(t, buf.String(), "via-slog")
 }
 
+// With and WithGroup on *rlog.Logger, and package-level rlog.With / rlog.WithGroup after SetDefault,
+// merge fixed attrs and nested groups into JSON in the same shape as slog.
+func TestWithAndWithGroupLoggerAndPackageLevel(t *testing.T) {
+	// Create a new test root logger with a buffer and options
+	var buf bytes.Buffer
+	root := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+
+	// Test Logger.With
+	withLogger := root.With(slog.String("k1", "v1"))
+
+	withLogger.Info("hello1", slog.String("k2", "v2"))
+	out := buf.String()
+
+	assert.Contains(t, out, `"msg":"hello1"`, "Logger.With: expected message hello1 in output")
+	assert.Contains(t, out, `"k1":"v1"`, "Logger.With: expected fixed attr k1 from With")
+	assert.Contains(t, out, `"k2":"v2"`, "Logger.With: expected call-site attr k2")
+
+	buf.Reset()
+
+	// Test Logger.WithGroup
+	groupLogger := root.WithGroup("G")
+
+	groupLogger.Info("hello2", slog.String("k3", "v3"))
+	out = buf.String()
+
+	assert.Contains(t, out, `"msg":"hello2"`, "Logger.WithGroup: expected message hello2 in output")
+	assert.Contains(t, out, `"G":{"k3":"v3"}`, "Logger.WithGroup: expected attrs nested under group G")
+
+	buf.Reset()
+
+	// Test Logger.With + WithGroup combo
+	mixedLogger := root.With(slog.String("outer", "val")).WithGroup("g")
+
+	mixedLogger.Info("hello3", slog.String("inner", "val2"))
+	out = buf.String()
+
+	assert.Contains(t, out, `"msg":"hello3"`, "With then WithGroup: expected message hello3 in output")
+	assert.Contains(t, out, `"outer":"val"`, "With then WithGroup: expected fixed attr outer before group")
+	assert.Contains(t, out, `"g":{"inner":"val2"}`, "With then WithGroup: expected inner attrs under group g")
+
+	buf.Reset()
+
+	// Package-level rlog.With chained with rlog.WithGroup
+	orig := rlog.Default()
+	t.Cleanup(func() { rlog.SetDefault(orig) })
+	rlog.SetDefault(root)
+
+	rlog.With(slog.String("pkgk", "pkgv")).WithGroup("pg").Info(
+		"from_pkg_chain",
+		slog.String("other", "x"),
+		slog.String("deepk", "deepv"),
+	)
+	out = buf.String()
+
+	assert.Contains(t, out, `"msg":"from_pkg_chain"`, "package With+WithGroup: expected message in output")
+	assert.Contains(t, out, `"pkgk":"pkgv"`, "package With+WithGroup: expected fixed attr from With")
+	assert.Contains(t, out, `"pg":{"other":"x","deepk":"deepv"}`, "package With+WithGroup: expected call-site attrs under group pg")
+}
+
 //=============================================================================
 // Helper Functions
 //=============================================================================
