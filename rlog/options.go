@@ -31,7 +31,7 @@ func MergeWithCustomLevels(opts *slog.HandlerOptions) *slog.HandlerOptions {
 
 	next := merged.ReplaceAttr
 	merged.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-		a = replaceLevelKey(a)
+		a = ReplaceLevelKey(groups, a)
 
 		if next != nil {
 			return next(groups, a)
@@ -43,7 +43,18 @@ func MergeWithCustomLevels(opts *slog.HandlerOptions) *slog.HandlerOptions {
 	return &merged
 }
 
-func replaceLevelKey(a slog.Attr) slog.Attr {
+// ReplaceLevelKey replaces the level key with the custom level key. Use this
+// as a ReplaceAttr function for a [slog.HandlerOptions]. If you wish to merge
+// this with other ReplaceAttr functions, you can use [MergeWithCustomLevels].
+//
+// Example:
+//
+//	opts := &slog.HandlerOptions{
+//		ReplaceAttr: rlog.ReplaceLevelKey,
+//	}
+//	logger := slog.New(slog.NewJSONHandler(w, opts))
+//	logger.Log(context.Background(), rlog.LevelTrace, "message", "hello", "world")
+func ReplaceLevelKey(_ []string, a slog.Attr) slog.Attr {
 	if a.Key != slog.LevelKey {
 		return a
 	}

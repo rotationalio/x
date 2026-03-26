@@ -5,59 +5,82 @@ import (
 	"log/slog"
 	"os"
 	"sync"
+	"sync/atomic"
 )
 
 //=============================================================================
 // Logger Type
 //=============================================================================
 
-// Logger is a wrapper around the standard library's slog.Logger that adds custom
-// severity levels with a custom exit function for logging Fatal messages.
+// Logger is a wrapper around the standard library's [slog.Logger] that adds custom
+// severity levels (Trace, Fatal, Panic). After Fatal logging, see [SetFatalHook].
+// The wrapped [slog.Logger] is stored in the [Logger] struct and can be accessed
+// using the [Logger.Logger] field, though it is not recommended to mutate the
+// wrapped [slog.Logger] directly.
 type Logger struct {
 	*slog.Logger
-	exitFunc func()
 }
 
-// New returns a new [Logger] using the given [slog.Logger].
+// New returns a new [Logger] wrapping the given [slog.Logger]. If logger is nil,
+// returns the [Default] [Logger].
 func New(logger *slog.Logger) *Logger {
+	if logger == nil {
+		return Default()
+	}
 	return &Logger{Logger: logger}
+}
+
+// With returns a derived [Logger] with the given context attributes (key/value
+// pairs and/or [slog.Attr] values, same rules as [slog.Logger.With]).
+func (l *Logger) With(args ...any) *Logger {
+	return &Logger{Logger: l.Logger.With(args...)}
+}
+
+// WithGroup returns a derived [Logger] with the given group.
+func (l *Logger) WithGroup(name string) *Logger {
+	return &Logger{Logger: l.Logger.WithGroup(name)}
 }
 
 //=============================================================================
 // Global Logger Init and Management
 //=============================================================================
 
-// Global variables for the default (global) [Logger].
 var (
-	globalLogger Logger
-	loggerMu     sync.RWMutex   // protects reads and writes to the globalLogger
-	globalLevel  *slog.LevelVar = &slog.LevelVar{}
+	// Stores the global logger that is returned by [Default]
+	globalLogger *Logger
+	// Protects reads and writes to the globalLogger
+	loggerMu sync.RWMutex
+	// The zero value is [slog.LevelInfo]
+	globalLevel *slog.LevelVar = &slog.LevelVar{}
+	// Stores the function to call when a fatal log is written, or nil if no hook is set
+	fatalHookAtomic atomic.Pointer[struct{ fn func() }]
 )
 
-// Initializes the global logger and level once. Is a no-op if already initialized.
+// Initializes the global logger to be a console JSON logger with level [slog.LevelInfo].
 func init() {
-	globalLevel.Set(slog.LevelInfo)
-	globalLogger = *newDefaultGlobalLogger()
+	SetDefault(New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel})))))
 }
 
-// Default returns the default (global) [Logger], creating it if it doesn't
-// exist. Use [SetDefault] to set the default [Logger]. If no default [Logger]
-// is set, a new JSON logger to stdout is created with the default
-// [slog.HandlerOptions] and level [slog.LevelInfo]. Safe to use concurrently.
+// Default returns the default (global) [Logger]. Use [SetDefault] to set the
+// default [Logger]. The returned pointer is shared until the next [SetDefault];
+// do not mutate the [Logger] value it points to.
 func Default() *Logger {
 	loggerMu.RLock()
-	l := globalLogger
-	loggerMu.RUnlock()
-	return &l
+	defer loggerMu.RUnlock()
+	return globalLogger
 }
 
-// SetDefault sets the default (global) [Logger]. To use the global logger level
-// and custom levels, the handler must be constructed using [MergeWithCustomLevels]
-// and [WithGlobalLevel]. Safe to use concurrently.
+// SetDefault sets the default (global) [Logger] and [slog.Default] to the same
+// underlying [*slog.Logger]. To use the global logger level and custom levels,
+// the handler must be constructed using [MergeWithCustomLevels] and
+// [WithGlobalLevel]. Safe to use concurrently.
 func SetDefault(logger *Logger) {
+	p := new(Logger)
+	*p = *logger
 	loggerMu.Lock()
 	defer loggerMu.Unlock()
-	globalLogger = *logger
+	globalLogger = p
+	slog.SetDefault(p.Logger)
 }
 
 // Level returns the global log level. Safe to use concurrently.
@@ -76,16 +99,40 @@ func SetLevel(level slog.Level) {
 	globalLevel.Set(level)
 }
 
-// newDefaultGlobalLogger creates a new default global [Logger] with a JSON stdout
-// handler with the global level.
-func newDefaultGlobalLogger() *Logger {
-	return New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
+// SetFatalHook sets the function invoked after Fatal log output. If fn is nil,
+// the hook is cleared and Fatal calls [os.Exit](1). The hook is process-wide
+// for all [*Logger] values. Safe to call concurrently with logging.
+func SetFatalHook(fn func()) {
+	if fn == nil {
+		fatalHookAtomic.Store(nil)
+		return
+	}
+	fatalHookAtomic.Store(&struct{ fn func() }{fn: fn})
+}
+
+// exitFatal runs the hook from [SetFatalHook] if installed, else [os.Exit](1).
+func exitFatal() {
+	slot := fatalHookAtomic.Load()
+	if slot == nil {
+		os.Exit(1)
+	}
+	slot.fn()
 }
 
 //=============================================================================
 // Global Logger Functions
 // NOTE: These functions are aliases for the [Logger] methods with the default [Logger].
 //=============================================================================
+
+// With returns a derived [Logger] with the given attributes.
+func With(args ...any) *Logger {
+	return Default().With(args...)
+}
+
+// WithGroup returns a derived [Logger] with the given group.
+func WithGroup(name string) *Logger {
+	return Default().WithGroup(name)
+}
 
 // Log emits a log record with the given level and message using the [Default] logger.
 // Arguments are handled like [slog.Logger.Log].
@@ -128,9 +175,9 @@ func Error(msg string, args ...any) {
 	Default().Error(msg, args...)
 }
 
-// Fatal logs at [LevelFatal] using the [Default] logger, then calls the exit hook if set,
-// otherwise [os.Exit] with code 1. It does not return. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+// Fatal logs at [LevelFatal] using the [Default] logger, then runs the global fatal hook
+// from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
 func Fatal(msg string, args ...any) {
 	Default().Fatal(msg, args...)
 }
@@ -176,9 +223,9 @@ func ErrorContext(ctx context.Context, msg string, args ...any) {
 	Default().ErrorContext(ctx, msg, args...)
 }
 
-// FatalContext logs at [LevelFatal] with ctx using the [Default] logger, then calls the exit
-// hook if set, otherwise [os.Exit] with code 1. It does not return. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+// FatalContext logs at [LevelFatal] with ctx using the [Default] logger, then runs the global
+// fatal hook from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments
+// are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
 func FatalContext(ctx context.Context, msg string, args ...any) {
 	Default().FatalContext(ctx, msg, args...)
 }
@@ -220,9 +267,9 @@ func ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
 	Default().ErrorAttrs(ctx, msg, attrs...)
 }
 
-// FatalAttrs logs at [LevelFatal] with attrs using the [Default] logger, then calls the exit
-// hook if set, otherwise [os.Exit] with code 1. It does not return. Uses [slog.LogAttrs] for
-// efficiency.
+// FatalAttrs logs at [LevelFatal] with attrs using the [Default] logger, then runs the global
+// fatal hook from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Uses
+// [slog.LogAttrs] for efficiency.
 func FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
 	Default().FatalAttrs(ctx, msg, attrs...)
 }
@@ -284,28 +331,28 @@ func (l *Logger) TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr)
 // Fatal Functions
 //=============================================================================
 
-// Fatal logs at [LevelFatal] then calls the exit hook if set, otherwise [os.Exit]
-// with code 1. It does not return. Arguments are handled like [slog.Logger.Log];
+// Fatal logs at [LevelFatal] then runs the global fatal hook from [SetFatalHook] if set,
+// otherwise [os.Exit](1). It does not return. Arguments are handled like [slog.Logger.Log];
 // you can pass any number of key/value pairs or [slog.Attr] objects.
 func (l *Logger) Fatal(msg string, args ...any) {
 	l.FatalContext(context.Background(), msg, args...)
 }
 
-// FatalContext logs at [LevelFatal] with ctx then calls the exit hook if set,
-// otherwise [os.Exit] with code 1. It does not return. Arguments are handled like
+// FatalContext logs at [LevelFatal] with ctx then runs the global fatal hook from [SetFatalHook]
+// if set, otherwise [os.Exit](1). It does not return. Arguments are handled like
 // [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
 // objects.
 func (l *Logger) FatalContext(ctx context.Context, msg string, args ...any) {
 	l.Logger.Log(ctx, LevelFatal, msg, args...)
-	l.exit()
+	exitFatal()
 }
 
-// FatalAttrs logs at [LevelFatal] with attrs then calls the exit hook if set,
-// otherwise [os.Exit] with code 1. It does not return. Uses [slog.LogAttrs] for
+// FatalAttrs logs at [LevelFatal] with attrs then runs the global fatal hook from [SetFatalHook]
+// if set, otherwise [os.Exit](1). It does not return. Uses [slog.LogAttrs] for
 // efficiency.
 func (l *Logger) FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.Logger.LogAttrs(ctx, LevelFatal, msg, attrs...)
-	l.exit()
+	exitFatal()
 }
 
 //=============================================================================
@@ -332,25 +379,4 @@ func (l *Logger) PanicContext(ctx context.Context, msg string, args ...any) {
 func (l *Logger) PanicAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
 	l.Logger.LogAttrs(ctx, LevelPanic, msg, attrs...)
 	panic(msg)
-}
-
-//=============================================================================
-// Exit Function
-//=============================================================================
-
-var defaultExitFunc func() = func() { os.Exit(1) }
-
-// SetExitFunc sets the function called after Fatal logging. If unset, Fatal
-// calls [os.Exit] with code 1. Useful for testing.
-func (l *Logger) SetExitFunc(fn func()) {
-	l.exitFunc = fn
-}
-
-// exit runs the configured exit hook or [os.Exit] with code 1.
-func (l *Logger) exit() {
-	if l.exitFunc == nil {
-		defaultExitFunc()
-		return // unreachable after os.Exit; satisfies nil-check analysis
-	}
-	l.exitFunc()
 }
