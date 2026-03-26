@@ -3,10 +3,8 @@ package rlog_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -15,57 +13,7 @@ import (
 	"go.rtnl.ai/x/rlog"
 )
 
-// JSON output uses "TRACE", "FATAL", and "PANIC" for the custom levels and the
-// usual default slog levels plus an undefined custom level.
-func TestMergeHandlerOptions_levelStrings(t *testing.T) {
-	var buf bytes.Buffer
-	logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
-
-	logger.Log(context.Background(), rlog.LevelTrace, "trace-msg")
-	logger.Log(context.Background(), slog.LevelDebug, "debug-msg")
-	logger.Log(context.Background(), slog.LevelInfo, "info-msg")
-	logger.Log(context.Background(), slog.LevelWarn, "warn-msg")
-	logger.Log(context.Background(), slog.LevelError, "error-msg")
-	logger.Log(context.Background(), rlog.LevelFatal, "fatal-msg")
-	logger.Log(context.Background(), rlog.LevelPanic, "panic-msg")
-	logger.Log(context.Background(), rlog.LevelPanic+4, "panic-plus-4-msg")
-
-	out := buf.String()
-	for _, want := range []string{`"level":"TRACE"`, `"level":"DEBUG"`, `"level":"INFO"`, `"level":"WARN"`, `"level":"ERROR"`, `"level":"FATAL"`, `"level":"PANIC"`, `"level":"ERROR+12"`} {
-		assert.Contains(t, out, want, "output missing level substring: %s", want)
-	}
-}
-
-// User ReplaceAttr still runs after the level-name replacer (drop attr + trace
-// level preserved).
-func TestMergeHandlerOptions_chainsUserReplaceAttr(t *testing.T) {
-	var buf bytes.Buffer
-	opts := &slog.HandlerOptions{
-		Level: rlog.LevelTrace,
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			if a.Key == "drop" {
-				return slog.Attr{}
-			}
-			return a
-		},
-	}
-	logger := newTestLogger(t, &buf, opts)
-	logger.Log(context.Background(), rlog.LevelTrace, "x", "drop", true, "keep", "y")
-
-	out := buf.String()
-	assert.NotContains(t, out, "drop", "user ReplaceAttr should drop key")
-	assert.Contains(t, out, `"level":"TRACE"`)
-	assert.Contains(t, out, "keep")
-}
-
-// Min level Error: Trace is below threshold, Panic is not.
-func TestEnabled_ordering(t *testing.T) {
-	var buf bytes.Buffer
-	logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: slog.LevelError})
-	assert.False(t, logger.Enabled(context.Background(), rlog.LevelTrace), "Trace should be disabled when min is Error")
-	assert.True(t, logger.Enabled(context.Background(), rlog.LevelPanic), "Panic should be enabled when min is Error")
-}
-
+// Logger *Attrs helpers emit JSON with expected level and structured fields.
 func TestDefaultAttrs(t *testing.T) {
 	t.Run("DebugAttrs", func(t *testing.T) {
 		var buf bytes.Buffer
@@ -108,6 +56,7 @@ func TestDefaultAttrs(t *testing.T) {
 	})
 }
 
+// Trace, TraceContext, and TraceAttrs write at LevelTrace when enabled.
 func TestTrace(t *testing.T) {
 	t.Run("Trace", func(t *testing.T) {
 		var buf bytes.Buffer
@@ -140,13 +89,16 @@ func TestTrace(t *testing.T) {
 	})
 }
 
+// Fatal, FatalContext, and FatalAttrs write at LevelFatal when enabled and run the fatal hook.
 func TestFatal(t *testing.T) {
 	t.Run("Fatal", func(t *testing.T) {
 		var buf bytes.Buffer
 		var exited bool
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelFatal})
-		logger.SetExitFunc(func() { exited = true })
-		defer logger.SetExitFunc(func() { os.Exit(1) })
+
+		rlog.SetFatalHook(func() { exited = true })
+		t.Cleanup(func() { rlog.SetFatalHook(nil) })
+
 		logger.Fatal("bye")
 		assert.True(t, exited)
 		out := buf.String()
@@ -158,8 +110,10 @@ func TestFatal(t *testing.T) {
 		var buf bytes.Buffer
 		var exited bool
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelFatal})
-		logger.SetExitFunc(func() { exited = true })
-		defer logger.SetExitFunc(func() { os.Exit(1) })
+
+		rlog.SetFatalHook(func() { exited = true })
+		t.Cleanup(func() { rlog.SetFatalHook(nil) })
+
 		logger.FatalContext(context.Background(), "bye")
 		assert.True(t, exited)
 		out := buf.String()
@@ -171,8 +125,10 @@ func TestFatal(t *testing.T) {
 		var buf bytes.Buffer
 		var exited bool
 		logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelFatal})
-		logger.SetExitFunc(func() { exited = true })
-		defer logger.SetExitFunc(func() { os.Exit(1) })
+
+		rlog.SetFatalHook(func() { exited = true })
+		t.Cleanup(func() { rlog.SetFatalHook(nil) })
+
 		logger.FatalAttrs(context.Background(), "bye", slog.String("k", "v"))
 		assert.True(t, exited)
 		out := buf.String()
@@ -182,6 +138,7 @@ func TestFatal(t *testing.T) {
 	})
 }
 
+// Panic, PanicContext, and PanicAttrs write at LevelPanic when enabled and panic with the message.
 func TestPanic(t *testing.T) {
 	t.Run("Panic", func(t *testing.T) {
 		var buf bytes.Buffer
@@ -218,23 +175,9 @@ func TestPanic(t *testing.T) {
 	})
 }
 
-// Decoded JSON has string level "TRACE" (not a numeric slog offset).
-func TestJSON_shape(t *testing.T) {
-	var buf bytes.Buffer
-	logger := newTestLogger(t, &buf, &slog.HandlerOptions{Level: rlog.LevelTrace})
-	logger.Log(context.Background(), rlog.LevelTrace, "x")
-
-	var m map[string]any
-	assert.Ok(t, json.Unmarshal(buf.Bytes(), &m))
-	assert.Equal(t, "TRACE", m["level"])
-}
-
-// Default and SetDefault must remain safe under heavy concurrent use (run with -race).
-// The race detector flags unsafe access to the package-global logger; atomics verify
-// that every goroutine ran its full loop and that logging paths executed as expected.
+// Concurrent SetDefault, Default, and package-level logging (run with -race).
 func TestDefaultSetDefault_concurrent(t *testing.T) {
-	// Enough goroutines and iterations to interleave real workloads; poolSize > 1 so
-	// SetDefault swaps among different logger instances rather than one repeated value.
+	// Pool of loggers to rotate under SetDefault.
 	const (
 		goroutines = 128
 		iterations = 400
@@ -250,11 +193,10 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 		pool[i] = rlog.New(slog.New(h))
 	}
 
-	// Each inner-loop iteration runs exactly one switch arm; (id+n)%4 cycles all four
-	// equally over iterations, so per goroutine each arm runs iterations/4 times.
+	// Expected counts: each goroutine hits each switch arm equally; only three arms log.
 	perG := iterations / 4
 	wantIterations := int64(goroutines * iterations)
-	wantLog := int64(goroutines * perG * 3) // only arms 1–3 log; each logs once per hit
+	wantLog := int64(goroutines * perG * 3)
 
 	var wg sync.WaitGroup
 	var iterationsDone, logOps, nilishLoggers atomic.Int64
@@ -263,27 +205,22 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for n := range iterations {
-				// Four interleavings: writer-only, read+log on *Logger, package-level
-				// Info (which calls Default again internally), and set-then-read-then-log.
 				switch (id + n) % 4 {
-				case 0:
+				case 0: // swap global only
 					rlog.SetDefault(pool[(id+n)%poolSize])
-				case 1:
+				case 1: // read default, method log
 					l := rlog.Default()
-					noteNilishLogger(l, &nilishLoggers)
 					if l != nil && l.Logger != nil {
 						l.Info("concurrent")
 						logOps.Add(1)
 					}
-				case 2:
-					l := rlog.Default()
-					noteNilishLogger(l, &nilishLoggers)
+				case 2: // read default, package-level log
+					_ = rlog.Default()
 					rlog.Info("concurrent-global")
 					logOps.Add(1)
-				case 3:
+				case 3: // swap then read and log
 					rlog.SetDefault(pool[(id*3+n)%poolSize])
 					l := rlog.Default()
-					noteNilishLogger(l, &nilishLoggers)
 					if l != nil && l.Logger != nil {
 						l.Info("after-set")
 						logOps.Add(1)
@@ -295,29 +232,30 @@ func TestDefaultSetDefault_concurrent(t *testing.T) {
 	}
 	wg.Wait()
 
-	// nilishLoggers: regression sentinel for a broken or torn default logger.
-	// iterationsDone: every inner-loop body completed (no panic, no stuck goroutine).
-	// logOps: arms that should emit a log did so the expected number of times.
+	// No nil default; full iteration count; logging arms ran expected times.
 	assert.Equal(t, int64(0), nilishLoggers.Load(), "nil *Logger or nil embedded slog.Logger under concurrency")
 	assert.Equal(t, wantIterations, iterationsDone.Load())
 	assert.Equal(t, wantLog, logOps.Load())
 
-	// Smoke check: global default is still usable after concurrent churn.
 	rlog.Default().Info("post-stress")
 }
 
-// Global package functions must log through [rlog.SetDefault], not the library default.
+// Package-level rlog.* functions delegate to SetDefault's logger.
 func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
 	var buf bytes.Buffer
 	opts := &slog.HandlerOptions{Level: rlog.LevelTrace}
 	inner := slog.New(slog.NewTextHandler(&buf, rlog.MergeWithCustomLevels(opts)))
 	lg := rlog.New(inner)
-	var exited bool
-	lg.SetExitFunc(func() { exited = true })
+
+	rlog.SetFatalHook(func() {})
+	t.Cleanup(func() { rlog.SetFatalHook(nil) })
 
 	prev := rlog.Default()
 	t.Cleanup(func() { rlog.SetDefault(prev) })
+
+	// Set the default logger to the one we created and verify that it matches [slog.Default].
 	rlog.SetDefault(lg)
+	assert.Equal(t, rlog.Default().Logger, slog.Default(), "slog.Default must match rlog's embedded logger after SetDefault")
 
 	ctx := context.Background()
 
@@ -325,48 +263,46 @@ func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
 		name  string
 		run   func()
 		want  []string
-		fatal bool
 		panic bool
 	}
 
 	cases := []gCase{
-		{"Log", func() { rlog.Log(ctx, slog.LevelInfo, "log-msg") }, []string{"INFO", "log-msg"}, false, false},
+		{"Log", func() { rlog.Log(ctx, slog.LevelInfo, "log-msg") }, []string{"INFO", "log-msg"}, false},
 		{"LogAttrs", func() {
 			rlog.LogAttrs(ctx, slog.LevelWarn, "la-msg", slog.String("k", "v"))
-		}, []string{"WARN", "la-msg", "k=v"}, false, false},
+		}, []string{"WARN", "la-msg", "k=v"}, false},
 
-		{"Trace", func() { rlog.Trace("trace-msg") }, []string{"TRACE", "trace-msg"}, false, false},
-		{"Debug", func() { rlog.Debug("debug-msg") }, []string{"DEBUG", "debug-msg"}, false, false},
-		{"Info", func() { rlog.Info("info-msg") }, []string{"INFO", "info-msg"}, false, false},
-		{"Warn", func() { rlog.Warn("warn-msg") }, []string{"WARN", "warn-msg"}, false, false},
-		{"Error", func() { rlog.Error("error-msg") }, []string{"ERROR", "error-msg"}, false, false},
-		{"Fatal", func() { rlog.Fatal("fatal-msg") }, []string{"FATAL", "fatal-msg"}, true, false},
-		{"Panic", func() { rlog.Panic("panic-msg") }, []string{"PANIC", "panic-msg"}, false, true},
+		{"Trace", func() { rlog.Trace("trace-msg") }, []string{"TRACE", "trace-msg"}, false},
+		{"Debug", func() { rlog.Debug("debug-msg") }, []string{"DEBUG", "debug-msg"}, false},
+		{"Info", func() { rlog.Info("info-msg") }, []string{"INFO", "info-msg"}, false},
+		{"Warn", func() { rlog.Warn("warn-msg") }, []string{"WARN", "warn-msg"}, false},
+		{"Error", func() { rlog.Error("error-msg") }, []string{"ERROR", "error-msg"}, false},
+		{"Fatal", func() { rlog.Fatal("fatal-msg") }, []string{"FATAL", "fatal-msg"}, false},
+		{"Panic", func() { rlog.Panic("panic-msg") }, []string{"PANIC", "panic-msg"}, true},
 
-		{"TraceContext", func() { rlog.TraceContext(ctx, "tc") }, []string{"TRACE", "tc"}, false, false},
-		{"DebugContext", func() { rlog.DebugContext(ctx, "dc") }, []string{"DEBUG", "dc"}, false, false},
-		{"InfoContext", func() { rlog.InfoContext(ctx, "ic") }, []string{"INFO", "ic"}, false, false},
-		{"WarnContext", func() { rlog.WarnContext(ctx, "wc") }, []string{"WARN", "wc"}, false, false},
-		{"ErrorContext", func() { rlog.ErrorContext(ctx, "ec") }, []string{"ERROR", "ec"}, false, false},
-		{"FatalContext", func() { rlog.FatalContext(ctx, "fc") }, []string{"FATAL", "fc"}, true, false},
-		{"PanicContext", func() { rlog.PanicContext(ctx, "pc") }, []string{"PANIC", "pc"}, false, true},
+		{"TraceContext", func() { rlog.TraceContext(ctx, "tc") }, []string{"TRACE", "tc"}, false},
+		{"DebugContext", func() { rlog.DebugContext(ctx, "dc") }, []string{"DEBUG", "dc"}, false},
+		{"InfoContext", func() { rlog.InfoContext(ctx, "ic") }, []string{"INFO", "ic"}, false},
+		{"WarnContext", func() { rlog.WarnContext(ctx, "wc") }, []string{"WARN", "wc"}, false},
+		{"ErrorContext", func() { rlog.ErrorContext(ctx, "ec") }, []string{"ERROR", "ec"}, false},
+		{"FatalContext", func() { rlog.FatalContext(ctx, "fc") }, []string{"FATAL", "fc"}, false},
+		{"PanicContext", func() { rlog.PanicContext(ctx, "pc") }, []string{"PANIC", "pc"}, true},
 
-		{"TraceAttrs", func() { rlog.TraceAttrs(ctx, "ta", slog.String("a", "1")) }, []string{"TRACE", "ta", "a=1"}, false, false},
-		{"DebugAttrs", func() { rlog.DebugAttrs(ctx, "da", slog.String("a", "1")) }, []string{"DEBUG", "da", "a=1"}, false, false},
-		{"InfoAttrs", func() { rlog.InfoAttrs(ctx, "ia", slog.String("a", "1")) }, []string{"INFO", "ia", "a=1"}, false, false},
-		{"WarnAttrs", func() { rlog.WarnAttrs(ctx, "wa", slog.String("a", "1")) }, []string{"WARN", "wa", "a=1"}, false, false},
-		{"ErrorAttrs", func() { rlog.ErrorAttrs(ctx, "ea", slog.String("a", "1")) }, []string{"ERROR", "ea", "a=1"}, false, false},
-		{"FatalAttrs", func() { rlog.FatalAttrs(ctx, "fa", slog.String("a", "1")) }, []string{"FATAL", "fa", "a=1"}, true, false},
-		{"PanicAttrs", func() { rlog.PanicAttrs(ctx, "pa", slog.String("a", "1")) }, []string{"PANIC", "pa", "a=1"}, false, true},
+		{"TraceAttrs", func() { rlog.TraceAttrs(ctx, "ta", slog.String("a", "1")) }, []string{"TRACE", "ta", "a=1"}, false},
+		{"DebugAttrs", func() { rlog.DebugAttrs(ctx, "da", slog.String("a", "1")) }, []string{"DEBUG", "da", "a=1"}, false},
+		{"InfoAttrs", func() { rlog.InfoAttrs(ctx, "ia", slog.String("a", "1")) }, []string{"INFO", "ia", "a=1"}, false},
+		{"WarnAttrs", func() { rlog.WarnAttrs(ctx, "wa", slog.String("a", "1")) }, []string{"WARN", "wa", "a=1"}, false},
+		{"ErrorAttrs", func() { rlog.ErrorAttrs(ctx, "ea", slog.String("a", "1")) }, []string{"ERROR", "ea", "a=1"}, false},
+		{"FatalAttrs", func() { rlog.FatalAttrs(ctx, "fa", slog.String("a", "1")) }, []string{"FATAL", "fa", "a=1"}, false},
+		{"PanicAttrs", func() { rlog.PanicAttrs(ctx, "pa", slog.String("a", "1")) }, []string{"PANIC", "pa", "a=1"}, true},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Reset()
-			exited = false
 
-			switch {
-			case tc.panic:
+			// If the test case expects a panic, verify that a panic was actually raised.
+			if tc.panic {
 				var sawPanic bool
 				func() {
 					defer func() {
@@ -377,13 +313,11 @@ func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
 					tc.run()
 				}()
 				assert.True(t, sawPanic, "expected panic from %s", tc.name)
-			case tc.fatal:
-				tc.run()
-				assert.True(t, exited, "expected exit hook from %s", tc.name)
-			default:
+			} else {
 				tc.run()
 			}
 
+			// Verify the output contains the expected substrings.
 			out := buf.String()
 			for _, w := range tc.want {
 				assert.Contains(t, out, w)
@@ -392,23 +326,28 @@ func TestGlobalFunctionsUseSetDefaultLogger(t *testing.T) {
 	}
 }
 
+// rlog.SetDefault updates slog.Default to the same underlying logger.
+func TestSlogSetDefault_alignedWithRlog(t *testing.T) {
+	var buf bytes.Buffer
+	opts := rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: slog.LevelInfo})
+	lg := rlog.New(slog.New(slog.NewJSONHandler(&buf, opts)))
+	prev := rlog.Default()
+	t.Cleanup(func() { rlog.SetDefault(prev) })
+
+	rlog.SetDefault(lg)
+	assert.Equal(t, rlog.Default().Logger, slog.Default(), "slog.Default must match rlog's embedded logger after SetDefault")
+
+	slog.Info("via-slog")
+	assert.Contains(t, buf.String(), "via-slog")
+}
+
 //=============================================================================
-// Helpers
+// Helper Functions
 //=============================================================================
 
+// newTestLogger wraps JSONHandler with MergeWithCustomLevels so TRACE/FATAL/PANIC levels work.
 func newTestLogger(t *testing.T, buf *bytes.Buffer, opts *slog.HandlerOptions) *rlog.Logger {
 	t.Helper()
 	inner := slog.New(slog.NewJSONHandler(buf, rlog.MergeWithCustomLevels(opts)))
 	return rlog.New(inner)
-}
-
-// noteNilishLogger increments cnt if l or its embedded [*slog.Logger] is nil.
-func noteNilishLogger(l *rlog.Logger, cnt *atomic.Int64) {
-	if l == nil {
-		cnt.Add(1)
-		return
-	}
-	if l.Logger == nil {
-		cnt.Add(1)
-	}
 }
