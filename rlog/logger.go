@@ -47,7 +47,7 @@ func (l *Logger) WithGroup(name string) *Logger {
 
 var (
 	// Stores the global logger that is returned by [Default]
-	globalLogger atomic.Pointer[Logger]
+	globalLogger *Logger
 	// Protects reads and writes to the globalLogger
 	loggerMu sync.RWMutex
 	// The zero value is [slog.LevelInfo]
@@ -58,9 +58,7 @@ var (
 
 // Initializes the global logger to be a console JSON logger with level [slog.LevelInfo].
 func init() {
-	l := New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel}))))
-	globalLogger.Store(l)
-	slog.SetDefault(l.Logger)
+	SetDefault(New(slog.New(slog.NewJSONHandler(os.Stdout, MergeWithCustomLevels(&slog.HandlerOptions{Level: globalLevel})))))
 }
 
 // Default returns the default (global) [Logger]. Use [SetDefault] to set the
@@ -69,7 +67,7 @@ func init() {
 func Default() *Logger {
 	loggerMu.RLock()
 	defer loggerMu.RUnlock()
-	return globalLogger.Load()
+	return globalLogger
 }
 
 // SetDefault sets the default (global) [Logger] and [slog.Default] to the same
@@ -81,7 +79,7 @@ func SetDefault(logger *Logger) {
 	*p = *logger
 	loggerMu.Lock()
 	defer loggerMu.Unlock()
-	globalLogger.Store(p)
+	globalLogger = p
 	slog.SetDefault(p.Logger)
 }
 
