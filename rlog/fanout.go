@@ -7,13 +7,16 @@ import (
 )
 
 // FanOut is a [slog.Handler] that forwards each record to every child handler,
-// using a fresh [slog.Record.Clone] per child.
+// using a fresh [slog.Record.Clone] per child. For Go 1.26 or later, use the
+// standard library's [slog.MultiHandler] instead; this is a clone of the
+// functionality for Go 1.25 and earlier.
 type FanOut struct {
 	handlers []slog.Handler
 }
 
 // NewFanOut returns a new [FanOut] that forwards each record to every child
-// handler.
+// handler. For Go 1.26 or later, use [slog.MultiHandler] instead; this is a
+// clone of the functionality for Go 1.25 and earlier.
 func NewFanOut(handlers ...slog.Handler) *FanOut {
 	hs := append([]slog.Handler(nil), handlers...)
 	return &FanOut{handlers: hs}
@@ -50,7 +53,7 @@ func (f *FanOut) Handle(ctx context.Context, r slog.Record) error {
 	return errors.Join(errs...)
 }
 
-// WithAttrs returns a fan-out whose children are wrapped with the same attrs.
+// WithAttrs returns a [FanOut] whose children are wrapped with the same attrs.
 func (f *FanOut) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return f
@@ -65,7 +68,7 @@ func (f *FanOut) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &FanOut{handlers: next}
 }
 
-// WithGroup returns a fan-out whose children are wrapped with the same group.
+// WithGroup returns a [FanOut] whose children are wrapped with the same group.
 func (f *FanOut) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return f

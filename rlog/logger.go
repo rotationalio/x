@@ -21,8 +21,12 @@ type Logger struct {
 	*slog.Logger
 }
 
-// New returns a new [Logger] wrapping the given [slog.Logger].
+// New returns a new [Logger] wrapping the given [slog.Logger]. If logger is nil,
+// returns the [Default] [Logger].
 func New(logger *slog.Logger) *Logger {
+	if logger == nil {
+		return Default()
+	}
 	return &Logger{Logger: logger}
 }
 
