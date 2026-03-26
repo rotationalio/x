@@ -40,6 +40,21 @@ func TestFanOut_Enabled_OR(t *testing.T) {
 	assert.False(t, f.Enabled(ctx, rlog.LevelTrace), "neither accepts Trace by default opts")
 }
 
+// Handle skips children whose minimum level is above the record (like slog.MultiHandler).
+func TestFanOut_Handle_skipsDisabledChildren(t *testing.T) {
+	var quiet, loud bytes.Buffer
+	hQuiet := slog.NewJSONHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelError})
+	hLoud := slog.NewJSONHandler(&loud, &slog.HandlerOptions{Level: slog.LevelDebug})
+	f := rlog.NewFanOut(hQuiet, hLoud)
+
+	ctx := context.Background()
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, "hello", 0)
+	assert.Ok(t, f.Handle(ctx, r))
+
+	assert.Equal(t, "", strings.TrimSpace(quiet.String()), "Error-only sink must not receive Info")
+	assert.Contains(t, loud.String(), "hello")
+}
+
 // WithGroup on the fan-out applies to every child.
 func TestFanOut_WithGroup_propagates(t *testing.T) {
 	var a, b bytes.Buffer

@@ -29,17 +29,21 @@ func (f *FanOut) Enabled(ctx context.Context, level slog.Level) bool {
 	return false
 }
 
-// Handle forwards a clone of r to each child and joins any non-nil errors.
+// Handle forwards a clone of r to each child that [slog.Handler.Enabled] accepts
+// for r's level, and joins any non-nil errors.
 func (f *FanOut) Handle(ctx context.Context, r slog.Record) error {
 	if len(f.handlers) == 0 {
 		return nil
 	}
 
+	level := r.Level
 	var errs []error
 	for _, h := range f.handlers {
-		r2 := r.Clone()
-		if err := h.Handle(ctx, r2); err != nil {
-			errs = append(errs, err)
+		if h.Enabled(ctx, level) {
+			r2 := r.Clone()
+			if err := h.Handle(ctx, r2); err != nil {
+				errs = append(errs, err)
+			}
 		}
 	}
 
