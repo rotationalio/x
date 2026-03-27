@@ -71,7 +71,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	if h.opts.NoColor {
 		fmt.Fprint(&buf, r.Time.Format(timeFormat))
 	} else {
-		colorize(&buf, lightGray, timeFormat)
+		colorize(&buf, lightGray, r.Time.Format(timeFormat))
 	}
 
 	// Space separator between timestamp and level.
@@ -135,6 +135,8 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		if err := encoder.Encode(attrs); err != nil {
 			return err
 		}
+	} else {
+		buf.WriteRune('\n')
 	}
 
 	// Lock this mutex including all handler clones so that we can write to the writer safely.
