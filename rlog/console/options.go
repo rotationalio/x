@@ -16,4 +16,7 @@ type Options struct {
 
 	// Marking true causes the handler to format the logs without JSON dictionary of attributes.
 	NoJSON bool
+
+	// Marking true causes the handler to format the time using the UTC timezone.
+	UTCTime bool
 }

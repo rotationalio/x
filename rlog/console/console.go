@@ -68,10 +68,14 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	var buf bytes.Buffer
 
 	// Print the timestamp.
+	tm := r.Time
+	if h.opts.UTCTime {
+		tm = tm.UTC()
+	}
 	if h.opts.NoColor {
-		fmt.Fprint(&buf, r.Time.Format(timeFormat))
+		fmt.Fprint(&buf, tm.Format(timeFormat))
 	} else {
-		colorize(&buf, lightGray, r.Time.Format(timeFormat))
+		colorize(&buf, lightGray, tm.Format(timeFormat))
 	}
 
 	// Space separator between timestamp and level.
@@ -123,7 +127,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 			if a.Key == slog.LevelKey || a.Key == slog.MessageKey || a.Key == slog.TimeKey {
 				return true
 			}
-			attrs[a.Key] = a.Value.Any()
+			addAttr(attrs, a)
 			return true
 		})
 
@@ -146,4 +150,69 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 		return err
 	}
 	return nil
+}
+
+// addAttr adds an attribute to the map, capturing groups properly.
+func addAttr(attrs map[string]any, a slog.Attr) {
+	// Resolve the value of the attribute.
+	a.Value = a.Value.Resolve()
+	if a.Equal(slog.Attr{}) {
+		return
+	}
+
+	// Add the attribute to the map.
+	switch a.Value.Kind() {
+	case slog.KindGroup:
+		// Group values carry nested attrs (e.g. slog.Group("db", ...)).
+		gattrs := a.Value.Group()
+		if len(gattrs) == 0 {
+			return
+		}
+		if a.Key != "" {
+			// Named group: nest under this key as a JSON object, merging with any
+			// prior attrs already stored for the same key.
+			var sub map[string]any
+			if existing, ok := attrs[a.Key].(map[string]any); ok {
+				sub = existing
+			} else {
+				sub = make(map[string]any)
+				attrs[a.Key] = sub
+			}
+
+			for _, ga := range gattrs {
+				addAttr(sub, ga)
+			}
+		} else {
+			// Anonymous / inline group: add members at the current map level (no extra nesting).
+			for _, ga := range gattrs {
+				addAttr(attrs, ga)
+			}
+		}
+	default:
+		attrs[a.Key] = slogValueToJSON(a.Value)
+	}
+}
+
+// slogValueToJSON returns a value suitable for encoding/json from a resolved slog.Value.
+func slogValueToJSON(v slog.Value) any {
+	switch v.Kind() {
+	case slog.KindString:
+		return v.String()
+	case slog.KindInt64:
+		return v.Int64()
+	case slog.KindUint64:
+		return v.Uint64()
+	case slog.KindFloat64:
+		return v.Float64()
+	case slog.KindBool:
+		return v.Bool()
+	case slog.KindTime:
+		return v.Time()
+	case slog.KindDuration:
+		return v.Duration()
+	case slog.KindAny:
+		return v.Any()
+	default:
+		return v.String()
+	}
 }
