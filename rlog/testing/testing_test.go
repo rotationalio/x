@@ -1,4 +1,4 @@
-package rlog_test
+package testing_test
 
 import (
 	"context"
@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/rlog"
+	rlogtesting "go.rtnl.ai/x/rlog/testing"
 )
 
 // CapturingTestHandler should pass the standard slog handler tests.
 func TestCapturingTestHandler_slogtest(t *testing.T) {
-	cap := rlog.NewCapturingTestHandler(nil)
+	cap := rlogtesting.NewCapturingTestHandler(nil)
 	err := slogtest.TestHandler(cap, func() []map[string]any {
 		maps, err := cap.ResultMaps()
 		assert.Ok(t, err)
@@ -27,15 +27,15 @@ func TestCapturingTestHandler_slogtest(t *testing.T) {
 
 // Groups nest attrs in JSON output and ResultMaps sees nested maps.
 func TestCapturingTestHandler_groupNesting(t *testing.T) {
-	h := rlog.NewCapturingTestHandler(nil).WithGroup("g").(*rlog.CapturingTestHandler)
-	h = h.WithAttrs([]slog.Attr{slog.String("inside", "yes")}).(*rlog.CapturingTestHandler)
+	h := rlogtesting.NewCapturingTestHandler(nil).WithGroup("g").(*rlogtesting.CapturingTestHandler)
+	h = h.WithAttrs([]slog.Attr{slog.String("inside", "yes")}).(*rlogtesting.CapturingTestHandler)
 
 	ctx := context.Background()
 	assert.Ok(t, h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "hi", 0)))
 
 	lines := h.Lines()
 	assert.Equal(t, 1, len(lines))
-	m := rlog.MustParseJSONLine(lines[0])
+	m := rlogtesting.MustParseJSONLine(lines[0])
 	g, ok := m["g"].(map[string]any)
 	assert.True(t, ok)
 	assert.Equal(t, "yes", g["inside"])
@@ -44,17 +44,17 @@ func TestCapturingTestHandler_groupNesting(t *testing.T) {
 // ParseJSONLine and MustParseJSONLine round-trip a simple object.
 func TestParseJSONLine_helpers(t *testing.T) {
 	const line = `{"level":"INFO","msg":"x","k":1}`
-	m, err := rlog.ParseJSONLine(line)
+	m, err := rlogtesting.ParseJSONLine(line)
 	assert.Ok(t, err)
 	assert.Equal(t, "INFO", m["level"])
 	assert.Equal(t, float64(1), m["k"])
-	assert.Equal(t, m, rlog.MustParseJSONLine(line))
+	assert.Equal(t, m, rlogtesting.MustParseJSONLine(line))
 }
 
 // NewCapturingTestHandler links to [testing.TB] (only *testing.T / B / F satisfy TB outside stdlib).
 // Derived handlers still share capture state; slogtest exercises WithAttrs/WithGroup with tb set.
 func TestCapturingTestHandler_slogtest_withTB(t *testing.T) {
-	cap := rlog.NewCapturingTestHandler(t)
+	cap := rlogtesting.NewCapturingTestHandler(t)
 	err := slogtest.TestHandler(cap, func() []map[string]any {
 		maps, err := cap.ResultMaps()
 		assert.Ok(t, err)
@@ -65,7 +65,7 @@ func TestCapturingTestHandler_slogtest_withTB(t *testing.T) {
 
 // Concurrent Handle calls must keep the same index aligned in records and lines.
 func TestCapturingTestHandler_concurrentHandle_recordsMatchLines(t *testing.T) {
-	h := rlog.NewCapturingTestHandler(nil)
+	h := rlogtesting.NewCapturingTestHandler(nil)
 	ctx := context.Background()
 	const n = 64
 	var wg sync.WaitGroup
@@ -89,11 +89,11 @@ func TestCapturingTestHandler_concurrentHandle_recordsMatchLines(t *testing.T) {
 
 // Derived handlers share the same capture buffers.
 func TestCapturingTestHandler_derivedSharesLines(t *testing.T) {
-	h := rlog.NewCapturingTestHandler(nil)
+	h := rlogtesting.NewCapturingTestHandler(nil)
 	ctx := context.Background()
 	assert.Ok(t, h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "one", 0)))
 
-	h2 := h.WithAttrs([]slog.Attr{slog.String("k", "v")}).(*rlog.CapturingTestHandler)
+	h2 := h.WithAttrs([]slog.Attr{slog.String("k", "v")}).(*rlogtesting.CapturingTestHandler)
 	assert.Ok(t, h2.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelWarn, "two", 0)))
 
 	lines := h.Lines()

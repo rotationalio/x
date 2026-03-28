@@ -11,6 +11,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/rlog"
+	rlogtesting "go.rtnl.ai/x/rlog/testing"
 )
 
 // Each sink receives the same logical record when levels allow.
@@ -85,7 +86,7 @@ func TestFanOut_slogtest_singleChild(t *testing.T) {
 			if line == "" {
 				continue
 			}
-			m, e := rlog.ParseJSONLine(line)
+			m, e := rlogtesting.ParseJSONLine(line)
 			assert.Ok(t, e)
 			maps = append(maps, m)
 		}
