@@ -1,4 +1,4 @@
-package rlog_test
+package fanout_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/rlog"
+	"go.rtnl.ai/x/rlog/fanout"
 	rlogtesting "go.rtnl.ai/x/rlog/testing"
 )
 
@@ -19,7 +20,7 @@ func TestFanOut_Handle_clonesToEachSink(t *testing.T) {
 	var a, b bytes.Buffer
 	ha := slog.NewJSONHandler(&a, rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: slog.LevelInfo}))
 	hb := slog.NewJSONHandler(&b, rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: slog.LevelInfo}))
-	f := rlog.NewFanOut(ha, hb)
+	f := fanout.New(ha, hb)
 
 	ctx := context.Background()
 	r := slog.NewRecord(time.Now(), slog.LevelInfo, "hello", 0)
@@ -34,7 +35,7 @@ func TestFanOut_Enabled_OR(t *testing.T) {
 	var quiet, loud bytes.Buffer
 	hQuiet := slog.NewJSONHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelError})
 	hLoud := slog.NewJSONHandler(&loud, &slog.HandlerOptions{Level: slog.LevelDebug})
-	f := rlog.NewFanOut(hQuiet, hLoud)
+	f := fanout.New(hQuiet, hLoud)
 	ctx := context.Background()
 
 	assert.True(t, f.Enabled(ctx, slog.LevelInfo), "loud child accepts Info")
@@ -46,7 +47,7 @@ func TestFanOut_Handle_skipsDisabledChildren(t *testing.T) {
 	var quiet, loud bytes.Buffer
 	hQuiet := slog.NewJSONHandler(&quiet, &slog.HandlerOptions{Level: slog.LevelError})
 	hLoud := slog.NewJSONHandler(&loud, &slog.HandlerOptions{Level: slog.LevelDebug})
-	f := rlog.NewFanOut(hQuiet, hLoud)
+	f := fanout.New(hQuiet, hLoud)
 
 	ctx := context.Background()
 	r := slog.NewRecord(time.Now(), slog.LevelInfo, "hello", 0)
@@ -61,7 +62,7 @@ func TestFanOut_WithGroup_propagates(t *testing.T) {
 	var a, b bytes.Buffer
 	ha := slog.NewJSONHandler(&a, rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: slog.LevelInfo}))
 	hb := slog.NewJSONHandler(&b, rlog.MergeWithCustomLevels(&slog.HandlerOptions{Level: slog.LevelInfo}))
-	f := rlog.NewFanOut(ha, hb).WithGroup("outer").(*rlog.FanOut)
+	f := fanout.New(ha, hb).WithGroup("outer").(*fanout.Handler)
 
 	ctx := context.Background()
 	r := slog.NewRecord(time.Now(), slog.LevelInfo, "msg", 0)
@@ -78,7 +79,7 @@ func TestFanOut_WithGroup_propagates(t *testing.T) {
 func TestFanOut_slogtest_singleChild(t *testing.T) {
 	var buf bytes.Buffer
 	h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo})
-	fan := rlog.NewFanOut(h)
+	fan := fanout.New(h)
 
 	err := slogtest.TestHandler(fan, func() []map[string]any {
 		var maps []map[string]any
