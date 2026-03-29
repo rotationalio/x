@@ -1,5 +1,7 @@
 // Package console implements a [slog.Handler] that pretty-prints log lines with optional colors
 // and a trailing JSON object of attributes. For development and tests, not high-throughput logging.
+//
+// The command `go run ./rlog/console/cmd/` gives a demo of the handler with various options.
 package console
 
 import (
