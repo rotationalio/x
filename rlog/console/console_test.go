@@ -60,7 +60,7 @@ func TestHandler_GoldenTest(t *testing.T) {
 		{
 			name: "Trace",
 			opts: &console.Options{HandlerOptions: &slog.HandlerOptions{Level: rlog.LevelTrace}},
-			want: []byte("\x1b[37m[00:00:00.000]\x1b[0m \x1b[37mDEBUG-4:\x1b[0m \x1b[97mtracing\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[36mDEBUG:\x1b[0m \x1b[97mdebugging\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"bob\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[92mINFO:\x1b[0m \x1b[97minfo\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"alice\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[93mWARN:\x1b[0m \x1b[97mwarning\x1b[0m {\"req\":{\"code\":404,\"error\":\"not found\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[91mERROR:\x1b[0m \x1b[97merror\x1b[0m {\"req\":{\"code\":400,\"error\":\"uncapped jar\",\"id\":\"1\"},\"svc\":\"api\"}\n"),
+			want: []byte("\x1b[37m[00:00:00.000]\x1b[0m \x1b[37mDEBUG-4:\x1b[0m \x1b[97mtracing\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m DEBUG-3: \x1b[97mtrace+1\x1b[0m {\"req\":{\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[36mDEBUG:\x1b[0m \x1b[97mdebugging\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"bob\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[92mINFO:\x1b[0m \x1b[97minfo\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"alice\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[93mWARN:\x1b[0m \x1b[97mwarning\x1b[0m {\"req\":{\"code\":404,\"error\":\"not found\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[91mERROR:\x1b[0m \x1b[97merror\x1b[0m {\"req\":{\"code\":400,\"error\":\"uncapped jar\",\"id\":\"1\"},\"svc\":\"api\"}\n"),
 		},
 	}
 
@@ -72,12 +72,14 @@ func TestHandler_GoldenTest(t *testing.T) {
 				if opts == nil {
 					opts = &console.Options{}
 				}
+				opts.HandlerOptions = rlog.MergeWithCustomLevels(opts.HandlerOptions)
 				opts.UTCTime = true
 				base := rlog.New(slog.New(console.New(&buf, opts)))
 				log := base.With(slog.String("svc", "api")).WithGroup("req").With(slog.String("id", "1"))
 				ctx := context.Background()
 
 				log.TraceAttrs(ctx, "tracing", slog.String("foo", "bar"))
+				log.Log(ctx, rlog.LevelTrace+1, "trace+1")
 				log.DebugAttrs(ctx, "debugging", slog.String("foo", "bar"), slog.String("user", "bob"))
 				log.InfoAttrs(ctx, "info", slog.String("foo", "bar"), slog.String("user", "alice"))
 				log.WarnAttrs(ctx, "warning", slog.String("error", "not found"), slog.Int("code", 404))
