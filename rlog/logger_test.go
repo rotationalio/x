@@ -200,7 +200,7 @@ func TestAddSourceSkipsRlogWrapper(t *testing.T) {
 		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
 		base := filepath.Base(r.Source.File)
 		assert.NotEqual(t, "rlog.go", base, "source must not be rlog implementation file")
-		assert.Equal(t, "rlog_test.go", base)
+		assert.Equal(t, "logger_test.go", base)
 	})
 
 	t.Run("Logger.Info", func(t *testing.T) {
@@ -210,7 +210,7 @@ func TestAddSourceSkipsRlogWrapper(t *testing.T) {
 		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
 		base := filepath.Base(r.Source.File)
 		assert.NotEqual(t, "rlog.go", base)
-		assert.Equal(t, "rlog_test.go", base)
+		assert.Equal(t, "logger_test.go", base)
 	})
 
 	t.Run("package_Info", func(t *testing.T) {
@@ -220,7 +220,7 @@ func TestAddSourceSkipsRlogWrapper(t *testing.T) {
 		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
 		base := filepath.Base(r.Source.File)
 		assert.NotEqual(t, "rlog.go", base)
-		assert.Equal(t, "rlog_test.go", base)
+		assert.Equal(t, "logger_test.go", base)
 	})
 }
 

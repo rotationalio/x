@@ -52,6 +52,10 @@ import (
 //
 // rlog cannot use [log/slog/internal.IgnorePC] (stdlib-only); slog’s -nopc benchmark flag does not apply here.
 func BenchmarkLoggerVsSlog(b *testing.B) {
+	if testing.Short() {
+		b.Skip("skip bench in -short")
+	}
+
 	b.Run("slog/LogAttrs-none", benchSlogLogAttrsNone)
 	b.Run("rlog/LogAttrs-none", benchRlogLogAttrsNone)
 	b.Run("slog/Info-kv", benchSlogInfoKV)
