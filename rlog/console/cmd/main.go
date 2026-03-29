@@ -56,13 +56,13 @@ func main() {
 			UTCTime: true,
 		},
 		func(log *rlog.Logger) {
-			log.Info("secrets redacted", "secret", "redacted", "public", "visible")
-			log.Trace("trace after merge")
+			log.Info("'secret' key redacted", "secret", "NOT REDACTED!!!", "public", "visible")
+			log.Trace("trace after merge still uses rlog level string (TRACE)")
 		},
 	)
 
-	runDerived("IndentJSON — multi-line trailer; With / WithGroup; time, duration, maps",
-		&console.Options{IndentJSON: true},
+	runDerived("IndentJSON — multi-line trailer; With / WithGroup; time, duration, maps; level Error",
+		&console.Options{IndentJSON: true, HandlerOptions: &slog.HandlerOptions{Level: rlog.LevelError}},
 		func(log *rlog.Logger) *rlog.Logger {
 			return log.With("service", "demo").
 				WithGroup("http").
