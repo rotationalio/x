@@ -14,11 +14,15 @@ const (
 	LevelTrace    slog.Level = slog.LevelDebug - 4
 	LevelTraceKey string     = "TRACE"
 
-	// [slog.Level] keys (unavailable from slog package)
-	LevelDebugKey string = "DEBUG" // for [slog.LevelDebug]
-	LevelInfoKey  string = "INFO"  // for [slog.LevelInfo]
-	LevelWarnKey  string = "WARN"  // for [slog.LevelWarn]
-	LevelErrorKey string = "ERROR" // for [slog.LevelError]
+	// Mirrors [slog.Level] and adds keys
+	LevelDebug    slog.Level = slog.LevelDebug
+	LevelDebugKey string     = "DEBUG" // for [slog.LevelDebug]
+	LevelInfo     slog.Level = slog.LevelInfo
+	LevelInfoKey  string     = "INFO" // for [slog.LevelInfo]
+	LevelWarn     slog.Level = slog.LevelWarn
+	LevelWarnKey  string     = "WARN" // for [slog.LevelWarn]
+	LevelError    slog.Level = slog.LevelError
+	LevelErrorKey string     = "ERROR" // for [slog.LevelError]
 
 	// LevelFatal is more severe than [slog.LevelError].
 	LevelFatal    slog.Level = slog.LevelError + 4
@@ -70,13 +74,13 @@ func (ll LevelDecoder) Encode() (string, error) {
 	switch slog.Level(ll) {
 	case LevelTrace:
 		return LevelTraceKey, nil
-	case slog.LevelDebug:
+	case LevelDebug:
 		return LevelDebugKey, nil
-	case slog.LevelInfo:
+	case LevelInfo:
 		return LevelInfoKey, nil
-	case slog.LevelWarn:
+	case LevelWarn:
 		return LevelWarnKey, nil
-	case slog.LevelError:
+	case LevelError:
 		return LevelErrorKey, nil
 	case LevelFatal:
 		return LevelFatalKey, nil
