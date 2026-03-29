@@ -1,4 +1,39 @@
-package rlog
+// Package testing provides helpers for testing slog handlers and other
+// logging-related functionality.
+//
+// Example usage:
+//
+//	func TestSomething(t *testing.T) {
+//		// Captures slog.Record and JSON lines, also outputting to the test log
+//		h := NewCapturingTestHandler(t)
+//
+//		// Can use with slog directly, or wrap with rlog.New to get rlog.Logger.
+//		slogLogger := slog.New(h)
+//		slogLogger.Info("hello", "k", "v")
+//		rlogLogger := rlog.New(slogLogger)
+//		rlogLogger.Trace("traced", "k2", "v2")
+//
+//		// Parse the JSON line into a map for assertions
+//		lines := h.Lines()
+//		m, err := ParseJSONLine(lines[0])
+//		assert.Ok(t, err)
+//		assert.Equal(t, "INFO", m["level"])
+//		assert.Equal(t, "hello", m["msg"])
+//		assert.Equal(t, "v", m["k"])
+//
+//		// MustParseJSONLine panics on error
+//		m2 := MustParseJSONLine(lines[0])
+//		assert.Equal(t, m, m2)
+//
+//		// Get a mutex-locked snapshot of records and lines
+//		records, err := h.RecordsAndLines()
+//		assert.Ok(t, err)
+//		assert.Equal(t, 2, len(records))
+//		assert.Equal(t, "TRACE", records[1].Level())
+//		assert.Equal(t, "traced", records[1].Message())
+//		assert.Equal(t, "v2", records[1].Attrs()[0].Value.String())
+//	}
+package testing
 
 import (
 	"bytes"
@@ -9,11 +44,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"go.rtnl.ai/x/rlog"
 )
 
 // capturingJSONOpts is reused by [CapturingTestHandler.Handle] so every log line
-// does not rebuild [MergeWithCustomLevels](nil) (closure + [slog.HandlerOptions] escape).
-var capturingJSONOpts = MergeWithCustomLevels(nil)
+// does not rebuild [rlog.MergeWithCustomLevels](nil) (closure + [slog.HandlerOptions] escape).
+var capturingJSONOpts = rlog.MergeWithCustomLevels(nil)
 
 // captureState holds lines and records shared by all derived handlers from the same root.
 type captureState struct {

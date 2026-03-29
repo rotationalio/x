@@ -1,20 +1,48 @@
 # rlog
 
-The `r` is for “Rotational”! This package extends [`log/slog`](https://pkg.go.dev/log/slog) with **Trace**, **Fatal**, and **Panic**, and helpers in the usual shapes (key/value, `*Context`, `*Attrs`). See [`go doc`](https://pkg.go.dev/go.rtnl.ai/x/rlog) for the full API.
+The `r` is for “Rotational”! This module extends [`log/slog`](https://pkg.go.dev/log/slog) with **Trace**, **Fatal**, and **Panic**, options so those levels print with sensible names, and helpers to keep a global level in sync. The root package is [`go.rtnl.ai/x/rlog`](https://pkg.go.dev/go.rtnl.ai/x/rlog). Subpackages add a dev-friendly console handler, test capture helpers, and logging to multiple handlers at once. See [`go doc`](https://pkg.go.dev/go.rtnl.ai/x/rlog) and the subpackage docs for the full API.
+
+## `rlog.Logger`
+
+[`Logger`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Logger) wraps [`*slog.Logger`](https://pkg.go.dev/log/slog#Logger) and adds **Trace**, **Fatal**, and **Panic** (with `Context` and `Attrs` variants), plus **DebugAttrs**, **InfoAttrs**, **WarnAttrs**, and **ErrorAttrs** for the built-in levels. [`New`](https://pkg.go.dev/go.rtnl.ai/x/rlog#New) builds one from an `*slog.Logger`; `nil` selects [`Default`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Default).
+
+[`With`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Logger.With) and [`WithGroup`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Logger.WithGroup) behave like slog’s. Package-level helpers delegate to the default logger.
 
 - **Fatal** runs [`SetFatalHook`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetFatalHook) after logging if set; otherwise [`os.Exit(1)`](https://pkg.go.dev/os#Exit). **Panic** logs then panics with the message.
-- [`MergeWithCustomLevels`](https://pkg.go.dev/go.rtnl.ai/x/rlog#MergeWithCustomLevels) maps custom levels to names `TRACE`, `FATAL`, `PANIC` in JSON/text output. [`ReplaceLevelKey`](https://pkg.go.dev/go.rtnl.ai/x/rlog#ReplaceLevelKey) does only the level mapping if you compose `ReplaceAttr` yourself. [`WithGlobalLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#WithGlobalLevel) helps keep the global logging level synced.
-- [`Logger.With`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Logger.With) / [`WithGroup`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Logger.WithGroup) keep a `*rlog.Logger` (same args as [`slog.Logger.With`](https://pkg.go.dev/log/slog#Logger.With)). Package-level [`With`](https://pkg.go.dev/go.rtnl.ai/x/rlog#With), [`WithGroup`](https://pkg.go.dev/go.rtnl.ai/x/rlog#WithGroup), [`Log`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Log), and [`LogAttrs`](https://pkg.go.dev/go.rtnl.ai/x/rlog#LogAttrs) use the default logger.
-- [`NewFanOut`](https://pkg.go.dev/go.rtnl.ai/x/rlog#NewFanOut) returns a [`slog.Handler`](https://pkg.go.dev/log/slog#Handler) that forwards each record to every child handler (multi-sink logging).
-- [`NewCapturingTestHandler`](https://pkg.go.dev/go.rtnl.ai/x/rlog#NewCapturingTestHandler) helps tests capture records and JSON lines; pass `nil` or a [`testing.TB`](https://pkg.go.dev/testing#TB) to print test logs to the console. Helpers include [`ParseJSONLine`](https://pkg.go.dev/go.rtnl.ai/x/rlog#ParseJSONLine), [`ResultMaps`](https://pkg.go.dev/go.rtnl.ai/x/rlog#CapturingTestHandler.ResultMaps), and [`RecordsAndLines`](https://pkg.go.dev/go.rtnl.ai/x/rlog#CapturingTestHandler.RecordsAndLines) which returns a mutex-locked snapshot of current logs.
-- [`LevelDecoder`](https://pkg.go.dev/go.rtnl.ai/x/rlog#LevelDecoder) parses level strings, including the added `TRACE`, `FATAL`, and `PANIC`.
 
-## Default logger and Custom Handlers
+## Package `rlog` (core)
 
-- The package default logs JSON to stdout at **Info**.
-- [`SetDefault`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetDefault) replaces rlog’s global logger and updates [`slog.Default`](https://pkg.go.dev/log/slog#Default) via [`slog.SetDefault`](https://pkg.go.dev/log/slog#SetDefault).
-- [`SetLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetLevel), [`Level`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Level), and [`LevelString`](https://pkg.go.dev/go.rtnl.ai/x/rlog#LevelString) read or set the shared [`slog.LevelVar`](https://pkg.go.dev/log/slog#LevelVar) wired into the default install.
-- Handlers you build yourself should use `MergeWithCustomLevels(WithGlobalLevel(opts))` so they still honor that threshold after you call [`SetDefault`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetDefault); see [`WithGlobalLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#WithGlobalLevel).
+- [`MergeWithCustomLevels`](https://pkg.go.dev/go.rtnl.ai/x/rlog#MergeWithCustomLevels) labels custom severities as `TRACE`, `FATAL`, and `PANIC` in output. [`WithGlobalLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#WithGlobalLevel) ties a handler’s threshold to [`SetLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetLevel). [`ReplaceLevelKey`](https://pkg.go.dev/go.rtnl.ai/x/rlog#ReplaceLevelKey) is there if you build your own `ReplaceAttr` pipeline.
+- [`LevelDecoder`](https://pkg.go.dev/go.rtnl.ai/x/rlog#LevelDecoder) parses level strings, including the extra severities.
+
+## Subpackage `console`
+
+[`go.rtnl.ai/x/rlog/console`](https://pkg.go.dev/go.rtnl.ai/x/rlog/console) provides a [`slog.Handler`](https://pkg.go.dev/log/slog#Handler) that prints **readable lines**: optional file/line, time, level (colors optional), message, and a JSON blob of attributes unless you turn that off. Meant for local dev and tests, not maximum throughput.
+
+[`console.New`](https://pkg.go.dev/go.rtnl.ai/x/rlog/console#New) and [`console.Options`](https://pkg.go.dev/go.rtnl.ai/x/rlog/console#Options) cover the usual slog options plus color, JSON layout, and UTC time. Use [`(*Options).MergeWithCustomLevels`](https://pkg.go.dev/go.rtnl.ai/x/rlog/console#Options.MergeWithCustomLevels) so TRACE/FATAL/PANIC match the rest of rlog.
+
+Demo from this repo: `go run ./rlog/console/cmd/`.
+
+## Subpackage `testing`
+
+[`go.rtnl.ai/x/rlog/testing`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing) — import with an alias (e.g. `rlogtesting "go.rtnl.ai/x/rlog/testing"`) so it does not clash with the standard [`testing`](https://pkg.go.dev/testing) package.
+
+[`NewCapturingTestHandler`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#NewCapturingTestHandler) captures each log as JSON; pass `t` to also print lines in the test output, or `nil` for silent capture. Use [`Records`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#CapturingTestHandler.Records), [`Lines`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#CapturingTestHandler.Lines), [`RecordsAndLines`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#CapturingTestHandler.RecordsAndLines), [`ResultMaps`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#CapturingTestHandler.ResultMaps), and [`Reset`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#CapturingTestHandler.Reset) in assertions. [`ParseJSONLine`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#ParseJSONLine) / [`MustParseJSONLine`](https://pkg.go.dev/go.rtnl.ai/x/rlog/testing#MustParseJSONLine) help parse lines.
+
+Use [`rlog.New`](https://pkg.go.dev/go.rtnl.ai/x/rlog#New) on top when you need `*rlog.Logger` in tests.
+
+## Subpackage `fanout`
+
+[`go.rtnl.ai/x/rlog/fanout`](https://pkg.go.dev/go.rtnl.ai/x/rlog/fanout) sends **every log to every** child [`slog.Handler`](https://pkg.go.dev/log/slog#Handler). Build one with [`fanout.New`](https://pkg.go.dev/go.rtnl.ai/x/rlog/fanout#New).
+
+On **Go 1.26+**, use [`slog.MultiHandler`](https://pkg.go.dev/log/slog#MultiHandler) instead; this package covers the same idea on **Go 1.25 and earlier**.
+
+## Default logger and custom handlers
+
+- Default: JSON on stdout at **Info**.
+- [`SetDefault`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetDefault) replaces rlog’s default and keeps [`slog.Default`](https://pkg.go.dev/log/slog#Default) aligned.
+- [`SetLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#SetLevel), [`Level`](https://pkg.go.dev/go.rtnl.ai/x/rlog#Level), and [`LevelString`](https://pkg.go.dev/go.rtnl.ai/x/rlog#LevelString) control the default logger’s threshold.
+- For your own handlers, combine `MergeWithCustomLevels` and `WithGlobalLevel` so they respect the same global level after `SetDefault` (see [`WithGlobalLevel`](https://pkg.go.dev/go.rtnl.ai/x/rlog#WithGlobalLevel)).
 
 ## Example
 
@@ -48,7 +76,7 @@ func main() {
 
  // Without a hook, Fatal would os.Exit(1) and the rest of main would not run.
  rlog.SetFatalHook(func() {}) // demo only — replace with test hook or omit in production
- defer rlog.SetFatalHook(nil) // setting the fatal hook to nil causes future Fatal calls to use os.Exit(1)
+ defer rlog.SetFatalHook(nil)
  log.Fatal("fatal-msg")
  // Output example: {"time":"…","level":"FATAL","msg":"fatal-msg"} — then runs the fatal hook (no exit here)
 

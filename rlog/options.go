@@ -29,15 +29,15 @@ func MergeWithCustomLevels(opts *slog.HandlerOptions) *slog.HandlerOptions {
 		merged = *opts
 	}
 
-	next := merged.ReplaceAttr
-	merged.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
-		a = ReplaceLevelKey(groups, a)
-
-		if next != nil {
+	// If ReplaceAttr is nil, set it to ReplaceLevelKey, otherwise chain it.
+	if merged.ReplaceAttr == nil {
+		merged.ReplaceAttr = ReplaceLevelKey
+	} else {
+		next := merged.ReplaceAttr
+		merged.ReplaceAttr = func(groups []string, a slog.Attr) slog.Attr {
+			a = ReplaceLevelKey(groups, a)
 			return next(groups, a)
 		}
-
-		return a
 	}
 
 	return &merged
