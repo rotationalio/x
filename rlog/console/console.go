@@ -94,13 +94,15 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	var buf bytes.Buffer
 
-	// Optional ReplaceAttr hook (nil group path for built-ins).
+	// ReplaceAttr (slog.HandlerOptions) can rename, drop, or rewrite built-in keys before we render.
+	// Built-ins use a nil group path, matching slog's convention for top-level keys.
 	var repl func([]string, slog.Attr) slog.Attr
 	if h.opts.HandlerOptions != nil {
 		repl = h.opts.ReplaceAttr
 	}
 
-	// Time
+	// Time: normalize to UTC when requested, build a TimeKey attr, then run ReplaceAttr so output
+	// can omit or alter the timestamp without changing r.Time itself.
 	tm := r.Time
 	if h.opts.UTCTime {
 		tm = tm.UTC()
@@ -113,19 +115,20 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		}
 	}
 
-	// Level
+	// Level: wrap the record level as LevelKey and pass through ReplaceAttr (e.g. custom labels).
 	levelAttr := slog.Any(slog.LevelKey, r.Level)
 	if repl != nil {
 		levelAttr = repl(nil, levelAttr)
 	}
 
-	// Message
+	// Message: wrap r.Message as MessageKey and pass through ReplaceAttr.
 	msgAttr := slog.String(slog.MessageKey, r.Message)
 	if repl != nil {
 		msgAttr = repl(nil, msgAttr)
 	}
 
-	// Source (optional)
+	// Source: when AddSource is on and the record has a PC, build SourceKey and allow ReplaceAttr
+	// to strip it (empty attr). If still present, emit file:line before the rest of the prefix.
 	showSource := false
 	var srcAttr slog.Attr
 	if h.opts.HandlerOptions != nil && h.opts.AddSource && r.PC != 0 {
@@ -141,6 +144,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		writeSourcePrefix(&buf, h.opts.NoColor, srcAttr)
 	}
 
+	// Prefix: bracketed time (light gray) when ReplaceAttr left a non-zero time value.
 	if !timeAttr.Equal(slog.Attr{}) && timeAttr.Value.Kind() == slog.KindTime && !timeAttr.Value.Time().IsZero() {
 		tm2 := timeAttr.Value.Time()
 		if h.opts.UTCTime {
@@ -150,6 +154,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		buf.WriteRune(' ')
 	}
 
+	// Level string and optional ANSI color, then a separator space before the message.
 	lv := levelForOutput(levelAttr, r.Level)
 	level := lv.String() + ":"
 	if code, ok := levelANSICode(lv); h.opts.NoColor || !ok {
@@ -160,13 +165,15 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 
 	buf.WriteRune(' ')
 
+	// Message: use ReplaceAttr's string if still valid; otherwise fall back to r.Message.
 	msg := r.Message
 	if !msgAttr.Equal(slog.Attr{}) && msgAttr.Value.Kind() == slog.KindString {
 		msg = msgAttr.Value.String()
 	}
 	writePlainOrColor(&buf, h.opts.NoColor, white, msg)
 
-	// User attrs: collect record fields (skip duplicates of built-ins), merge With/WithGroup stack.
+	// User attributes: everything on the record except the built-in keys (already shown in the prefix),
+	// merged with handler-scoped attrs from WithAttrs / WithGroup.
 	var recAttrs []slog.Attr
 	r.Attrs(func(a slog.Attr) bool {
 		if a.Key == slog.LevelKey || a.Key == slog.MessageKey || a.Key == slog.TimeKey {
@@ -177,7 +184,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	})
 	merged := buildMergedUserAttrs(h.topAttrs, h.segments, recAttrs)
 
-	// Trailing JSON object (compact or indented), or newline only when NoJSON.
+	// Trailer: one JSON object (Encode adds a trailing newline) or plain newline when NoJSON.
 	if !h.opts.NoJSON {
 		buf.WriteRune(' ')
 		attrs := make(map[string]any)
@@ -195,7 +202,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		buf.WriteRune('\n')
 	}
 
-	// One write per record, serialized with sibling handlers sharing this mutex.
+	// Single Write call per log line; mu coordinates output when multiple handlers share one writer.
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	_, err := h.w.Write(buf.Bytes())
