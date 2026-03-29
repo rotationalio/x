@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-// Line layout: optional source, optional [HH:MM:SS.mmm], LEVEL: message [JSON].
+// Line layout: optional [basename:line], optional [HH:MM:SS.mmm], LEVEL: message [JSON].
 var (
 	ansiRegexp     = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-	sourcePrefixRx = regexp.MustCompile(`^([^\s]+:\d+)\s+`)
+	sourcePrefixRx = regexp.MustCompile(`^\[([^\]]+:\d+)\]\s+`)
 	timeBracketRx  = regexp.MustCompile(`^\[(\d{2}:\d{2}:\d{2}\.\d{3})\]\s+`)
 	levelPrefixRx  = regexp.MustCompile(`^([A-Za-z0-9+-]+):\s+`)
 )
@@ -29,7 +29,7 @@ func ParseLogLine(line string) (map[string]any, error) {
 
 	m := make(map[string]any)
 
-	// Parse optional source:line.
+	// Parse optional [basename:line] (bracketed like the time prefix).
 	if sm := sourcePrefixRx.FindStringSubmatch(s); sm != nil {
 		file, lineNum, ok := parseSourceToken(sm[1])
 		if ok {

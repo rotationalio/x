@@ -48,7 +48,7 @@ func main() {
 	log.Log(ctx, rlog.LevelFatal, "fatal line (logged only; no exit)")
 	log.Log(ctx, rlog.LevelPanic, "panic line (logged only; no panic)")
 
-	banner("HandlerOptions.AddSource: basename:line before timestamp")
+	banner("HandlerOptions.AddSource: [basename:line] before timestamp")
 	log = slog.New(console.New(os.Stdout, &console.Options{
 		HandlerOptions: &slog.HandlerOptions{AddSource: true},
 	}))

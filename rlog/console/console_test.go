@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -60,7 +61,7 @@ func TestHandler_GoldenTest(t *testing.T) {
 		{
 			name: "Trace",
 			opts: &console.Options{HandlerOptions: &slog.HandlerOptions{Level: rlog.LevelTrace}},
-			want: []byte("\x1b[37m[00:00:00.000]\x1b[0m \x1b[37mDEBUG-4:\x1b[0m \x1b[97mtracing\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m DEBUG-3: \x1b[97mtrace+1\x1b[0m {\"req\":{\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[36mDEBUG:\x1b[0m \x1b[97mdebugging\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"bob\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[92mINFO:\x1b[0m \x1b[97minfo\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"alice\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[93mWARN:\x1b[0m \x1b[97mwarning\x1b[0m {\"req\":{\"code\":404,\"error\":\"not found\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[91mERROR:\x1b[0m \x1b[97merror\x1b[0m {\"req\":{\"code\":400,\"error\":\"uncapped jar\",\"id\":\"1\"},\"svc\":\"api\"}\n"),
+			want: []byte("\x1b[37m[00:00:00.000]\x1b[0m \x1b[37mTRACE:\x1b[0m \x1b[97mtracing\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m DEBUG-3: \x1b[97mtrace+1\x1b[0m {\"req\":{\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[36mDEBUG:\x1b[0m \x1b[97mdebugging\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"bob\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[92mINFO:\x1b[0m \x1b[97minfo\x1b[0m {\"req\":{\"foo\":\"bar\",\"id\":\"1\",\"user\":\"alice\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[93mWARN:\x1b[0m \x1b[97mwarning\x1b[0m {\"req\":{\"code\":404,\"error\":\"not found\",\"id\":\"1\"},\"svc\":\"api\"}\n\x1b[37m[00:00:00.000]\x1b[0m \x1b[91mERROR:\x1b[0m \x1b[97merror\x1b[0m {\"req\":{\"code\":400,\"error\":\"uncapped jar\",\"id\":\"1\"},\"svc\":\"api\"}\n"),
 		},
 	}
 
@@ -166,7 +167,7 @@ func TestHandler_ReplaceAttr_dropsKey(t *testing.T) {
 	})
 }
 
-// TestHandler_AddSource_prefix ensures AddSource adds a basename:line prefix and ParseLogLine exposes
+// TestHandler_AddSource_prefix ensures AddSource adds a [basename:line] prefix and ParseLogLine exposes
 // [slog.SourceKey] with File and Line when Handle receives a record built with a non-zero PC.
 func TestHandler_AddSource_prefix(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -185,7 +186,8 @@ func TestHandler_AddSource_prefix(t *testing.T) {
 		assert.Ok(t, h.Handle(context.Background(), r), "Handle with AddSource should not error")
 
 		line := strings.TrimSpace(buf.String())
-		assert.True(t, strings.Contains(line, ":"), "AddSource should print file:line before the rest of the line; got %q", line)
+		assert.True(t, regexp.MustCompile(`^\[[^\]]+:\d+\]\s+`).MatchString(line),
+			"AddSource should print [basename:line] before the rest of the line; got %q", line)
 
 		m, err := console.ParseLogLine(line)
 		assert.Ok(t, err, "line with source prefix should parse")

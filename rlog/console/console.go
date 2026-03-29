@@ -20,7 +20,7 @@ import (
 
 const timeFormat = "[15:04:05.000]"
 
-// Handler writes a text prefix (source, time, level, message) and optional JSON attributes.
+// Handler writes a text prefix ([basename:line] when AddSource, bracketed time, level, message) and optional JSON attributes.
 type Handler struct {
 	w        io.Writer
 	mu       *sync.Mutex
@@ -130,7 +130,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	}
 
 	// Source: when AddSource is on and the record has a PC, build SourceKey and allow ReplaceAttr
-	// to strip it (empty attr). If still present, emit file:line before the rest of the prefix.
+	// to strip it (empty attr). If still present, emit [basename:line] before the rest of the prefix.
 	showSource := false
 	var srcAttr slog.Attr
 	if h.opts.HandlerOptions != nil && h.opts.AddSource && r.PC != 0 {
@@ -156,9 +156,21 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 		buf.WriteRune(' ')
 	}
 
-	// Level string and optional ANSI color, then a separator space before the message.
+	// Level prefix: when ReplaceAttr rewrites [slog.LevelKey] to a string (e.g. TRACE via
+	// [rlog.MergeWithCustomLevels]), print that text plus ":" so the line matches other
+	// handlers; otherwise use [slog.Level.String] from levelForOutput. ANSI color still
+	// uses the resolved [slog.Level] (lv), not the string label.
 	lv := levelForOutput(levelAttr, r.Level)
-	level := lv.String() + ":"
+	var level string
+	if levelAttr.Key == slog.LevelKey && !levelAttr.Equal(slog.Attr{}) && levelAttr.Value.Kind() == slog.KindString {
+		if s := levelAttr.Value.String(); s != "" {
+			level = s + ":"
+		} else {
+			level = lv.String() + ":"
+		}
+	} else {
+		level = lv.String() + ":"
+	}
 	if code, ok := levelANSICode(lv); h.opts.NoColor || !ok {
 		fmt.Fprint(&buf, level)
 	} else {
@@ -220,7 +232,7 @@ func writePlainOrColor(buf *bytes.Buffer, noColor bool, color uint8, text string
 	}
 }
 
-// writeSourcePrefix prints basename:line when srcAttr carries *slog.Source.
+// writeSourcePrefix prints [basename:line] when srcAttr carries *slog.Source (same bracket style as time).
 func writeSourcePrefix(buf *bytes.Buffer, noColor bool, srcAttr slog.Attr) {
 	if srcAttr.Value.Kind() != slog.KindAny {
 		return
@@ -229,7 +241,8 @@ func writeSourcePrefix(buf *bytes.Buffer, noColor bool, srcAttr slog.Attr) {
 	if !ok || s == nil || (s.File == "" && s.Line == 0) {
 		return
 	}
-	writePlainOrColor(buf, noColor, lightGray, fmt.Sprintf("%s:%d ", filepath.Base(s.File), s.Line))
+	writePlainOrColor(buf, noColor, lightGray, fmt.Sprintf("[%s:%d]", filepath.Base(s.File), s.Line))
+	buf.WriteRune(' ')
 }
 
 // levelForOutput prefers a slog.Level inside levelAttr after ReplaceAttr.
