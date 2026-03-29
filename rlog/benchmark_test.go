@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
 	"runtime"
 	"testing"
 	"time"
 
 	"go.rtnl.ai/x/rlog"
 )
+
+// envRunLoggerVsSlogCompare must be set to "1" to run [TestLoggerVsSlogCompare]. That keeps plain
+// go test and IDE "run test" (which pass -run by name) from executing this slow comparison unless
+// you opt in from a real shell.
+const envRunLoggerVsSlogCompare = "RLOG_LOGGER_VS_SLOG_COMPARE"
 
 // BenchmarkLoggerVsSlog compares *rlog.Logger with *slog.Logger on identical nop handlers.
 //
@@ -48,14 +54,10 @@ import (
 //
 // Percentage summary (slower/faster), with order averaging and a polluted section:
 //
-//	go test ./rlog -run TestLoggerVsSlogCompare -v
+//	RLOG_LOGGER_VS_SLOG_COMPARE=1 go test ./rlog -run TestLoggerVsSlogCompare -v
 //
 // rlog cannot use [log/slog/internal.IgnorePC] (stdlib-only); slog’s -nopc benchmark flag does not apply here.
 func BenchmarkLoggerVsSlog(b *testing.B) {
-	if testing.Short() {
-		b.Skip("skip bench in -short")
-	}
-
 	b.Run("slog/LogAttrs-none", benchSlogLogAttrsNone)
 	b.Run("rlog/LogAttrs-none", benchRlogLogAttrsNone)
 	b.Run("slog/Info-kv", benchSlogInfoKV)
@@ -97,10 +99,14 @@ func BenchmarkLoggerVsSlog(b *testing.B) {
 // The final lines log rlog-only and PC-only benchmarks so you can sanity-check Callers cost vs full log.
 //
 // Skipped under -short (this test runs many benchmarks and can take tens of seconds).
-// Run: go test ./rlog -run TestLoggerVsSlogCompare -v
+// Skipped unless [envRunLoggerVsSlogCompare] is set to "1" (avoids IDE "run test" and plain go test).
+// Run: RLOG_LOGGER_VS_SLOG_COMPARE=1 go test ./rlog -run TestLoggerVsSlogCompare -v
 func TestLoggerVsSlogCompare(t *testing.T) {
 	if testing.Short() {
-		t.Skip("skip bench comparison in -short")
+		t.Skip("skip bench comparison in short mode")
+	}
+	if os.Getenv(envRunLoggerVsSlogCompare) != "1" {
+		t.Skipf("set %s=1 to run this comparison (IDE and default go test skip)", envRunLoggerVsSlogCompare)
 	}
 
 	pairs := []struct {
