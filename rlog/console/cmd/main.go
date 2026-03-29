@@ -1,8 +1,8 @@
-// Command console demonstrates [console.Handler] and every [console.Options] field.
+// Command console demonstrates [console.Handler] and [console.Options] through
+// [rlog.Logger], including custom levels (TRACE, FATAL, PANIC).
 package main
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,85 +13,74 @@ import (
 )
 
 func main() {
-	ctx := context.Background()
+	// Fatal would normally exit; keep the demo running through all sections.
+	rlog.SetFatalHook(func() {})
+	defer rlog.SetFatalHook(nil)
 
-	banner("nil *Options (handler defaults: INFO min, color, compact JSON, local time)")
-	log := slog.New(console.New(os.Stdout, nil))
-	sample(ctx, log)
-
-	banner("explicit defaults: &console.Options{}")
-	log = slog.New(console.New(os.Stdout, &console.Options{}))
-	sample(ctx, log)
-
-	banner("NoColor: plain text, no ANSI")
-	log = slog.New(console.New(os.Stdout, &console.Options{NoColor: true}))
-	sample(ctx, log)
-
-	banner("IndentJSON: multi-line JSON trailer")
-	log = slog.New(console.New(os.Stdout, &console.Options{IndentJSON: true}))
-	sample(ctx, log)
-
-	banner("NoJSON: message only, newline (no attribute object)")
-	log = slog.New(console.New(os.Stdout, &console.Options{NoJSON: true}))
-	sample(ctx, log)
-
-	banner("UTCTime: bracketed clock in UTC")
-	log = slog.New(console.New(os.Stdout, &console.Options{UTCTime: true}))
-	log.Info("server tick", "tz", "expect UTC in prefix")
-
-	banner("HandlerOptions.Level: floor at TRACE (debug/trace on; FATAL/PANIC severities)")
-	hOpts := &slog.HandlerOptions{Level: rlog.LevelTrace}
-	log = slog.New(console.New(os.Stdout, &console.Options{HandlerOptions: hOpts}))
-	log.Log(ctx, rlog.LevelTrace, "trace line")
-	log.Debug("debug line")
-	log.Info("info line")
-	log.Log(ctx, rlog.LevelFatal, "fatal line (logged only; no exit)")
-	log.Log(ctx, rlog.LevelPanic, "panic line (logged only; no panic)")
-
-	banner("HandlerOptions.AddSource: [basename:line] before timestamp")
-	log = slog.New(console.New(os.Stdout, &console.Options{
-		HandlerOptions: &slog.HandlerOptions{AddSource: true},
-	}))
-	log.Info("called from main with AddSource")
-
-	banner("HandlerOptions.ReplaceAttr: drop secrets, custom time/message (with MergeWithCustomLevels)")
-	customReplace := func(groups []string, a slog.Attr) slog.Attr {
-		if a.Key == "secret" {
-			return slog.Attr{}
+	// One pattern everywhere: banner → newConsole(opts) → standardDemo (optional extra / derive).
+	run := func(title string, opts *console.Options, extra func(log *rlog.Logger)) {
+		banner(title)
+		log := newConsole(opts)
+		standardDemo(log)
+		if extra != nil {
+			extra(log)
 		}
-		if len(groups) == 0 && a.Key == slog.MessageKey {
-			return slog.String(slog.MessageKey, "[wrapped] "+a.Value.String())
+	}
+	runDerived := func(title string, opts *console.Options, derive func(*rlog.Logger) *rlog.Logger, extra func(log *rlog.Logger)) {
+		banner(title)
+		log := derive(newConsole(opts))
+		standardDemo(log)
+		if extra != nil {
+			extra(log)
 		}
-		return a
 	}
-	base := &slog.HandlerOptions{
-		Level:       slog.LevelDebug,
-		AddSource:   true,
-		ReplaceAttr: customReplace,
-	}
-	log = slog.New(console.New(os.Stdout, &console.Options{
-		HandlerOptions: rlog.MergeWithCustomLevels(base),
-		NoColor:        true,
-		IndentJSON:     true,
-		UTCTime:        true,
-	}))
-	log.Info("replace attr demo", "secret", "hunter2", "public", "ok")
-	log.Log(ctx, rlog.LevelTrace, "trace after MergeWithCustomLevels (level key still renders as slog level string)")
 
-	banner("WithAttrs / WithGroup on logger")
-	log = slog.New(console.New(os.Stdout, &console.Options{IndentJSON: true})).
-		With("service", "demo").
-		WithGroup("http").
-		With(slog.String("method", "GET"))
-	log.Info("grouped request", slog.String("path", "/v1/status"), "status", 200)
+	run("nil *Options — defaults: INFO floor, color, compact JSON, local time", nil, nil)
 
-	banner("JSON trailer: times, durations, and nested maps in attrs")
-	log = slog.New(console.New(os.Stdout, &console.Options{IndentJSON: true}))
-	log.Info("mixed value kinds in JSON",
-		slog.Time("when", time.Now()),
-		slog.Duration("elapsed", 123*time.Millisecond),
-		slog.Any("nested", map[string]int{"a": 1}),
+	run("NoJSON — message only, no attribute object", &console.Options{NoJSON: true}, nil)
+
+	run("HandlerOptions.Level — TRACE floor (debug/trace on)",
+		&console.Options{HandlerOptions: &slog.HandlerOptions{Level: rlog.LevelTrace}}, nil)
+
+	run("HandlerOptions.AddSource — [file:line] before timestamp",
+		&console.Options{HandlerOptions: &slog.HandlerOptions{AddSource: true}}, nil)
+
+	run("ReplaceAttr + NoColor + UTCTime — drop keys, wrap message; plain text, UTC clock",
+		&console.Options{
+			HandlerOptions: &slog.HandlerOptions{
+				Level:       rlog.LevelTrace,
+				AddSource:   true,
+				ReplaceAttr: replaceAttrDemo,
+			},
+			NoColor: true,
+			UTCTime: true,
+		},
+		func(log *rlog.Logger) {
+			log.Info("secrets redacted", "secret", "redacted", "public", "visible")
+			log.Trace("trace after merge")
+		},
 	)
+
+	runDerived("IndentJSON — multi-line trailer; With / WithGroup; time, duration, maps",
+		&console.Options{IndentJSON: true},
+		func(log *rlog.Logger) *rlog.Logger {
+			return log.With("service", "demo").
+				WithGroup("http").
+				With(slog.String("method", "GET"))
+		},
+		func(log *rlog.Logger) {
+			log.Info("request", slog.String("path", "/v1/status"), "status", 200)
+			log.Info("structured attrs",
+				slog.Time("when", time.Now()),
+				slog.Duration("elapsed", 123*time.Millisecond),
+				slog.Any("nested", map[string]int{"a": 1}),
+			)
+		},
+	)
+}
+
+func newConsole(opts *console.Options) *rlog.Logger {
+	return rlog.New(slog.New(console.New(os.Stdout, opts.MergeWithCustomLevels())))
 }
 
 func banner(title string) {
@@ -99,10 +88,25 @@ func banner(title string) {
 	fmt.Println("---", title, "---")
 }
 
-func sample(ctx context.Context, log *slog.Logger) {
-	log.Debug("filtered at default INFO minimum")
+func standardDemo(log *rlog.Logger) {
+	log.Trace("trace")
+	log.Debug("debug")
 	log.Info("hello console", "count", 3, "ok", true)
 	log.Warn("something odd", slog.Duration("wait", 50*time.Millisecond))
 	log.Error("failed", "err", "boom", "code", 500)
-	log.Log(ctx, rlog.LevelTrace, "also filtered unless Level is lowered")
+	log.Fatal("fatal")
+	func() {
+		defer func() { recover() }()
+		log.Panic("panic")
+	}()
+}
+
+func replaceAttrDemo(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == "secret" {
+		return slog.Attr{}
+	}
+	if len(groups) == 0 && a.Key == slog.MessageKey {
+		return slog.String(slog.MessageKey, "[wrapped] "+a.Value.String())
+	}
+	return a
 }
