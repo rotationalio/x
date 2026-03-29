@@ -71,8 +71,10 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 //=============================================================================
@@ -106,6 +108,34 @@ func (l *Logger) With(args ...any) *Logger {
 // WithGroup returns a derived [Logger] with the given group.
 func (l *Logger) WithGroup(name string) *Logger {
 	return &Logger{Logger: l.Logger.WithGroup(name)}
+}
+
+// emit writes a record using a caller PC already captured at the public API
+// boundary; behavior matches [slog.Logger]'s internal log path (nil ctx, Enabled,
+// NewRecord, Handle).
+func (l *Logger) emit(ctx context.Context, level slog.Level, msg string, pc uintptr, args ...any) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if !l.Enabled(ctx, level) {
+		return
+	}
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.Add(args...)
+	_ = l.Handler().Handle(ctx, r)
+}
+
+// emitAttrs is like [Logger.emit] but for attribute-only records.
+func (l *Logger) emitAttrs(ctx context.Context, level slog.Level, msg string, pc uintptr, attrs ...slog.Attr) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if !l.Enabled(ctx, level) {
+		return
+	}
+	r := slog.NewRecord(time.Now(), level, msg, pc)
+	r.AddAttrs(attrs...)
+	_ = l.Handler().Handle(ctx, r)
 }
 
 //=============================================================================
@@ -187,8 +217,205 @@ func exitFatal() {
 }
 
 //=============================================================================
+// Logger logging methods
+//=============================================================================
+
+// Log emits a log record with the given level and message. Arguments are handled like
+// [slog.Logger.Log].
+func (l *Logger) Log(ctx context.Context, level slog.Level, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, level, msg, pcs[0], args...)
+}
+
+// LogAttrs is like [Logger.Log] but accepts attrs only; attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, level, msg, pcs[0], attrs...)
+}
+
+// Trace logs at [LevelTrace]. Arguments are handled like [slog.Logger.Log]; you can pass any
+// number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Trace(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), LevelTrace, msg, pcs[0], args...)
+}
+
+// TraceAttrs logs at [LevelTrace] with ctx and attrs. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, LevelTrace, msg, pcs[0], attrs...)
+}
+
+// TraceContext logs at [LevelTrace] with ctx. Arguments are handled like [slog.Logger.Log]; you
+// can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) TraceContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, LevelTrace, msg, pcs[0], args...)
+}
+
+// Debug logs at [slog.LevelDebug]. Arguments are handled like [slog.Logger.Log]; you can pass
+// any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Debug(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), slog.LevelDebug, msg, pcs[0], args...)
+}
+
+// DebugAttrs logs at [slog.LevelDebug] with ctx and attrs. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, slog.LevelDebug, msg, pcs[0], attrs...)
+}
+
+// DebugContext logs at [slog.LevelDebug] with ctx. Arguments are handled like [slog.Logger.Log];
+// you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) DebugContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, slog.LevelDebug, msg, pcs[0], args...)
+}
+
+// Info logs at [slog.LevelInfo]. Arguments are handled like [slog.Logger.Log]; you can pass any
+// number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Info(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), slog.LevelInfo, msg, pcs[0], args...)
+}
+
+// InfoAttrs logs at [slog.LevelInfo] with ctx and attrs. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, slog.LevelInfo, msg, pcs[0], attrs...)
+}
+
+// InfoContext logs at [slog.LevelInfo] with ctx. Arguments are handled like [slog.Logger.Log];
+// you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) InfoContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, slog.LevelInfo, msg, pcs[0], args...)
+}
+
+// Warn logs at [slog.LevelWarn]. Arguments are handled like [slog.Logger.Log]; you can pass any
+// number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Warn(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), slog.LevelWarn, msg, pcs[0], args...)
+}
+
+// WarnAttrs logs at [slog.LevelWarn] with ctx and attrs. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, slog.LevelWarn, msg, pcs[0], attrs...)
+}
+
+// WarnContext logs at [slog.LevelWarn] with ctx. Arguments are handled like [slog.Logger.Log];
+// you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) WarnContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, slog.LevelWarn, msg, pcs[0], args...)
+}
+
+// Error logs at [slog.LevelError]. Arguments are handled like [slog.Logger.Log]; you can pass any
+// number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Error(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), slog.LevelError, msg, pcs[0], args...)
+}
+
+// ErrorAttrs logs at [slog.LevelError] with ctx and attrs. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, slog.LevelError, msg, pcs[0], attrs...)
+}
+
+// ErrorContext logs at [slog.LevelError] with ctx. Arguments are handled like [slog.Logger.Log];
+// you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) ErrorContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, slog.LevelError, msg, pcs[0], args...)
+}
+
+// Fatal logs at [LevelFatal], then runs the global fatal hook from [SetFatalHook] if set,
+// otherwise [os.Exit](1). It does not return. Arguments are handled like [slog.Logger.Log]; you
+// can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Fatal(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), LevelFatal, msg, pcs[0], args...)
+	exitFatal()
+}
+
+// FatalAttrs logs at [LevelFatal] with ctx and attrs, then runs the global fatal hook from
+// [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Attribute handling matches
+// [slog.Logger.LogAttrs].
+func (l *Logger) FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, LevelFatal, msg, pcs[0], attrs...)
+	exitFatal()
+}
+
+// FatalContext logs at [LevelFatal] with ctx, then runs the global fatal hook from [SetFatalHook]
+// if set, otherwise [os.Exit](1). It does not return. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) FatalContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, LevelFatal, msg, pcs[0], args...)
+	exitFatal()
+}
+
+// Panic logs at [LevelPanic], then panics with msg. Arguments are handled like [slog.Logger.Log];
+// you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) Panic(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(context.Background(), LevelPanic, msg, pcs[0], args...)
+	panic(msg)
+}
+
+// PanicAttrs logs at [LevelPanic] with ctx and attrs, then panics with msg. Attribute handling
+// matches [slog.Logger.LogAttrs].
+func (l *Logger) PanicAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emitAttrs(ctx, LevelPanic, msg, pcs[0], attrs...)
+	panic(msg)
+}
+
+// PanicContext logs at [LevelPanic] with ctx, then panics with msg. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func (l *Logger) PanicContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	l.emit(ctx, LevelPanic, msg, pcs[0], args...)
+	panic(msg)
+}
+
+//=============================================================================
 // Global Logger Functions
-// NOTE: These functions are aliases for the [Logger] methods with the default [Logger].
+// NOTE: These functions are aliases for the [Logger] methods with the [Default] [Logger].
 //=============================================================================
 
 // With returns a derived [Logger] with the given attributes.
@@ -204,246 +431,197 @@ func WithGroup(name string) *Logger {
 // Log emits a log record with the given level and message using the [Default] logger.
 // Arguments are handled like [slog.Logger.Log].
 func Log(ctx context.Context, level slog.Level, msg string, args ...any) {
-	Default().Log(ctx, level, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, level, msg, pcs[0], args...)
 }
 
 // LogAttrs is like [Log] but accepts attrs only; it uses [slog.LogAttrs] for efficiency.
 func LogAttrs(ctx context.Context, level slog.Level, msg string, attrs ...slog.Attr) {
-	Default().LogAttrs(ctx, level, msg, attrs...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, level, msg, pcs[0], attrs...)
 }
 
 // Trace logs at [LevelTrace] using the [Default] logger. Arguments are handled like
 // [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
 func Trace(msg string, args ...any) {
-	Default().Trace(msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), LevelTrace, msg, pcs[0], args...)
 }
 
-// Debug logs at [slog.LevelDebug] using the [Default] logger. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func Debug(msg string, args ...any) {
-	Default().Debug(msg, args...)
-}
-
-// Info logs at [slog.LevelInfo] using the [Default] logger. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func Info(msg string, args ...any) {
-	Default().Info(msg, args...)
-}
-
-// Warn logs at [slog.LevelWarn] using the [Default] logger. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func Warn(msg string, args ...any) {
-	Default().Warn(msg, args...)
-}
-
-// Error logs at [slog.LevelError] using the [Default] logger. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func Error(msg string, args ...any) {
-	Default().Error(msg, args...)
-}
-
-// Fatal logs at [LevelFatal] using the [Default] logger, then runs the global fatal hook
-// from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments are
-// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func Fatal(msg string, args ...any) {
-	Default().Fatal(msg, args...)
-}
-
-// Panic logs at [LevelPanic] using the [Default] logger, then panics with msg. Arguments are
-// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
-// objects.
-func Panic(msg string, args ...any) {
-	Default().Panic(msg, args...)
+// TraceAttrs logs at [LevelTrace] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, LevelTrace, msg, pcs[0], attrs...)
 }
 
 // TraceContext logs at [LevelTrace] with ctx using the [Default] logger. Arguments are handled
 // like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
 func TraceContext(ctx context.Context, msg string, args ...any) {
-	Default().TraceContext(ctx, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, LevelTrace, msg, pcs[0], args...)
+}
+
+// Debug logs at [slog.LevelDebug] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Debug(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), slog.LevelDebug, msg, pcs[0], args...)
+}
+
+// DebugAttrs logs at [slog.LevelDebug] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, slog.LevelDebug, msg, pcs[0], attrs...)
 }
 
 // DebugContext logs at [slog.LevelDebug] with ctx using the [Default] logger. Arguments are
 // handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
 // objects.
 func DebugContext(ctx context.Context, msg string, args ...any) {
-	Default().DebugContext(ctx, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, slog.LevelDebug, msg, pcs[0], args...)
+}
+
+// Info logs at [slog.LevelInfo] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Info(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), slog.LevelInfo, msg, pcs[0], args...)
+}
+
+// InfoAttrs logs at [slog.LevelInfo] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, slog.LevelInfo, msg, pcs[0], attrs...)
 }
 
 // InfoContext logs at [slog.LevelInfo] with ctx using the [Default] logger. Arguments are
 // handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
 // objects.
 func InfoContext(ctx context.Context, msg string, args ...any) {
-	Default().InfoContext(ctx, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, slog.LevelInfo, msg, pcs[0], args...)
+}
+
+// Warn logs at [slog.LevelWarn] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Warn(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), slog.LevelWarn, msg, pcs[0], args...)
+}
+
+// WarnAttrs logs at [slog.LevelWarn] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, slog.LevelWarn, msg, pcs[0], attrs...)
 }
 
 // WarnContext logs at [slog.LevelWarn] with ctx using the [Default] logger. Arguments are
 // handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
 // objects.
 func WarnContext(ctx context.Context, msg string, args ...any) {
-	Default().WarnContext(ctx, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, slog.LevelWarn, msg, pcs[0], args...)
+}
+
+// Error logs at [slog.LevelError] using the [Default] logger. Arguments are handled like
+// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Error(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), slog.LevelError, msg, pcs[0], args...)
+}
+
+// ErrorAttrs logs at [slog.LevelError] with ctx and attrs using the [Default] logger. Uses
+// [slog.LogAttrs] for efficiency.
+func ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, slog.LevelError, msg, pcs[0], attrs...)
 }
 
 // ErrorContext logs at [slog.LevelError] with ctx using the [Default] logger. Arguments are
 // handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
 // objects.
 func ErrorContext(ctx context.Context, msg string, args ...any) {
-	Default().ErrorContext(ctx, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, slog.LevelError, msg, pcs[0], args...)
 }
 
-// FatalContext logs at [LevelFatal] with ctx using the [Default] logger, then runs the global
-// fatal hook from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments
-// are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
-func FatalContext(ctx context.Context, msg string, args ...any) {
-	Default().FatalContext(ctx, msg, args...)
-}
-
-// PanicContext logs at [LevelPanic] with ctx using the [Default] logger, then panics with msg.
-// Arguments are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or
-// [slog.Attr] objects.
-func PanicContext(ctx context.Context, msg string, args ...any) {
-	Default().PanicContext(ctx, msg, args...)
-}
-
-// TraceAttrs logs at [LevelTrace] with ctx and attrs using the [Default] logger. Uses
-// [slog.LogAttrs] for efficiency.
-func TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().TraceAttrs(ctx, msg, attrs...)
-}
-
-// DebugAttrs logs at [slog.LevelDebug] with ctx and attrs using the [Default] logger. Uses
-// [slog.LogAttrs] for efficiency.
-func DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().DebugAttrs(ctx, msg, attrs...)
-}
-
-// InfoAttrs logs at [slog.LevelInfo] with ctx and attrs using the [Default] logger. Uses
-// [slog.LogAttrs] for efficiency.
-func InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().InfoAttrs(ctx, msg, attrs...)
-}
-
-// WarnAttrs logs at [slog.LevelWarn] with ctx and attrs using the [Default] logger. Uses
-// [slog.LogAttrs] for efficiency.
-func WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().WarnAttrs(ctx, msg, attrs...)
-}
-
-// ErrorAttrs logs at [slog.LevelError] with ctx and attrs using the [Default] logger. Uses
-// [slog.LogAttrs] for efficiency.
-func ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().ErrorAttrs(ctx, msg, attrs...)
+// Fatal logs at [LevelFatal] using the [Default] logger, then runs the global fatal hook
+// from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func Fatal(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), LevelFatal, msg, pcs[0], args...)
+	exitFatal()
 }
 
 // FatalAttrs logs at [LevelFatal] with attrs using the [Default] logger, then runs the global
 // fatal hook from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Uses
 // [slog.LogAttrs] for efficiency.
 func FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().FatalAttrs(ctx, msg, attrs...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, LevelFatal, msg, pcs[0], attrs...)
+	exitFatal()
+}
+
+// FatalContext logs at [LevelFatal] with ctx using the [Default] logger, then runs the global
+// fatal hook from [SetFatalHook] if set, otherwise [os.Exit](1). It does not return. Arguments
+// are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr] objects.
+func FatalContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, LevelFatal, msg, pcs[0], args...)
+	exitFatal()
+}
+
+// Panic logs at [LevelPanic] using the [Default] logger, then panics with msg. Arguments are
+// handled like [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
+// objects.
+func Panic(msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(context.Background(), LevelPanic, msg, pcs[0], args...)
+	panic(msg)
 }
 
 // PanicAttrs logs at [LevelPanic] with attrs using the [Default] logger, then panics with msg.
 // Uses [slog.LogAttrs] for efficiency.
 func PanicAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	Default().PanicAttrs(ctx, msg, attrs...)
-}
-
-//=============================================================================
-// Attrs Functions for default slog levels
-//=============================================================================
-
-// DebugAttrs logs at slog.LevelDebug with ctx and attrs. Uses slog.LogAttrs for efficiency.
-func (l *Logger) DebugAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, slog.LevelDebug, msg, attrs...)
-}
-
-// InfoAttrs logs at slog.LevelInfo with ctx and attrs. Uses slog.LogAttrs for efficiency.
-func (l *Logger) InfoAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, slog.LevelInfo, msg, attrs...)
-}
-
-// WarnAttrs logs at slog.LevelWarn with ctx and attrs. Uses slog.LogAttrs for efficiency.
-func (l *Logger) WarnAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, slog.LevelWarn, msg, attrs...)
-}
-
-// ErrorAttrs logs at slog.LevelError with ctx and attrs. Uses slog.LogAttrs for efficiency.
-func (l *Logger) ErrorAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, slog.LevelError, msg, attrs...)
-}
-
-//=============================================================================
-// Trace Functions
-//=============================================================================
-
-// Trace logs at [LevelTrace]. Arguments are handled like [slog.Logger.Log]; you
-// can pass any number of key/value pairs or [slog.Attr] objects.
-func (l *Logger) Trace(msg string, args ...any) {
-	l.TraceContext(context.Background(), msg, args...)
-}
-
-// TraceContext logs at [LevelTrace] with ctx. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
-// objects.
-func (l *Logger) TraceContext(ctx context.Context, msg string, args ...any) {
-	l.Logger.Log(ctx, LevelTrace, msg, args...)
-}
-
-// TraceAttrs logs at [LevelTrace] with ctx and attrs. Uses [slog.LogAttrs] for
-// efficiency.
-func (l *Logger) TraceAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, LevelTrace, msg, attrs...)
-}
-
-//=============================================================================
-// Fatal Functions
-//=============================================================================
-
-// Fatal logs at [LevelFatal] then runs the global fatal hook from [SetFatalHook] if set,
-// otherwise [os.Exit](1). It does not return. Arguments are handled like [slog.Logger.Log];
-// you can pass any number of key/value pairs or [slog.Attr] objects.
-func (l *Logger) Fatal(msg string, args ...any) {
-	l.FatalContext(context.Background(), msg, args...)
-}
-
-// FatalContext logs at [LevelFatal] with ctx then runs the global fatal hook from [SetFatalHook]
-// if set, otherwise [os.Exit](1). It does not return. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
-// objects.
-func (l *Logger) FatalContext(ctx context.Context, msg string, args ...any) {
-	l.Logger.Log(ctx, LevelFatal, msg, args...)
-	exitFatal()
-}
-
-// FatalAttrs logs at [LevelFatal] with attrs then runs the global fatal hook from [SetFatalHook]
-// if set, otherwise [os.Exit](1). It does not return. Uses [slog.LogAttrs] for
-// efficiency.
-func (l *Logger) FatalAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, LevelFatal, msg, attrs...)
-	exitFatal()
-}
-
-//=============================================================================
-// Panic Functions
-//=============================================================================
-
-// Panic logs at [LevelPanic] then panics with msg. Arguments are handled like
-// [slog.Logger.Log]; you can pass any number of key/value pairs or [slog.Attr]
-// objects.
-func (l *Logger) Panic(msg string, args ...any) {
-	l.PanicContext(context.Background(), msg, args...)
-}
-
-// PanicContext logs at [LevelPanic] with ctx then panics with msg. Arguments
-// are handled like [slog.Logger.Log]; you can pass any number of key/value
-// pairs or [slog.Attr] objects.
-func (l *Logger) PanicContext(ctx context.Context, msg string, args ...any) {
-	l.Logger.Log(ctx, LevelPanic, msg, args...)
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emitAttrs(ctx, LevelPanic, msg, pcs[0], attrs...)
 	panic(msg)
 }
 
-// PanicAttrs logs at [LevelPanic] with attrs then panics with msg. Uses
-// [slog.LogAttrs] for efficiency.
-func (l *Logger) PanicAttrs(ctx context.Context, msg string, attrs ...slog.Attr) {
-	l.Logger.LogAttrs(ctx, LevelPanic, msg, attrs...)
+// PanicContext logs at [LevelPanic] with ctx using the [Default] logger, then panics with msg.
+// Arguments are handled like [slog.Logger.Log]; you can pass any number of key/value pairs or
+// [slog.Attr] objects.
+func PanicContext(ctx context.Context, msg string, args ...any) {
+	var pcs [1]uintptr
+	runtime.Callers(2, pcs[:])
+	Default().emit(ctx, LevelPanic, msg, pcs[0], args...)
 	panic(msg)
 }

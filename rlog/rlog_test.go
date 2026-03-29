@@ -3,8 +3,10 @@ package rlog_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -172,6 +174,53 @@ func TestPanic(t *testing.T) {
 		assert.Contains(t, out, `"level":"PANIC"`)
 		assert.Contains(t, out, `"msg":"attrs"`)
 		assert.Contains(t, out, `"k":"v"`)
+	})
+}
+
+// AddSource should attribute the call site in test code, not rlog.go (wrapper frames).
+func TestAddSourceSkipsRlogWrapper(t *testing.T) {
+	type sourceRow struct {
+		Source struct {
+			File string `json:"file"`
+		} `json:"source"`
+	}
+
+	var buf bytes.Buffer
+	opts := &slog.HandlerOptions{Level: rlog.LevelTrace, AddSource: true}
+	log := newTestLogger(t, &buf, opts)
+
+	prev := rlog.Default()
+	t.Cleanup(func() { rlog.SetDefault(prev) })
+	rlog.SetDefault(log)
+
+	t.Run("Logger.Trace", func(t *testing.T) {
+		buf.Reset()
+		log.Trace("m")
+		var r sourceRow
+		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
+		base := filepath.Base(r.Source.File)
+		assert.NotEqual(t, "rlog.go", base, "source must not be rlog implementation file")
+		assert.Equal(t, "rlog_test.go", base)
+	})
+
+	t.Run("Logger.Info", func(t *testing.T) {
+		buf.Reset()
+		log.Info("m")
+		var r sourceRow
+		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
+		base := filepath.Base(r.Source.File)
+		assert.NotEqual(t, "rlog.go", base)
+		assert.Equal(t, "rlog_test.go", base)
+	})
+
+	t.Run("package_Info", func(t *testing.T) {
+		buf.Reset()
+		rlog.Info("m")
+		var r sourceRow
+		assert.Ok(t, json.Unmarshal(buf.Bytes(), &r))
+		base := filepath.Base(r.Source.File)
+		assert.NotEqual(t, "rlog.go", base)
+		assert.Equal(t, "rlog_test.go", base)
 	})
 }
 
