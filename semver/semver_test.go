@@ -143,8 +143,22 @@ func TestSpecifies(t *testing.T) {
 }
 
 func TestMarshal(t *testing.T) {
+	t.Run("Binary", func(t *testing.T) {
+		for i := 0; i < 128; i++ {
+			a := randVersion()
+			data, err := a.MarshalBinary()
+			assert.Ok(t, err)
+
+			b := Version{}
+			err = b.UnmarshalBinary(data)
+			assert.Ok(t, err)
+
+			assert.Equal(t, a, b)
+		}
+	})
+
 	t.Run("Text", func(t *testing.T) {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 128; i++ {
 			a := randVersion()
 			text, err := a.MarshalText()
 			assert.Ok(t, err)
@@ -159,19 +173,39 @@ func TestMarshal(t *testing.T) {
 	})
 
 	t.Run("JSON", func(t *testing.T) {
-		a := randVersion()
-		text, err := json.Marshal(a)
-		assert.Ok(t, err)
+		for i := 0; i < 128; i++ {
+			a := randVersion()
+			text, err := json.Marshal(a)
+			assert.Ok(t, err)
 
-		var s string
-		assert.Ok(t, json.Unmarshal(text, &s))
-		assert.True(t, Valid(s))
+			var s string
+			assert.Ok(t, json.Unmarshal(text, &s))
+			assert.True(t, Valid(s))
 
-		b := Version{}
-		err = json.Unmarshal(text, &b)
-		assert.Ok(t, err)
+			b := Version{}
+			err = json.Unmarshal(text, &b)
+			assert.Ok(t, err)
 
-		assert.Equal(t, a, b)
+			assert.Equal(t, a, b)
+		}
+	})
+	t.Run("YAML", func(t *testing.T) {
+		t.Skip("yaml is an external dependency so is not tested")
+		// for i := 0; i < 128; i++ {
+		// 	a := randVersion()
+		// 	text, err := yaml.Marshal(a)
+		// 	assert.Ok(t, err)
+
+		// 	var s string
+		// 	assert.Ok(t, yaml.Unmarshal(text, &s))
+		// 	assert.True(t, Valid(s))
+
+		// 	b := Version{}
+		// 	err = yaml.Unmarshal(text, &b)
+		// 	assert.Ok(t, err)
+
+		// 	assert.Equal(t, a, b)
+		// }
 	})
 }
 

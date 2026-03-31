@@ -31,13 +31,13 @@ type Regions []Region
 // which all of the other region information can be derived. The other environment
 // variables are optional and can be used to override the default values.
 type Info struct {
-	ID          Region           `json:"region" msg:"region" env:"REGION_INFO_ID" split_words:"true" desc:"the r8l specific region identifier code (must be valid if not empty)"`
-	Name        string           `json:"name" msg:"name" env:"REGION_INFO_NAME" split_words:"true" desc:"the human readable name of the region"`
-	CountryCode string           `json:"country_code" msg:"country_code" env:"REGION_INFO_COUNTRY" split_words:"true" desc:"the ISO 3166-1 country code for the region"`
-	Zone        string           `json:"zone" msg:"zone" env:"REGION_INFO_ZONE" split_words:"true" desc:"the zone of the datacenter for the region"`
-	Cloud       string           `json:"cloud" msg:"cloud" env:"REGION_INFO_CLOUD" split_words:"true" desc:"the cloud provider for the region"`
-	Cluster     string           `json:"cluster" msg:"cluster" env:"REGION_INFO_CLUSTER" split_words:"true" desc:"the r8l cluster name for the region"`
-	country     *country.Country `json:"-" msg:"-" env:"-"`
+	ID          Region           `json:"region" yaml:"region" msg:"region" env:"REGION_INFO_ID" split_words:"true" desc:"the r8l specific region identifier code (must be valid if not empty)"`
+	Name        string           `json:"name" yaml:"name" msg:"name" env:"REGION_INFO_NAME" split_words:"true" desc:"the human readable name of the region"`
+	CountryCode string           `json:"country_code" yaml:"country_code" msg:"country_code" env:"REGION_INFO_COUNTRY" split_words:"true" desc:"the ISO 3166-1 country code for the region"`
+	Zone        string           `json:"zone" yaml:"zone" msg:"zone" env:"REGION_INFO_ZONE" split_words:"true" desc:"the zone of the datacenter for the region"`
+	Cloud       string           `json:"cloud" yaml:"cloud" msg:"cloud" env:"REGION_INFO_CLOUD" split_words:"true" desc:"the cloud provider for the region"`
+	Cluster     string           `json:"cluster" yaml:"cluster" msg:"cluster" env:"REGION_INFO_CLUSTER" split_words:"true" desc:"the r8l cluster name for the region"`
+	country     *country.Country `json:"-" yaml:"-" msg:"-" env:"-"`
 }
 
 // Returns a list of all available regions known by the Rotational system.
