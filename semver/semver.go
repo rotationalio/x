@@ -14,6 +14,7 @@
 package semver
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -229,6 +230,90 @@ func isNumeric(s string) (v uint16, ok bool) {
 // Serialization and Deserialization
 //===========================================================================
 
+func (v Version) MarshalBinary() (data []byte, err error) {
+	pr := []byte(v.PreRelease)
+	bm := []byte(v.BuildMeta)
+
+	size := 5*binary.MaxVarintLen16 + len(pr) + len(bm)
+	data = make([]byte, size)
+
+	i := binary.PutUvarint(data, uint64(v.Major))
+	i += binary.PutUvarint(data[i:], uint64(v.Minor))
+	i += binary.PutUvarint(data[i:], uint64(v.Patch))
+	i += binary.PutUvarint(data[i:], uint64(len(pr)))
+	i += copy(data[i:], pr)
+	i += binary.PutUvarint(data[i:], uint64(len(bm)))
+	i += copy(data[i:], bm)
+
+	data = data[:i:i]
+	return data, nil
+}
+
+func (v *Version) UnmarshalBinary(data []byte) error {
+	if len(data) < 5 {
+		return ErrDataSize
+	}
+
+	var (
+		i, j int
+		c    uint64
+	)
+
+	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+	v.Major = uint16(c)
+
+	i += j
+	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+	v.Minor = uint16(c)
+
+	i += j
+	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+	v.Patch = uint16(c)
+
+	i += j
+	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+
+	i += j
+	if c > 0 {
+		if int(c) > len(data[i:]) {
+			return ErrDataSize
+		}
+		v.PreRelease = string(data[i : i+int(c)])
+	} else {
+		v.PreRelease = ""
+	}
+
+	i += int(c)
+	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+
+	i += j
+	if c > 0 {
+		if int(c) > len(data[i:]) {
+			return ErrDataSize
+		}
+		v.BuildMeta = string(data[i : i+int(c)])
+	} else {
+		v.BuildMeta = ""
+	}
+
+	return nil
+}
+
 func (v Version) MarshalText() ([]byte, error) {
 	return []byte(v.String()), nil
 }
@@ -250,6 +335,25 @@ func (v Version) MarshalJSON() ([]byte, error) {
 func (v *Version) UnmarshalJSON(data []byte) error {
 	var vers string
 	if err := json.Unmarshal(data, &vers); err != nil {
+		return err
+	}
+
+	parsed, err := Parse(vers)
+	if err != nil {
+		return err
+	}
+
+	*v = parsed
+	return nil
+}
+
+func (v Version) MarshalYAML() (interface{}, error) {
+	return v.String(), nil
+}
+
+func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var vers string
+	if err := unmarshal(&vers); err != nil {
 		return err
 	}
 
