@@ -25,7 +25,6 @@ This is single repository that stores many, independent small subpackages. This 
 - [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
 - [locks](https://go.rtnl.ai/x/locks): key-based lock mechanism to distribute keys across a fixed number of locks
 - [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
-- [out](https://go.rtnl.ai/x/out): hierarchical logger to manage logging verbosity to stdout
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
 - [query](https://go.rtnl.ai/x/query): encode struct values as a url query string
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
