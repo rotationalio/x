@@ -260,28 +260,55 @@ func (v *Version) UnmarshalBinary(data []byte) error {
 	)
 
 	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
 	v.Major = uint16(c)
 
 	i += j
 	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
 	v.Minor = uint16(c)
 
 	i += j
 	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
 	v.Patch = uint16(c)
 
 	i += j
 	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+
 	i += j
 	if c > 0 {
+		if int(c) > len(data[i:]) {
+			return ErrDataSize
+		}
 		v.PreRelease = string(data[i : i+int(c)])
+	} else {
+		v.PreRelease = ""
 	}
 
 	i += int(c)
 	c, j = binary.Uvarint(data[i:])
+	if j <= 0 {
+		return ErrDataSize
+	}
+
 	i += j
 	if c > 0 {
+		if int(c) > len(data[i:]) {
+			return ErrDataSize
+		}
 		v.BuildMeta = string(data[i : i+int(c)])
+	} else {
+		v.BuildMeta = ""
 	}
 
 	return nil
