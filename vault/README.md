@@ -120,7 +120,7 @@ _ = got // got is a Payload struct after retrieval
 
 For Postgres/SQL, map “duplicate key” and “no row” from your driver to the sentinels above where practical.
 
-**Validate implementations** with [`vaulttest.Run`](./vaulttest/conformance.go): pass a factory that returns a fresh `Storage` per subtest.
+**Validate implementations** with [`vaulttest.Run`](./vaulttest/conformance.go): pass your [`Identifier`](#implementing-identifier) (ids are minted via [`Identifier.New`](./identifier.go)) and a factory that returns a fresh `Storage` per subtest.
 
 ---
 

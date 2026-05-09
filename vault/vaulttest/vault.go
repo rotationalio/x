@@ -19,9 +19,11 @@
 //	_ = st.Create(ctx, "n", "id1", []byte("blob"))
 //	b, err := st.Get(ctx, "n", "id1")
 //
-// Use [Run] to conformance-test any [vault.Storage] (fresh instance per subtest):
+// Use [Run] to conformance-test any [vault.Storage] (fresh instance per subtest).
+// Pass the same [vault.Identifier] you use with [vault.New] so minted ids match
+// validation:
 //
-//	vaulttest.Run(t, func(tb *testing.T) vault.Storage {
+//	vaulttest.Run(t, vaulttest.HexIdentifier{}, func(tb *testing.T) vault.Storage {
 //		tb.Helper()
 //		return NewMemStorage() // or your backend
 //	})
