@@ -4,7 +4,7 @@ an ephemeral X25519 exchange, HKDF-derived keys, a wrapped per-row data key, and
 payload. Construct a [Vault] with [New], passing your long-term X25519 private key, [storage.Storage], and
 [identifier.Identifier]. Namespace is chosen per operation on [Vault.Store], [Vault.Retrieve], and related
 methods; each sealed row binds the namespace you pass into authenticated metadata. Opening under a
-different namespace than the row was sealed for fails with [verrors.ErrNamespaceMismatch].
+different namespace than the row was sealed for fails with [v1errs.ErrNamespaceMismatch].
 
 The library does not register a process-wide singleton; keep the [Vault] returned from [New] for
 the lifetime of your wrapping key and storage wiring.
@@ -23,13 +23,15 @@ import (
 	"errors"
 	"io"
 
+	rtvault "go.rtnl.ai/x/vault"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/keys"
+	"go.rtnl.ai/x/vault/storage"
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	vaultgcm "go.rtnl.ai/x/vault/v1/gcm"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/keys"
 	"go.rtnl.ai/x/vault/v1/models"
-	"go.rtnl.ai/x/vault/v1/storage"
+	verrors "go.rtnl.ai/x/vault/errors"
 )
 
 //=============================================================================
@@ -57,11 +59,12 @@ type sealedVault struct {
 }
 
 var _ Vault = (*sealedVault)(nil)
+var _ rtvault.Vault = (*sealedVault)(nil)
 
 // New constructs a [Vault] for the v1 envelope suite from an X25519 private key.
 // Nil storage or identifier yields [verrors.ErrInvalidNewArgs]; a nil key yields [verrors.ErrNilPrivateKey];
 // a non-X25519 curve yields [verrors.ErrInvalidWrappingKey]. Building the metadata template from the key
-// can also fail (for instance [verrors.ErrMetaKeyIDTooLarge]) if the public key id exceeds wire limits.
+// can also fail (for instance [v1errs.ErrMetaKeyIDTooLarge]) if the public key id exceeds wire limits.
 func New(priv *ecdh.PrivateKey, st storage.Storage, id identifier.Identifier) (Vault, error) {
 	if st == nil || id == nil {
 		return nil, verrors.ErrInvalidNewArgs
@@ -110,7 +113,7 @@ func (v *sealedVault) Store(ctx context.Context, namespace string, plaintext []b
 // error. If [storage.Storage.Get] fails—often because the row is absent—the error is joined with
 // [verrors.ErrStorage] and typically chains [verrors.ErrNotFound]. After a blob is loaded, corrupt or mismatched
 // ciphertext surfaces as wire errors from this package or decrypt failures from package gcm
-// (see [gcm]), including [verrors.ErrNamespaceMismatch], without wrapping in [verrors.ErrStorage].
+// (see [gcm]), including [v1errs.ErrNamespaceMismatch], without wrapping in [verrors.ErrStorage].
 func (v *sealedVault) Retrieve(ctx context.Context, namespace, id string) (plaintext []byte, err error) {
 	// Validate that the receiver is non-nil.
 	if v == nil {
@@ -414,7 +417,7 @@ func (v *sealedVault) openCiphertext(requestedNS string, wire []byte) ([]byte, e
 
 	// Ensure that the namespace matches the one requested.
 	if msg.Meta.Namespace != requestedNS {
-		return nil, verrors.ErrNamespaceMismatch
+		return nil, v1errs.ErrNamespaceMismatch
 	}
 
 	// Marshal the row metadata for use as associated data.

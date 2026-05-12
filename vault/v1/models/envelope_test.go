@@ -5,7 +5,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/models"
 )
 
@@ -32,7 +32,7 @@ func TestDekEnvelope_roundtrip(t *testing.T) {
 // TestDekEnvelope_unmarshal_errors covers truncated wire and a nil [models.DekEnvelope] receiver.
 func TestDekEnvelope_unmarshal_errors(t *testing.T) {
 	var d models.DekEnvelope
-	assert.ErrorIs(t, d.UnmarshalBinary(make([]byte, constants.DekEnvelopeBytes-1)), verrors.ErrMalformedWire)
+	assert.ErrorIs(t, d.UnmarshalBinary(make([]byte, constants.DekEnvelopeBytes-1)), v1errs.ErrMalformedWire)
 	var p *models.DekEnvelope
-	assert.ErrorIs(t, p.UnmarshalBinary(make([]byte, constants.DekEnvelopeBytes)), verrors.ErrNilDekEnvelopePointer)
+	assert.ErrorIs(t, p.UnmarshalBinary(make([]byte, constants.DekEnvelopeBytes)), v1errs.ErrNilDekEnvelopePointer)
 }

@@ -8,7 +8,7 @@ live in identifier.go.
 */
 package vaulttest
 
-// Plaintext [TestVault] stores bytes through [storage.Storage] with no envelope crypto, implementing [v1.Vault].
+// Plaintext [TestVault] stores bytes through [storage.Storage] with no envelope crypto, implementing [rtvault.Vault].
 
 import (
 	"bytes"
@@ -16,21 +16,21 @@ import (
 	"errors"
 	"testing"
 
-	v1 "go.rtnl.ai/x/vault/v1"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/storage"
+	rtvault "go.rtnl.ai/x/vault"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/storage"
+	verrors "go.rtnl.ai/x/vault/errors"
 )
 
-// TestVault stores plaintext through [storage.Storage] using [identifier.Identifier]; it implements [v1.Vault]
-// for tests and as the inner [v1.Vault] for stringvault and jsonvault wrappers.
+// TestVault stores plaintext through [storage.Storage] using [identifier.Identifier]; it implements [rtvault.Vault]
+// for tests and as the inner [rtvault.Vault] for stringvault and jsonvault wrappers.
 type TestVault struct {
 	St storage.Storage
 	Id identifier.Identifier
 }
 
-// TestVault implements [v1.Vault].
-var _ v1.Vault = (*TestVault)(nil)
+// TestVault implements [rtvault.Vault].
+var _ rtvault.Vault = (*TestVault)(nil)
 
 // NewTestVault returns a plaintext-through-storage vault for tests.
 func NewTestVault(tb testing.TB, st storage.Storage, id identifier.Identifier) *TestVault {
@@ -120,7 +120,7 @@ func (tv *TestVault) MoveNamespace(ctx context.Context, fromNamespace, toNamespa
 		return err
 	}
 
-	// Delete source only after destination row exists (same ordering as [v1.Vault.MoveNamespace]).
+	// Delete source only after destination row exists (same ordering as [go.rtnl.ai/x/vault/v1.Vault.MoveNamespace]).
 	if err := tv.St.Delete(ctx, fromNamespace, id); err != nil {
 		return errors.Join(verrors.ErrMoveNamespaceIncomplete, verrors.ErrStorage, err)
 	}

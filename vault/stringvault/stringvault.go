@@ -1,34 +1,34 @@
 /*
-Package stringvault wraps [v1.Vault] with a string-shaped API: plaintext is
-UTF-8 text ([Store], [Retrieve], [Update], [CompareAndSwap]); bytes on the wire remain opaque to your storage implementation via the embedded [v1.Vault].
+Package stringvault wraps [rtvault.Vault] with a string-shaped API: plaintext is
+UTF-8 text ([Store], [Retrieve], [Update], [CompareAndSwap]); bytes on the wire remain opaque to your storage implementation via the embedded [rtvault.Vault].
 */
 package stringvault
 
-// UTF-8 string payloads on top of [v1.Vault]; invalid UTF-8 returns [verrors.ErrInvalidUTF8].
+// UTF-8 string payloads on top of [rtvault.Vault]; invalid UTF-8 returns [verrors.ErrInvalidUTF8].
 
 import (
 	"context"
 	"unicode/utf8"
 
-	v1 "go.rtnl.ai/x/vault/v1"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	rtvault "go.rtnl.ai/x/vault"
+	verrors "go.rtnl.ai/x/vault/errors"
 )
 
-// Vault embeds a [v1.Vault] and enforces UTF-8 on string plaintext at this API boundary.
+// Vault embeds a [rtvault.Vault] and enforces UTF-8 on string plaintext at this API boundary.
 // [MoveNamespace] and [Delete] are promoted from the embedded vault.
 type Vault struct {
-	v1.Vault
+	rtvault.Vault
 }
 
-// New wraps a non-nil [v1.Vault] (for example from [v1.New]).
-func New(v v1.Vault) *Vault {
+// New wraps a non-nil [rtvault.Vault] (for example from [go.rtnl.ai/x/vault/v1.New]).
+func New(v rtvault.Vault) *Vault {
 	if v == nil {
 		panic("stringvault: New(nil)")
 	}
 	return &Vault{Vault: v}
 }
 
-// Store rejects non-UTF-8 strings, then delegates to the inner [v1.Vault.Store].
+// Store rejects non-UTF-8 strings, then delegates to the inner [rtvault.Vault.Store].
 func (w *Vault) Store(ctx context.Context, namespace string, plaintext string) (string, error) {
 	if !utf8.ValidString(plaintext) {
 		return "", verrors.ErrInvalidUTF8
@@ -36,7 +36,7 @@ func (w *Vault) Store(ctx context.Context, namespace string, plaintext string) (
 	return w.Vault.Store(ctx, namespace, []byte(plaintext))
 }
 
-// Retrieve delegates to the inner [v1.Vault.Retrieve] and returns UTF-8 text, or [verrors.ErrInvalidUTF8]
+// Retrieve delegates to the inner [rtvault.Vault.Retrieve] and returns UTF-8 text, or [verrors.ErrInvalidUTF8]
 // if the decrypted bytes are not valid UTF-8.
 func (w *Vault) Retrieve(ctx context.Context, namespace, id string) (string, error) {
 	b, err := w.Vault.Retrieve(ctx, namespace, id)
@@ -49,7 +49,7 @@ func (w *Vault) Retrieve(ctx context.Context, namespace, id string) (string, err
 	return string(b), nil
 }
 
-// Update rejects non-UTF-8 strings, then delegates to the inner [v1.Vault.Update].
+// Update rejects non-UTF-8 strings, then delegates to the inner [rtvault.Vault.Update].
 func (w *Vault) Update(ctx context.Context, namespace, id string, plaintext string) error {
 	if !utf8.ValidString(plaintext) {
 		return verrors.ErrInvalidUTF8

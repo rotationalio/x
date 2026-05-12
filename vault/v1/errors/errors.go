@@ -1,80 +1,8 @@
-// Package errors defines stable sentinel errors for vault v1, [models], [gcm],
-// [suite], and [keys]. Use [errors.Is] against these variables for classification.
+// Package errors defines stable sentinel errors for vault v1 wire decoding, [models], and [suite].
+// Operational errors shared across versions live in [go.rtnl.ai/x/vault/errors]. Classify with the standard library errors.Is.
 package errors
 
 import stderrors "errors"
-
-//=============================================================================
-// Vault construction and receiver
-//=============================================================================
-
-var (
-	// ErrNilPrivateKey means the private key is nil or missing where one is required.
-	ErrNilPrivateKey = stderrors.New("vault/v1: PrivateKey is required")
-
-	// ErrInvalidWrappingKey means the long-term key is not usable with this module (for example, not X25519).
-	ErrInvalidWrappingKey = stderrors.New("vault/v1: wrapping key not supported")
-
-	// ErrInvalidNewArgs means [v1.New] was called without required dependencies (storage or identifier).
-	ErrInvalidNewArgs = stderrors.New("vault/v1: storage and identifier are required")
-
-	// ErrNilVault means a method was called on a nil [v1.Vault] receiver (including a nil *vaulttest.TestVault).
-	ErrNilVault = stderrors.New("vault/v1: vault is nil")
-)
-
-//=============================================================================
-// Cryptography (inner / wrap AEAD and helpers)
-//=============================================================================
-
-var (
-	// ErrInvalidAEADKey means key material was rejected for AES-GCM construction (wrong length or cipher failure).
-	ErrInvalidAEADKey = stderrors.New("vault/v1: invalid AEAD key material")
-
-	// ErrCiphertextTooShort means input bytes are shorter than required for the nonce prefix or ciphertext layout.
-	ErrCiphertextTooShort = stderrors.New("vault/v1: ciphertext too short")
-
-	// ErrDecrypt means decryption or GCM authentication failed (wrong AAD, corrupt ciphertext, wrong key, etc.).
-	ErrDecrypt = stderrors.New("vault/v1: decrypt failed")
-
-	// ErrSealFailed means sealing failed, for example when reading random bytes for a nonce.
-	ErrSealFailed = stderrors.New("vault/v1: seal failed")
-
-	// ErrNilAEAD means a crypto helper received a nil AEAD implementation.
-	ErrNilAEAD = stderrors.New("vault/v1: nil AEAD")
-
-	// ErrMalformedParameters means a gcm helper received invalid lengths, nonce size, or AEAD output layout.
-	ErrMalformedParameters = stderrors.New("vault/v1: malformed parameters")
-)
-
-//=============================================================================
-// Identifiers and storage
-//=============================================================================
-
-var (
-	// ErrInvalidHexID means the string is not a valid 32-character hex encoding of 16 bytes for hex row ids.
-	ErrInvalidHexID = stderrors.New("vault/v1: invalid hex identifier")
-
-	// ErrInvalidIdentifier means the identifier implementation rejected the id (format or policy).
-	ErrInvalidIdentifier = stderrors.New("vault/v1: invalid identifier")
-
-	// ErrDuplicateKey means a storage create or write conflicted with an existing row id in that namespace.
-	ErrDuplicateKey = stderrors.New("vault/v1: duplicate key")
-
-	// ErrNotFound means no sealed row exists for the requested namespace and id.
-	ErrNotFound = stderrors.New("vault/v1: secret not found")
-
-	// ErrCASFailed means [v1.Vault.CompareAndSwap] lost the race: stored plaintext did not match currentPlain.
-	ErrCASFailed = stderrors.New("vault/v1: secret was modified concurrently; compare-and-swap lost")
-
-	// ErrMoveNamespaceIncomplete means [v1.Vault.MoveNamespace] could not finish moving every matching row.
-	ErrMoveNamespaceIncomplete = stderrors.New("vault/v1: namespace relocation incomplete")
-
-	// ErrStorage means the underlying [storage.Storage] implementation returned a failure unrelated to vault logic.
-	ErrStorage = stderrors.New("vault/v1: storage operation failed")
-
-	// ErrWrongCurrent means [v1.Vault.CompareAndSwap] failed because stored plaintext did not equal expected currentPlain.
-	ErrWrongCurrent = stderrors.New("vault/v1: stored secret does not match expected plaintext")
-)
 
 //=============================================================================
 // Wire metadata, framing, and suite metadata on rows
@@ -137,46 +65,4 @@ var (
 
 	// ErrInvalidSuiteInput means the argument type is not supported for [suite.Parse].
 	ErrInvalidSuiteInput = stderrors.New("vault/v1/suite: invalid input type")
-)
-
-//=============================================================================
-// Keys ([keys])
-//=============================================================================
-
-var (
-	// ErrInvalidOut means the output buffer length is not valid for the requested operation.
-	ErrInvalidOut = stderrors.New("vault/v1/keys: invalid output length")
-
-	// ErrInvalidSeed means the seed length is not valid for [keys.FromSeed].
-	ErrInvalidSeed = stderrors.New("vault/v1/keys: invalid seed")
-
-	// ErrInvalidSalt means the salt length is not valid for [keys.Derive].
-	ErrInvalidSalt = stderrors.New("vault/v1/keys: invalid salt")
-
-	// ErrNilPassword means [keys.Derive] received a nil password slice.
-	ErrNilPassword = stderrors.New("vault/v1/keys: nil password")
-
-	// ErrRandSalt means reading random bytes for a new salt failed.
-	ErrRandSalt = stderrors.New("vault/v1/keys: failed to read random salt")
-)
-
-//=============================================================================
-// JSON and UTF-8 wrappers ([jsonvault], [stringvault])
-//=============================================================================
-
-var (
-	// ErrJSONMarshal means JSON encoding of a store payload failed before encryption.
-	ErrJSONMarshal = stderrors.New("vault/v1: json marshal failed")
-
-	// ErrNilRetrieveDst means [jsonvault.Vault.Retrieve] was called with a nil dst (see [encoding/json.Unmarshal] for valid dst shapes).
-	ErrNilRetrieveDst = stderrors.New("vault/v1: json retrieve destination is nil")
-
-	// ErrJSONUnmarshal means JSON decoding of decrypted bytes into the retrieve destination failed.
-	ErrJSONUnmarshal = stderrors.New("vault/v1: json unmarshal failed")
-
-	// ErrInvalidJSON means decrypted plaintext is non-empty and not valid JSON per [encoding/json.Valid].
-	ErrInvalidJSON = stderrors.New("vault/v1: json plaintext is not valid JSON")
-
-	// ErrInvalidUTF8 means a string payload is not valid UTF-8 (store input or decrypted bytes).
-	ErrInvalidUTF8 = stderrors.New("vault/v1: plain text is not valid UTF-8")
 )

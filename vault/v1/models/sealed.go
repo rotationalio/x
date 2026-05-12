@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 )
 
 // sealedPreambleBytes is the fixed header before variable-length meta: magic(4) + formatVersion(1) + lenMeta u16 BE(2).
@@ -29,7 +29,7 @@ func (s Sealed) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	if len(metaRaw) > constants.MaxMetaWireBytes {
-		return nil, verrors.ErrMalformedWire
+		return nil, v1errs.ErrMalformedWire
 	}
 	dekRaw, err := s.Dek.MarshalBinary()
 	if err != nil {
@@ -56,27 +56,27 @@ func (s Sealed) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary parses magic, dual version checks, framed meta, Dek, Body.
 func (s *Sealed) UnmarshalBinary(data []byte) error {
 	if s == nil {
-		return verrors.ErrNilSealedPointer
+		return v1errs.ErrNilSealedPointer
 	}
 	if len(data) < sealedPreambleBytes {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 
 	// Magic is ASCII so we compare as bytes without accepting odd UTF-8 interpretations.
 	if string(data[0:4]) != constants.Magic {
-		return verrors.ErrBadMagic
+		return v1errs.ErrBadMagic
 	}
 	s.FormatVersion = data[4]
 	lenMeta := int(binary.BigEndian.Uint16(data[5:7]))
 
 	// lenMeta must cover at least a minimal valid Meta and stay within the decoder's worst-case bound.
 	if lenMeta < 4 || lenMeta > constants.MaxMetaWireBytes {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 
 	// Ensure the slice is long enough for preamble + meta + fixed DekEnvelope + minimal inner (nonce + tag).
 	if len(data) < sealedPreambleBytes+lenMeta+constants.DekEnvelopeBytes+constants.InnerNonceBytes+constants.GCMTagBytes {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	off := sealedPreambleBytes
 	metaSlice := data[off : off+lenMeta]
@@ -87,10 +87,10 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 
 	// Outer row format byte must match the metadata block's package version (defends against spliced blobs).
 	if s.FormatVersion != s.Meta.PackageVersion {
-		return verrors.ErrVersionMismatch
+		return v1errs.ErrVersionMismatch
 	}
 	if s.FormatVersion != constants.PackageVersion {
-		return verrors.ErrUnsupportedVersion
+		return v1errs.ErrUnsupportedVersion
 	}
 
 	// DekEnvelope is fixed width for v1 suite; no length prefix between meta and inner.

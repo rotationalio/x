@@ -1,12 +1,12 @@
 /*
-Package jsonvault wraps [v1.Vault], exposing the same operation names with JSON instead of raw bytes:
+Package jsonvault wraps [rtvault.Vault], exposing the same operation names with JSON instead of raw bytes:
 [Store] and [Update] take [any] and marshal with [encoding/json];
 [Retrieve] unmarshals into dst; [CompareAndSwap] takes expected current and new JSON as []byte (validated with [encoding/json.Valid] when non-empty) and delegates to the embedded vault. Rows remain opaque ciphertext in the storage backend; the
-embedded [v1.Vault] is also available as the struct field Vault (e.g. [v1.Vault.Update] with raw bytes in tests).
+embedded [rtvault.Vault] is also available as the struct field Vault (e.g. calling [rtvault.Vault.Update] with raw bytes in tests).
 */
 package jsonvault
 
-// JSON-encoded payloads on top of [v1.Vault] using encoding/json.
+// JSON-encoded payloads on top of [rtvault.Vault] using encoding/json.
 
 import (
 	"bytes"
@@ -14,26 +14,26 @@ import (
 	"encoding/json"
 	"errors"
 
-	v1 "go.rtnl.ai/x/vault/v1"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	rtvault "go.rtnl.ai/x/vault"
+	verrors "go.rtnl.ai/x/vault/errors"
 )
 
-// Vault embeds a [v1.Vault] and exposes the same operation names as [v1.Vault], using JSON
+// Vault embeds a [rtvault.Vault] and exposes the same operation names, using JSON
 // ([any] for store/update; [CompareAndSwap] for compare-and-swap on JSON bytes) instead of opaque plaintext bytes.
 // [MoveNamespace] and [Delete] are promoted from the embedded vault.
 type Vault struct {
-	v1.Vault
+	rtvault.Vault
 }
 
-// New wraps a non-nil [v1.Vault] (for example from [v1.New]).
-func New(v v1.Vault) *Vault {
+// New wraps a non-nil [rtvault.Vault] (for example from [go.rtnl.ai/x/vault/v1.New]).
+func New(v rtvault.Vault) *Vault {
 	if v == nil {
 		panic("jsonvault: New(nil)")
 	}
 	return &Vault{Vault: v}
 }
 
-// Store marshals value with [json.Marshal] and stores the result via the inner [v1.Vault.Store].
+// Store marshals value with [json.Marshal] and stores the result via the inner [rtvault.Vault.Store].
 func (w *Vault) Store(ctx context.Context, namespace string, value any) (string, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -42,7 +42,7 @@ func (w *Vault) Store(ctx context.Context, namespace string, value any) (string,
 	return w.Vault.Store(ctx, namespace, b)
 }
 
-// Update marshals newValue and updates the row via the inner [v1.Vault.Update].
+// Update marshals newValue and updates the row via the inner [rtvault.Vault.Update].
 func (w *Vault) Update(ctx context.Context, namespace, id string, newValue any) error {
 	b, err := json.Marshal(newValue)
 	if err != nil {

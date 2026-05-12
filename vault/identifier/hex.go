@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	verrors "go.rtnl.ai/x/vault/errors"
 )
 
 // HexIdentifier implements [Identifier] using 16-byte random ids encoded as hex (32 chars).

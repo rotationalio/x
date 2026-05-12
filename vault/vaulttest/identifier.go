@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/identifier"
+	"go.rtnl.ai/x/vault/identifier"
 )
 
 // DefaultIdentifierDistinctSamples is the sample count used by [IdentifierConforms] for the

@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/storage"
+	verrors "go.rtnl.ai/x/vault/errors"
 	v1 "go.rtnl.ai/x/vault/v1"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/models"
-	"go.rtnl.ai/x/vault/v1/storage"
 )
 
 //=============================================================================
@@ -75,7 +76,7 @@ func TestVault_envelope_store_retrieve(t *testing.T) {
 }
 
 // TestVault_envelope_wrong_namespace ensures ciphertext copied to another namespace key
-// fails open with [verrors.ErrNamespaceMismatch].
+// fails open with [v1errs.ErrNamespaceMismatch].
 func TestVault_envelope_wrong_namespace(t *testing.T) {
 	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
 	assert.Ok(t, err)
@@ -93,7 +94,7 @@ func TestVault_envelope_wrong_namespace(t *testing.T) {
 	assert.Ok(t, st.Create(ctx, "ns2", id, blob))
 
 	_, err = v.Retrieve(ctx, "ns2", id)
-	assert.ErrorIs(t, err, verrors.ErrNamespaceMismatch)
+	assert.ErrorIs(t, err, v1errs.ErrNamespaceMismatch)
 }
 
 // TestVault_Store_sealEntropyFailure verifies [v1.Vault.Store] maps [crypto/rand.Reader] failures
@@ -242,7 +243,7 @@ func TestVault_Retrieve(t *testing.T) {
 		assert.Ok(t, st.Create(ctx, "ns-other", id, blob))
 		_, err = v.Retrieve(ctx, "ns-other", id)
 		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrNamespaceMismatch)
+		assert.ErrorIs(t, err, v1errs.ErrNamespaceMismatch)
 	})
 
 	t.Run("missing_row", func(t *testing.T) {

@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/storage"
-	"go.rtnl.ai/x/vault/v1/stringvault"
-	"go.rtnl.ai/x/vault/v1/vaulttest"
+	verrors "go.rtnl.ai/x/vault/errors"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/storage"
+	"go.rtnl.ai/x/vault/stringvault"
+	"go.rtnl.ai/x/vault/vaulttest"
 )
 
 // TestStringVault_roundtrip checks [stringvault.Vault.Store] and [stringvault.Vault.Retrieve] preserve a UTF-8 string.

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/suite"
 )
 
@@ -26,11 +26,11 @@ func TestSuite_wireRoundTrip(t *testing.T) {
 // TestSuite_UnmarshalBinary_rejectsBadInput covers nil receiver and non-single-byte wire (what Meta parsing relies on).
 func TestSuite_UnmarshalBinary_rejectsBadInput(t *testing.T) {
 	var p *suite.ID
-	assert.ErrorIs(t, p.UnmarshalBinary([]byte{1}), verrors.ErrNilSuiteID)
+	assert.ErrorIs(t, p.UnmarshalBinary([]byte{1}), v1errs.ErrNilSuiteID)
 
 	var id suite.ID
-	assert.ErrorIs(t, id.UnmarshalBinary(nil), verrors.ErrInvalidSuiteWire)
-	assert.ErrorIs(t, id.UnmarshalBinary([]byte{1, 2}), verrors.ErrInvalidSuiteWire)
+	assert.ErrorIs(t, id.UnmarshalBinary(nil), v1errs.ErrInvalidSuiteWire)
+	assert.ErrorIs(t, id.UnmarshalBinary([]byte{1, 2}), v1errs.ErrInvalidSuiteWire)
 }
 
 // TestSuite_Parse exercises the coercion paths that actually show up at API boundaries (config / wire decode helpers).
@@ -69,32 +69,32 @@ func TestSuite_Parse(t *testing.T) {
 		{
 			name:    "unknown_name",
 			in:      "totally_unknown_suite",
-			wantErr: verrors.ErrUnknownSuiteName,
+			wantErr: v1errs.ErrUnknownSuiteName,
 		},
 		{
 			name:    "decimal_string_out_of_uint8",
 			in:      "256",
-			wantErr: verrors.ErrUnknownSuiteName,
+			wantErr: v1errs.ErrUnknownSuiteName,
 		},
 		{
 			name:    "int_out_of_range",
 			in:      256,
-			wantErr: verrors.ErrInvalidSuiteValue,
+			wantErr: v1errs.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "int64_out_of_range",
 			in:      int64(256),
-			wantErr: verrors.ErrInvalidSuiteValue,
+			wantErr: v1errs.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "negative_int",
 			in:      -1,
-			wantErr: verrors.ErrInvalidSuiteValue,
+			wantErr: v1errs.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "wrong_go_type",
 			in:      struct{}{},
-			wantErr: verrors.ErrInvalidSuiteInput,
+			wantErr: v1errs.ErrInvalidSuiteInput,
 		},
 	}
 	for _, tc := range cases {

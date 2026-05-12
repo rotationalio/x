@@ -2,7 +2,7 @@ package models
 
 import (
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 )
 
 // Inner is nonce plus inner ciphertext+tag. GCM additional data is the marshaled row [Meta]
@@ -24,12 +24,12 @@ func (i Inner) MarshalBinary() ([]byte, error) {
 func (i *Inner) UnmarshalBinary(data []byte) error {
 	// Check if the receiver is nil.
 	if i == nil {
-		return verrors.ErrNilInnerPointer
+		return v1errs.ErrNilInnerPointer
 	}
 
 	// Minimum wire is 12-byte nonce plus a GCM tag (empty plaintext still produces ciphertext length 0 + tag).
 	if len(data) < constants.InnerNonceBytes+constants.GCMTagBytes {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 
 	// Split fixed prefix (nonce) from tail (everything the inner AEAD produced).

@@ -6,8 +6,9 @@ import (
 	"crypto/ecdh"
 
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/suite"
+	"go.rtnl.ai/x/vault/errors"
 )
 
 // Meta is authenticated metadata carried on the wire; trust fields only after AEAD verify.
@@ -38,10 +39,10 @@ func (m Meta) MarshalBinary() ([]byte, error) {
 		return nil, err
 	}
 	if m.PackageVersion != constants.PackageVersion {
-		return nil, verrors.ErrUnsupportedVersion
+		return nil, v1errs.ErrUnsupportedVersion
 	}
 	if !m.SuiteID.Valid() {
-		return nil, verrors.ErrUnknownSuite
+		return nil, v1errs.ErrUnknownSuite
 	}
 	ns := []byte(m.Namespace)
 
@@ -60,49 +61,49 @@ func (m Meta) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes Meta; rejects trailing bytes and invalid wire.
 func (m *Meta) UnmarshalBinary(data []byte) error {
 	if m == nil {
-		return verrors.ErrNilMetaPointer
+		return v1errs.ErrNilMetaPointer
 	}
 
 	// Need at least: version, suite, keyLen, nsLen — four bytes before any variable payload.
 	if len(data) < 4 {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	off := 0
 	m.PackageVersion = data[off]
 	off++
 	if m.PackageVersion != constants.PackageVersion {
-		return verrors.ErrUnsupportedVersion
+		return v1errs.ErrUnsupportedVersion
 	}
 	m.SuiteID = suite.ID(data[off])
 	off++
 	if !m.SuiteID.Valid() {
-		return verrors.ErrUnknownSuite
+		return v1errs.ErrUnknownSuite
 	}
 
 	// Read KeyID with explicit bounds so a corrupt length cannot read past the buffer end.
 	lk := int(data[off])
 	off++
 	if lk > constants.MaxKeyIDBytes || off+lk > len(data) {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	m.KeyID = append([]byte(nil), data[off:off+lk]...)
 	off += lk
 
 	// After KeyID we must still have the namespace length byte.
 	if off >= len(data) {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	ln := int(data[off])
 	off++
 	if ln > constants.MaxNamespaceBytes || off+ln > len(data) {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	m.Namespace = string(data[off : off+ln])
 	off += ln
 
 	// Trailing bytes would mean the encoder and decoder disagree on layout; reject rather than ignore.
 	if off != len(data) {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	return nil
 }
@@ -110,10 +111,10 @@ func (m *Meta) UnmarshalBinary(data []byte) error {
 // validateMetaCaps checks KeyID and Namespace are within their byte-length caps.
 func validateMetaCaps(m Meta) error {
 	if len(m.KeyID) > constants.MaxKeyIDBytes {
-		return verrors.ErrMetaKeyIDTooLarge
+		return v1errs.ErrMetaKeyIDTooLarge
 	}
 	if len([]byte(m.Namespace)) > constants.MaxNamespaceBytes {
-		return verrors.ErrMetaNamespaceTooLarge
+		return v1errs.ErrMetaNamespaceTooLarge
 	}
 	return nil
 }
@@ -122,18 +123,18 @@ func validateMetaCaps(m Meta) error {
 // each Store/Update seals the per-call namespace into row metadata.
 func MetaFromPrivKey(priv *ecdh.PrivateKey) (Meta, error) {
 	if priv == nil {
-		return Meta{}, verrors.ErrNilPrivateKey
+		return Meta{}, errors.ErrNilPrivateKey
 	}
 
 	// v1 envelope is defined only for X25519 long-term keys; other curves cannot derive the same suite semantics.
 	if priv.Curve() != ecdh.X25519() {
-		return Meta{}, verrors.ErrInvalidWrappingKey
+		return Meta{}, errors.ErrInvalidWrappingKey
 	}
 	kid := priv.PublicKey().Bytes()
 
 	// Wire caps: if the public encoding ever exceeded MaxKeyIDBytes, we could not store this key id on the row.
 	if len(kid) > constants.MaxKeyIDBytes {
-		return Meta{}, verrors.ErrMetaKeyIDTooLarge
+		return Meta{}, v1errs.ErrMetaKeyIDTooLarge
 	}
 	m := Meta{
 		PackageVersion: constants.PackageVersion,

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/keys"
+	verrors "go.rtnl.ai/x/vault/errors"
+	"go.rtnl.ai/x/vault/keys"
 )
 
 // TestDerive_rejectsNilPassword ensures a nil password slice returns before Argon2.

@@ -6,7 +6,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/models"
 )
 
@@ -24,8 +24,8 @@ func TestInner_roundtrip(t *testing.T) {
 	assert.Equal(t, in.Payload, got.Payload)
 }
 
-// TestInner_unmarshal_nil_receiver asserts [*models.Inner.UnmarshalBinary] on a nil receiver returns [verrors.ErrNilInnerPointer].
+// TestInner_unmarshal_nil_receiver asserts [*models.Inner.UnmarshalBinary] on a nil receiver returns [v1errs.ErrNilInnerPointer].
 func TestInner_unmarshal_nil_receiver(t *testing.T) {
 	var p *models.Inner
-	assert.ErrorIs(t, p.UnmarshalBinary(nil), verrors.ErrNilInnerPointer)
+	assert.ErrorIs(t, p.UnmarshalBinary(nil), v1errs.ErrNilInnerPointer)
 }

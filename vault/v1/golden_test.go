@@ -15,12 +15,12 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/storage"
+	verrors "go.rtnl.ai/x/vault/errors"
 	v1 "go.rtnl.ai/x/vault/v1"
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
 	"go.rtnl.ai/x/vault/v1/models"
-	"go.rtnl.ai/x/vault/v1/storage"
 )
 
 // Long-term X25519 private key bytes that produced goldenSealedV1Hex (32-byte scalar encoding).

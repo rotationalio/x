@@ -17,9 +17,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/storage"
+	verrors "go.rtnl.ai/x/vault/errors"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/storage"
 )
 
 // CheckStorageCreateGetRoundtrip verifies Create then Get returns the same ciphertext.

@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/jsonvault"
-	"go.rtnl.ai/x/vault/v1/storage"
-	"go.rtnl.ai/x/vault/v1/vaulttest"
+	verrors "go.rtnl.ai/x/vault/errors"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/jsonvault"
+	"go.rtnl.ai/x/vault/storage"
+	"go.rtnl.ai/x/vault/vaulttest"
 )
 
 // TestJSONVault_roundtrip ensures Store and Retrieve round-trip JSON through the vault.

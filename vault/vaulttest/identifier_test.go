@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	_ "go.rtnl.ai/x/vault/v1"
-	"go.rtnl.ai/x/vault/v1/identifier"
-	"go.rtnl.ai/x/vault/v1/vaulttest"
+	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/vault/vaulttest"
 )
 
 //=============================================================================

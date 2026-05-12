@@ -2,7 +2,7 @@ package models
 
 import (
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 )
 
 // DekEnvelope is the ECDH/HKDF/AEAD-wrapped per-row DEK (fixed 92 bytes for the initial v1 suite).
@@ -24,10 +24,10 @@ func (d DekEnvelope) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes DekEnvelope; v1 requires exactly [constants.DekEnvelopeBytes].
 func (d *DekEnvelope) UnmarshalBinary(data []byte) error {
 	if d == nil {
-		return verrors.ErrNilDekEnvelopePointer
+		return v1errs.ErrNilDekEnvelopePointer
 	}
 	if len(data) != constants.DekEnvelopeBytes {
-		return verrors.ErrMalformedWire
+		return v1errs.ErrMalformedWire
 	}
 	copy(d.Pub[:], data[:constants.X25519PubBytes])
 	copy(d.Nonce[:], data[constants.X25519PubBytes:constants.X25519PubBytes+constants.WrapNonceBytes])

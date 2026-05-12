@@ -11,7 +11,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	verrors "go.rtnl.ai/x/vault/errors"
 	"go.rtnl.ai/x/vault/v1/gcm"
 )
 

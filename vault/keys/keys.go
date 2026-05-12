@@ -20,7 +20,7 @@ import (
 	"crypto/rand"
 	"io"
 
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	verrors "go.rtnl.ai/x/vault/errors"
 	"golang.org/x/crypto/argon2"
 )
 

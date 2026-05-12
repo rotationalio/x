@@ -6,7 +6,7 @@ package suite
 import (
 	"strconv"
 
-	verrors "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/vault/v1/errors"
 )
 
 // ID selects the full crypto recipe (wrap + KDF context + inner AEAD).
@@ -50,12 +50,12 @@ func Parse(v any) (ID, error) {
 		return ID(t), nil
 	case int:
 		if t < 0 || t > 255 {
-			return Unknown, verrors.ErrInvalidSuiteValue
+			return Unknown, v1errs.ErrInvalidSuiteValue
 		}
 		return ID(t), nil
 	case int64:
 		if t < 0 || t > 255 {
-			return Unknown, verrors.ErrInvalidSuiteValue
+			return Unknown, v1errs.ErrInvalidSuiteValue
 		}
 		return ID(t), nil
 	case string:
@@ -66,11 +66,11 @@ func Parse(v any) (ID, error) {
 		}
 		n, err := strconv.ParseUint(t, 10, 8)
 		if err != nil {
-			return Unknown, verrors.ErrUnknownSuiteName
+			return Unknown, v1errs.ErrUnknownSuiteName
 		}
 		return ID(n), nil
 	default:
-		return Unknown, verrors.ErrInvalidSuiteInput
+		return Unknown, v1errs.ErrInvalidSuiteInput
 	}
 }
 
@@ -82,10 +82,10 @@ func (id ID) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary decodes a single-byte suite selector.
 func (id *ID) UnmarshalBinary(data []byte) error {
 	if id == nil {
-		return verrors.ErrNilSuiteID
+		return v1errs.ErrNilSuiteID
 	}
 	if len(data) != 1 {
-		return verrors.ErrInvalidSuiteWire
+		return v1errs.ErrInvalidSuiteWire
 	}
 	*id = ID(data[0])
 	return nil
