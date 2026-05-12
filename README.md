@@ -35,7 +35,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
-- [vault](https://go.rtnl.ai/x/vault): AES-256-GCM secret storage with pluggable persistence backends.
+- [vault](https://go.rtnl.ai/x/vault): encrypted secret storage with pluggable persistence backends.
 - [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
 
 ## Development
