@@ -78,6 +78,16 @@ func Ok(tb testing.TB, err error, msgAndArgs ...any) {
 	}
 }
 
+// Error fails the test if err is nil (the caller expected a non-nil error).
+func Error(tb testing.TB, err error, msgAndArgs ...any) {
+	tb.Helper()
+	if err == nil {
+		tb.Logf("\nexpected error but got nil\n")
+		makeLogf(tb, msgAndArgs...)
+		tb.FailNow()
+	}
+}
+
 // Equal fails the test if exp (expected) is not equal to act (actual).
 func Equal(tb testing.TB, exp, act any, msgAndArgs ...any) {
 	tb.Helper()

@@ -6,7 +6,7 @@
 
 To get these packages into your project, it's as easy as:
 
-    $ go get go.rtnl.ai/x/[pkg]
+    go get go.rtnl.ai/x/[pkg]
 
 Where `[pkg]` is the name of the package you want to use in your project. Note that the go modules are at the top level of the toolkit, so please specify the latest version of the `x` package that has the tools that you need.
 
@@ -35,6 +35,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
+- [vault](https://go.rtnl.ai/x/vault): encrypted secret storage with pluggable persistence backends.
 - [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
 
 ## Development
