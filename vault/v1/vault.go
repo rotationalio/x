@@ -24,7 +24,6 @@ import (
 	"io"
 
 	"go.rtnl.ai/x/vault"
-	rtvault "go.rtnl.ai/x/vault"
 	verrors "go.rtnl.ai/x/vault/errors"
 	"go.rtnl.ai/x/vault/identifier"
 	"go.rtnl.ai/x/vault/keys"
@@ -47,8 +46,8 @@ type sealedVault struct {
 	id       identifier.Identifier
 }
 
+// Ensure sealedVault implements [vault.Vault].
 var _ vault.Vault = (*sealedVault)(nil)
-var _ rtvault.Vault = (*sealedVault)(nil)
 
 // New constructs a [Vault] for the v1 envelope suite from an X25519 private key.
 // Nil storage or identifier yields [verrors.ErrInvalidNewArgs]; a nil key yields [verrors.ErrNilPrivateKey];
