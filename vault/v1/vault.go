@@ -23,7 +23,9 @@ import (
 	"errors"
 	"io"
 
+	"go.rtnl.ai/x/vault"
 	rtvault "go.rtnl.ai/x/vault"
+	verrors "go.rtnl.ai/x/vault/errors"
 	"go.rtnl.ai/x/vault/identifier"
 	"go.rtnl.ai/x/vault/keys"
 	"go.rtnl.ai/x/vault/storage"
@@ -31,24 +33,11 @@ import (
 	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	vaultgcm "go.rtnl.ai/x/vault/v1/gcm"
 	"go.rtnl.ai/x/vault/v1/models"
-	verrors "go.rtnl.ai/x/vault/errors"
 )
 
 //=============================================================================
 // Vault
 //=============================================================================
-
-// Vault is the contract for v1 row operations (seal, open, compare-and-swap,
-// move, delete). [New] returns an envelope-backed implementation; package
-// vaulttest offers TestVault, a plaintext double for tests.
-type Vault interface {
-	Store(ctx context.Context, namespace string, plaintext []byte) (id string, err error)
-	Retrieve(ctx context.Context, namespace, id string) (plaintext []byte, err error)
-	Update(ctx context.Context, namespace, id string, plaintext []byte) error
-	CompareAndSwap(ctx context.Context, namespace, id string, currentPlain, newPlain []byte) error
-	MoveNamespace(ctx context.Context, oldNamespace, newNamespace, id string) error
-	Delete(ctx context.Context, namespace, id string) error
-}
 
 // sealedVault implements [Vault] using an X25519 private key.
 type sealedVault struct {
@@ -58,14 +47,14 @@ type sealedVault struct {
 	id       identifier.Identifier
 }
 
-var _ Vault = (*sealedVault)(nil)
+var _ vault.Vault = (*sealedVault)(nil)
 var _ rtvault.Vault = (*sealedVault)(nil)
 
 // New constructs a [Vault] for the v1 envelope suite from an X25519 private key.
 // Nil storage or identifier yields [verrors.ErrInvalidNewArgs]; a nil key yields [verrors.ErrNilPrivateKey];
 // a non-X25519 curve yields [verrors.ErrInvalidWrappingKey]. Building the metadata template from the key
 // can also fail (for instance [v1errs.ErrMetaKeyIDTooLarge]) if the public key id exceeds wire limits.
-func New(priv *ecdh.PrivateKey, st storage.Storage, id identifier.Identifier) (Vault, error) {
+func New(priv *ecdh.PrivateKey, st storage.Storage, id identifier.Identifier) (vault.Vault, error) {
 	if st == nil || id == nil {
 		return nil, verrors.ErrInvalidNewArgs
 	}

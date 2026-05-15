@@ -11,9 +11,10 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/vault"
+	verrors "go.rtnl.ai/x/vault/errors"
 	"go.rtnl.ai/x/vault/identifier"
 	"go.rtnl.ai/x/vault/storage"
-	verrors "go.rtnl.ai/x/vault/errors"
 	v1 "go.rtnl.ai/x/vault/v1"
 	v1errs "go.rtnl.ai/x/vault/v1/errors"
 	"go.rtnl.ai/x/vault/v1/models"
@@ -527,7 +528,7 @@ func TestVault_Delete(t *testing.T) {
 //=============================================================================
 
 // testEnvelopeVault returns a [v1.Vault] backed by st and id using a fresh X25519 wrapping key.
-func testEnvelopeVault(tb testing.TB, st storage.Storage, id identifier.Identifier) v1.Vault {
+func testEnvelopeVault(tb testing.TB, st storage.Storage, id identifier.Identifier) vault.Vault {
 	tb.Helper()
 	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
 	assert.Ok(tb, err)

@@ -5,6 +5,7 @@ package v1
 import (
 	"crypto/ecdh"
 
+	"go.rtnl.ai/x/vault"
 	"go.rtnl.ai/x/vault/v1/constants"
 	"go.rtnl.ai/x/vault/v1/models"
 )
@@ -23,4 +24,4 @@ func ExportTestBuildSealedRow(priv *ecdh.PrivateKey, namespace string, plaintext
 }
 
 // NilSealedVault is a typed-nil [*sealedVault] as [Vault] for nil-receiver contract tests in package v1_test.
-var NilSealedVault Vault = (*sealedVault)(nil)
+var NilSealedVault vault.Vault = (*sealedVault)(nil)
