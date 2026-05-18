@@ -25,7 +25,7 @@ var (
 // included for absolute paths to disambiguate the path and host portion.
 type DSN struct {
 	Provider string    // The provider indicates the database being connected to.
-	Driver   string    // An additional component of the provider, separated by a + - it indicates what dirver to use.
+	Driver   string    // An additional component of the provider, separated by a + - it indicates what driver to use.
 	User     *UserInfo // The username and password (must be URL encoded for special chars)
 	Host     string    // The hostname of the database to connect to.
 	Port     uint16    // The port of the database to connect on.
@@ -107,6 +107,31 @@ func (d *DSN) String() string {
 	}
 
 	return u.String()
+}
+
+func (d *DSN) Clone() *DSN {
+	clone := &DSN{
+		Provider: d.Provider,
+		Driver:   d.Driver,
+		User:     d.User,
+		Host:     d.Host,
+		Port:     d.Port,
+		Path:     d.Path,
+	}
+
+	if d.User != nil {
+		clone.User = &UserInfo{
+			Username: d.User.Username,
+			Password: d.User.Password,
+		}
+	}
+
+	clone.Options = make(Options, len(d.Options))
+	for key, val := range d.Options {
+		clone.Options[key] = val
+	}
+
+	return clone
 }
 
 func (d *DSN) scheme() string {

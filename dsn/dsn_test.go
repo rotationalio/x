@@ -147,3 +147,34 @@ func TestString(t *testing.T) {
 		assert.Equal(t, tc.expected, actual, "test case %d failed", i)
 	}
 }
+
+func TestClone(t *testing.T) {
+	t.Run("Complete", func(t *testing.T) {
+		orig := &dsn.DSN{
+			Provider: "postgres",
+			Driver:   "psycopg2",
+			User: &dsn.UserInfo{
+				Username: "janedoe",
+				Password: "mypassword",
+			},
+			Host:    "localhost",
+			Path:    "mydb",
+			Port:    5432,
+			Options: dsn.Options{"ssloptions": "require"},
+		}
+
+		clone := orig.Clone()
+		assert.Equal(t, orig, clone)
+
+		// Modifying the original should not affect the clone
+		orig.Driver = "psycopg"
+		orig.User.Password = ""
+		orig.Options["ssloptions"] = "disable"
+		orig.Options["readonly"] = "true"
+
+		assert.Equal(t, clone.Driver, "psycopg2")
+		assert.Equal(t, clone.User.Password, "mypassword")
+		assert.Equal(t, clone.Options["ssloptions"], "require")
+		assert.Equal(t, clone.Options["readonly"], "")
+	})
+}
