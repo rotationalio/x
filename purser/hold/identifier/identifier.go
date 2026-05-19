@@ -1,11 +1,11 @@
 /*
-Package identifier defines the [Identifier] interface for minting and validating row ids, plus reusable
-implementations. The bundled [HexIdentifier] uses 16 random bytes encoded as 32 hex digits.
+Package identifier defines the Identifier interface for minting and validating row ids, plus reusable
+implementations.
 */
 package identifier
 
 // Identifier mints canonical string ids, validates caller-supplied ids, and maps between string ids
-// and raw storage keys. Implementations are passed into the root vault constructor together with storage.
+// and raw storage keys. Implementations are passed into hold constructors.
 type Identifier interface {
 	// New returns a fresh id when storing a new secret.
 	New() (id string, err error)

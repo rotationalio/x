@@ -1,5 +1,7 @@
 package gcm
 
+// DEK-wrap AEAD, HKDF key derivation, and AAD construction for envelope encryption.
+
 import (
 	"crypto/cipher"
 	"crypto/hkdf"
@@ -7,16 +9,13 @@ import (
 	"crypto/sha256"
 	"io"
 
-	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser"
+	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
 // WrappedDEK is the fixed-layout DEK wrap segment (pub, nonce, ciphertext+tag).
 // It matches [models.DekEnvelope] field-for-field for easy copying.
-//
-// Layout on the wire: Pub is the ephemeral X25519 public key (not encrypted). Nonce is the
-// wrap-AEAD nonce. Payload is exactly DEK ciphertext plus GCM tag so total Payload length is
-// DEKBytes + GCMTagBytes.
 type WrappedDEK struct {
 	Pub     [constants.X25519PubBytes]byte
 	Nonce   [constants.WrapNonceBytes]byte
@@ -26,7 +25,7 @@ type WrappedDEK struct {
 // NewWrapAEAD constructs DEK-wrap AEAD (AES-256-GCM) for a 32-byte wrap key.
 func NewWrapAEAD(wrapKey []byte) (cipher.AEAD, error) {
 	if len(wrapKey) != constants.WrapKeyBytes {
-		return nil, verrors.ErrMalformedParameters
+		return nil, perrors.ErrMalformedParameters
 	}
 	return newAEAD(wrapKey)
 }
@@ -35,110 +34,77 @@ func NewWrapAEAD(wrapKey []byte) (cipher.AEAD, error) {
 func SealWrappedDEK(pub [constants.X25519PubBytes]byte, aead cipher.AEAD, wrapAAD, dek []byte) (WrappedDEK, error) {
 	// Reject nil AEAD instance.
 	if aead == nil {
-		return WrappedDEK{}, verrors.ErrNilAEAD
+		return WrappedDEK{}, perrors.ErrNilAEAD
 	}
-
-	// Require exactly 32 bytes for the DEK; ensures fit in the fixed Payload array.
 	if len(dek) != constants.DEKBytes {
-		return WrappedDEK{}, verrors.ErrMalformedParameters
+		return WrappedDEK{}, perrors.ErrMalformedParameters
 	}
-
-	// Enforce the AEAD uses the standard 12-byte (GCM) nonce before reading entropy.
 	if aead.NonceSize() != constants.WrapNonceBytes {
-		return WrappedDEK{}, verrors.ErrMalformedParameters
+		return WrappedDEK{}, perrors.ErrMalformedParameters
 	}
 
-	// Generate a random nonce for this DEK wrap operation.
 	var nonce [constants.WrapNonceBytes]byte
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
-		return WrappedDEK{}, verrors.ErrSealFailed
+		return WrappedDEK{}, perrors.ErrSealFailed
 	}
-
-	// Delegate to the nonce-explicit path for deterministic/golden vector testing convenience.
 	return SealWrappedDEKWithNonce(pub, aead, wrapAAD, dek, nonce)
 }
 
 // SealWrappedDEKWithNonce wraps dek using the given nonce (random in [SealWrappedDEK]).
-// NOTE: this is separated from SealWrappedDEK so we can generate fixed golden vector tests
-// easily.
 func SealWrappedDEKWithNonce(pub [constants.X25519PubBytes]byte, aead cipher.AEAD, wrapAAD, dek []byte, nonce [constants.WrapNonceBytes]byte) (WrappedDEK, error) {
-	// Validate inputs: reject nil AEAD, check DEK length, and confirm AEAD nonce size.
 	if aead == nil {
-		return WrappedDEK{}, verrors.ErrNilAEAD
+		return WrappedDEK{}, perrors.ErrNilAEAD
 	}
 	if len(dek) != constants.DEKBytes {
-		return WrappedDEK{}, verrors.ErrMalformedParameters
+		return WrappedDEK{}, perrors.ErrMalformedParameters
 	}
 	if aead.NonceSize() != constants.WrapNonceBytes {
-		return WrappedDEK{}, verrors.ErrMalformedParameters
+		return WrappedDEK{}, perrors.ErrMalformedParameters
 	}
 
-	// Seal the DEK bytes with the provided nonce and additional authenticated data.
-	// The output (ciphertext + tag) must fit exactly in the [Payload] field.
 	ct := aead.Seal(nil, nonce[:], dek, wrapAAD)
 	if len(ct) != constants.DEKBytes+constants.GCMTagBytes {
-		return WrappedDEK{}, verrors.ErrMalformedParameters
+		return WrappedDEK{}, perrors.ErrMalformedParameters
 	}
 
-	// Materialize the wrapped DEK (ephemeral pub, nonce, ciphertext+tag) in a stack-allocated struct.
 	var out WrappedDEK
 	out.Pub = pub
 	out.Nonce = nonce
 	copy(out.Payload[:], ct)
-
 	return out, nil
 }
 
-// OpenWrappedDEK unwraps DEK bytes using wrapAAD.
+// OpenWrappedDEK unwraps DEK bytes using wrapAAD. The returned slice owns its memory; callers
+// should [purser.Zero] it after use to scrub the DEK from the heap.
 func OpenWrappedDEK(aead cipher.AEAD, wrapAAD []byte, dek WrappedDEK) ([]byte, error) {
-	// Check if the AEAD instance is nil.
 	if aead == nil {
-		return nil, verrors.ErrNilAEAD
+		return nil, perrors.ErrNilAEAD
 	}
 
-	// Attempt to decrypt the wrapped DEK using the same wrapAAD as at seal time
-	// (usually prefix || metaRaw from [WrapAAD]).
-	plain, err := aead.Open(nil, dek.Nonce[:], dek.Payload[:], wrapAAD)
+	dst := make([]byte, 0, constants.DEKBytes)
+	plain, err := aead.Open(dst, dek.Nonce[:], dek.Payload[:], wrapAAD)
 	if err != nil {
-		return nil, verrors.ErrDecrypt
+		return nil, perrors.ErrDecrypt
 	}
-
-	// After successful open, ensure that the plaintext length matches the expected DEK size
-	// (GCM should always return DEKBytes for v1 envelopes).
 	if len(plain) != constants.DEKBytes {
-		return nil, verrors.ErrMalformedParameters
+		// Length mismatch must never leak DEK bytes to the caller.
+		purser.Zero(plain)
+		return nil, perrors.ErrMalformedParameters
 	}
-
-	// Copy the DEK plaintext to a new slice so callers can zero sensitive material
-	// without mutating the stack-backed struct fields.
-	out := make([]byte, constants.DEKBytes)
-	copy(out, plain)
-	return out, nil
+	return plain, nil
 }
 
 //=============================================================================
 // Helpers: wrap-key derivation and DEK-wrap AAD
 //=============================================================================
 
-// wrapAADPrefix binds DEK-wrap AEAD to the v1 envelope (prefix || metaRaw).
-const wrapAADPrefix = "vault-wrap-dek-v1"
+// WrapAADPrefix binds DEK-wrap AEAD to the v1 envelope; the full AAD is WrapAADPrefix || metaRaw.
+const WrapAADPrefix = "purser-wrap-dek-v1"
 
 // hkdfWrapInfo is the HKDF context string for stretching the X25519 shared secret into the wrap key.
-// It must stay stable across releases that read the same wire format.
-const hkdfWrapInfo = "vault/v1/x25519-hkdf-sha256-aes256gcm/wrap-key"
+const hkdfWrapInfo = "purser/v1/x25519-hkdf-sha256-aes256gcm/wrap-key"
 
-// WrapAAD prefixes meta-derived AAD for DEK wrapping so it cannot be confused
-// with other uses of the same key material.
-func WrapAAD(metaRaw []byte) []byte {
-	out := make([]byte, 0, len(wrapAADPrefix)+len(metaRaw))
-	out = append(out, wrapAADPrefix...)
-	out = append(out, metaRaw...)
-	return out
-}
-
-// DeriveWrapKey derives the AES-256 wrap key from an ECDH shared secret using
-// HKDF-SHA256.
+// DeriveWrapKey derives the AES-256 wrap key from an ECDH shared secret using HKDF-SHA256.
 func DeriveWrapKey(sharedSecret []byte) ([]byte, error) {
-	// No salt: shared secret is already high-entropy.
 	return hkdf.Key(sha256.New, sharedSecret, nil, hkdfWrapInfo, constants.WrapKeyBytes)
 }

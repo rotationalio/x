@@ -1,11 +1,11 @@
-package holdtest_test
+package holdtest
 
-// Negative conformance tests for the vault Storage contract (see [storage.Storage]).
+// Negative conformance tests for the Hold contract (see [hold.Hold]).
 //
-// The helpers in storage.go (CheckStorage…, StorageConforms) encode row semantics
-// the vault depends on. Each table row pairs one deliberately broken in-memory fake with the
-// specific CheckStorage… function that should reject it. If a check returned nil, the suite would
-// not catch that class of storage bug.
+// The helpers in hold.go (checkHold…, HoldConforms) encode contracts that real Hold
+// implementations such as MemHold must satisfy. Each subtest here wires a deliberately
+// broken fake into one of those checks and asserts the check returns a non-nil error —
+// proving the check would catch a non-conforming implementation.
 
 import (
 	"bytes"
@@ -13,492 +13,559 @@ import (
 	"errors"
 	"testing"
 
-	verrors "go.rtnl.ai/x/purser/errors"
-	storage "go.rtnl.ai/x/purser/hold"
-	"go.rtnl.ai/x/purser/hold/holdtest"
+	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/purser/hold/identifier"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+
+	perrors "go.rtnl.ai/x/purser/errors"
 )
 
 //=============================================================================
-// Tests: negative storage conformance
+// Tests: negative Hold conformance
 //=============================================================================
 
-// TestStorageConformance_negative table-drives broken [storage.Storage] implementations against the
-// exported check that is designed to catch each defect.
-func TestStorageConformance_negative(t *testing.T) {
+// TestHoldConformance_negative runs table-style subtests; each pairs a deliberately broken
+// hold implementation with a conformance check that should detect the defect.
+func TestHoldConformance_negative(t *testing.T) {
 	ctx := context.Background()
-	idGen := hexid.Identifier{}
 
-	cases := []struct {
-		name string
-		st   storage.Storage
-		fn   func(context.Context, storage.Storage, identifier.Identifier) error
-	}{
-		{
-			name: "create_get_roundtrip",
-			st:   newStorGetWrong(),
-			fn:   holdtest.CheckStorageCreateGetRoundtrip,
-		},
-		{
-			name: "create_duplicate",
-			st:   newStorAllowDup(),
-			fn:   holdtest.CheckStorageCreateDuplicate,
-		},
-		{
-			// Duplicate create must return errors.Is(err, verrors.ErrDuplicateKey), not a generic error.
-			name: "create_duplicate_wrapped_err",
-			st:   newStorWrongDupErr(),
-			fn:   holdtest.CheckStorageCreateDuplicate,
-		},
-		{
-			name: "namespace_isolation",
-			st:   newStorNSCollide(),
-			fn:   holdtest.CheckStorageNamespaceIsolation,
-		},
-		{
-			name: "get_missing",
-			st:   storGetMissingWrong{},
-			fn:   holdtest.CheckStorageGetMissing,
-		},
-		{
-			name: "replace_success",
-			st:   newStorReplaceNoop(),
-			fn:   holdtest.CheckStorageReplaceSuccess,
-		},
-		{
-			name: "replace_missing",
-			st:   storReplaceMissingOK{},
-			fn:   holdtest.CheckStorageReplaceMissing,
-		},
-		{
-			name: "delete_idempotent",
-			st:   storDeleteErrMissing{},
-			fn:   holdtest.CheckStorageDeleteIdempotent,
-		},
-		{
-			name: "delete_existing_then_get_missing",
-			st:   newStorDeleteNoop(),
-			fn:   holdtest.CheckStorageDeleteExistingThenGetMissing,
-		},
-		{
-			name: "cas_success_and_conflict",
-			st:   newStorCASBlind(),
-			fn:   holdtest.CheckStorageCompareAndSwapSuccessAndConflict,
-		},
-		{
-			name: "cas_missing_row",
-			st:   storCASMissingWrong{},
-			fn:   holdtest.CheckStorageCompareAndSwapMissingRow,
-		},
-	}
+	t.Run("get_returns_wrong_data", func(t *testing.T) {
+		// A hold that returns "wrong" for every Get must fail the round-trip check.
+		err := checkHoldCreateGetRoundtrip(ctx, newGetWrongHold())
+		assert.Error(t, err, "expected conformance check to fail")
+	})
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// Each fake breaks exactly one storage contract; the paired check must return an error.
-			if err := tc.fn(ctx, tc.st, idGen); err == nil {
-				t.Fatalf("expected non-nil error from check %s", tc.name)
-			}
-		})
-	}
+	t.Run("create_duplicate_no_error", func(t *testing.T) {
+		// A hold that silently overwrites on duplicate create must fail the duplicate check.
+		err := checkHoldCreateDuplicate(ctx, newDuplicatePermissiveHold())
+		assert.Error(t, err, "expected conformance check to fail for permissive duplicate")
+	})
+
+	t.Run("cas_wrong_old_no_error", func(t *testing.T) {
+		// A hold whose CAS always succeeds even with wrong old value must fail the CAS check.
+		err := checkHoldCompareAndSwap(ctx, newCASAlwaysSucceedHold())
+		assert.Error(t, err, "expected conformance check to fail for permissive CAS")
+	})
+
+	t.Run("replace_missing_no_error", func(t *testing.T) {
+		// A hold that doesn't return ErrNotFound on replace of missing row must fail.
+		err := checkHoldReplaceMissing(ctx, newReplacePermissiveHold())
+		assert.Error(t, err, "expected conformance check to fail for permissive Replace")
+	})
+
+	t.Run("get_missing_no_error", func(t *testing.T) {
+		// A hold that returns nil,nil for missing rows must fail.
+		err := checkHoldGetMissing(ctx, newGetMissingPermissiveHold())
+		assert.Error(t, err, "expected conformance check to fail for permissive Get")
+	})
+
+	t.Run("delete_idempotent_fails", func(t *testing.T) {
+		// A hold that returns an error on double-delete must fail the delete idempotency check.
+		err := checkHoldDeleteIdempotent(ctx, newDeleteNonIdempotentHold())
+		assert.Error(t, err, "expected conformance check to fail for non-idempotent Delete")
+	})
+
+	t.Run("cas_missing_no_error", func(t *testing.T) {
+		// A hold whose CAS on a missing key returns nil must fail.
+		err := checkHoldCASMissing(ctx, newCASMissingPermissiveHold())
+		assert.Error(t, err, "expected conformance check to fail for permissive CAS on missing")
+	})
+
+	t.Run("namespace_isolation", func(t *testing.T) {
+		// A hold that ignores namespaces (keys by ID only) must fail the isolation check.
+		err := checkHoldNamespaceIsolation(ctx, newNamespaceBlindHold())
+		assert.Error(t, err, "expected conformance check to fail for namespace-blind hold")
+	})
+
+	t.Run("replace_updates_data", func(t *testing.T) {
+		// A hold that ignores Replace (always returns old data) must fail.
+		err := checkHoldReplaceUpdatesData(ctx, newReplaceNoopHold())
+		assert.Error(t, err, "expected conformance check to fail for no-op Replace")
+	})
 }
 
 //=============================================================================
-// In-memory map key layout (correct fakes use this; broken fakes may omit namespace)
+// Broken hold fakes
 //=============================================================================
 
-// storK builds a composite map key so correct implementations never collide across namespaces.
-// Broken fakes that key only by id (ignoring ns) are detected by namespace isolation checks.
-func storK(ns, id string) string { return ns + "\x00" + id }
+// getWrongHold always returns "wrong" from Get regardless of what was stored.
+type getWrongHold struct{ m map[string][]byte }
 
-//=============================================================================
-// Broken storage fakes — each violates one contract checked by CheckStorage…
-//=============================================================================
+func newGetWrongHold() *getWrongHold { return &getWrongHold{m: map[string][]byte{}} }
 
-// storAllowDup implements Create as blind insert: duplicate keys overwrite instead of returning
-// [verrors.ErrDuplicateKey], so [holdtest.CheckStorageCreateDuplicate] fails.
-type storAllowDup struct{ m map[string][]byte }
+func (h *getWrongHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
 
-func newStorAllowDup() *storAllowDup { return &storAllowDup{m: make(map[string][]byte)} }
+func (h *getWrongHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
 
-func (s *storAllowDup) Create(_ context.Context, ns, id string, ct []byte) error {
-	s.m[storK(ns, id)] = append([]byte(nil), ct...)
+func (h *getWrongHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storAllowDup) Get(_ context.Context, ns, id string) ([]byte, error) {
-	v, ok := s.m[storK(ns, id)]
-	if !ok {
-		return nil, verrors.ErrNotFound
-	}
-	return append([]byte(nil), v...), nil
-}
-
-func (s *storAllowDup) Replace(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
-	}
-	s.m[k] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storAllowDup) Delete(_ context.Context, ns, id string) error {
-	delete(s.m, storK(ns, id))
-	return nil
-}
-
-func (s *storAllowDup) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	k := storK(ns, id)
-	cur, ok := s.m[k]
-	if !ok {
-		return verrors.ErrNotFound
-	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
-	}
-	s.m[k] = append([]byte(nil), newCt...)
-	return nil
-}
-
-// storWrongDupErr rejects duplicate creates with a generic error instead of [verrors.ErrDuplicateKey],
-// breaking errors.Is classification required by [holdtest.CheckStorageCreateDuplicate].
-type storWrongDupErr struct{ m map[string][]byte }
-
-func newStorWrongDupErr() *storWrongDupErr { return &storWrongDupErr{m: make(map[string][]byte)} }
-
-func (s *storWrongDupErr) Create(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, dup := s.m[k]; dup {
-		return errors.New("not a duplicate key error")
-	}
-	s.m[k] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storWrongDupErr) Get(_ context.Context, ns, id string) ([]byte, error) {
-	v, ok := s.m[storK(ns, id)]
-	if !ok {
-		return nil, verrors.ErrNotFound
-	}
-	return append([]byte(nil), v...), nil
-}
-
-func (s *storWrongDupErr) Replace(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
-	}
-	s.m[k] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storWrongDupErr) Delete(_ context.Context, ns, id string) error {
-	delete(s.m, storK(ns, id))
-	return nil
-}
-
-func (s *storWrongDupErr) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	k := storK(ns, id)
-	cur, ok := s.m[k]
-	if !ok {
-		return verrors.ErrNotFound
-	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
-	}
-	s.m[k] = append([]byte(nil), newCt...)
-	return nil
-}
-
-// storGetWrong returns a wrong constant payload on Get, failing [holdtest.CheckStorageCreateGetRoundtrip].
-type storGetWrong struct{ m map[string][]byte }
-
-func newStorGetWrong() *storGetWrong { return &storGetWrong{m: make(map[string][]byte)} }
-
-func (s *storGetWrong) Create(_ context.Context, ns, id string, ct []byte) error {
-	s.m[storK(ns, id)] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storGetWrong) Get(_ context.Context, ns, id string) ([]byte, error) {
-	if _, ok := s.m[storK(ns, id)]; !ok {
-		return nil, verrors.ErrNotFound
-	}
+func (h *getWrongHold) Get(_ context.Context, _, _ string) ([]byte, error) {
 	return []byte("wrong"), nil
 }
 
-func (s *storGetWrong) Replace(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
+func (h *getWrongHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *getWrongHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *getWrongHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return nil
 	}
-	s.m[k] = append([]byte(nil), ct...)
+	h.m[k] = append([]byte(nil), newCt...)
 	return nil
 }
 
-func (s *storGetWrong) Delete(_ context.Context, ns, id string) error {
-	delete(s.m, storK(ns, id))
+// duplicatePermissiveHold silently overwrites on duplicate CreateWithIdentifier.
+type duplicatePermissiveHold struct{ m map[string][]byte }
+
+func newDuplicatePermissiveHold() *duplicatePermissiveHold {
+	return &duplicatePermissiveHold{m: map[string][]byte{}}
+}
+
+func (h *duplicatePermissiveHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *duplicatePermissiveHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *duplicatePermissiveHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	// Broken: silently overwrites instead of returning ErrDuplicateKey.
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storGetWrong) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	k := storK(ns, id)
-	cur, ok := s.m[k]
+func (h *duplicatePermissiveHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
 	if !ok {
-		return verrors.ErrNotFound
-	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
-	}
-	s.m[k] = append([]byte(nil), newCt...)
-	return nil
-}
-
-// storNSCollide keys rows by id only, ignoring namespace, so the second namespace overwrites the
-// first—[holdtest.CheckStorageNamespaceIsolation] must fail.
-type storNSCollide struct{ m map[string][]byte }
-
-func newStorNSCollide() *storNSCollide { return &storNSCollide{m: make(map[string][]byte)} }
-
-func (s *storNSCollide) Create(_ context.Context, ns, id string, ct []byte) error {
-	_ = ns
-	s.m[id] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storNSCollide) Get(_ context.Context, ns, id string) ([]byte, error) {
-	_ = ns
-	v, ok := s.m[id]
-	if !ok {
-		return nil, verrors.ErrNotFound
+		return nil, perrors.ErrNotFound
 	}
 	return append([]byte(nil), v...), nil
 }
 
-func (s *storNSCollide) Replace(_ context.Context, ns, id string, ct []byte) error {
-	_ = ns
-	if _, ok := s.m[id]; !ok {
-		return verrors.ErrNotFound
+func (h *duplicatePermissiveHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *duplicatePermissiveHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *duplicatePermissiveHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return perrors.ErrCASFailed
 	}
-	s.m[id] = append([]byte(nil), ct...)
+	h.m[k] = append([]byte(nil), newCt...)
 	return nil
 }
 
-func (s *storNSCollide) Delete(_ context.Context, ns, id string) error {
-	_ = ns
-	delete(s.m, id)
+// casAlwaysSucceedHold CAS always succeeds even with wrong old value.
+type casAlwaysSucceedHold struct{ m map[string][]byte }
+
+func newCASAlwaysSucceedHold() *casAlwaysSucceedHold {
+	return &casAlwaysSucceedHold{m: map[string][]byte{}}
+}
+
+func (h *casAlwaysSucceedHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *casAlwaysSucceedHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *casAlwaysSucceedHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[k] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storNSCollide) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	_ = ns
-	cur, ok := s.m[id]
+func (h *casAlwaysSucceedHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
 	if !ok {
-		return verrors.ErrNotFound
-	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
-	}
-	s.m[id] = append([]byte(nil), newCt...)
-	return nil
-}
-
-// storGetMissingWrong returns (nil, nil) for missing rows instead of [verrors.ErrNotFound], defeating
-// [holdtest.CheckStorageGetMissing].
-type storGetMissingWrong struct{}
-
-func (storGetMissingWrong) Create(context.Context, string, string, []byte) error { return nil }
-
-func (storGetMissingWrong) Get(context.Context, string, string) ([]byte, error) {
-	return nil, nil
-}
-
-func (storGetMissingWrong) Replace(context.Context, string, string, []byte) error {
-	return verrors.ErrNotFound
-}
-
-func (storGetMissingWrong) Delete(context.Context, string, string) error { return nil }
-
-func (storGetMissingWrong) CompareAndSwap(context.Context, string, string, []byte, []byte) error {
-	return verrors.ErrNotFound
-}
-
-// storReplaceNoop is a no-op Replace: ciphertext never updates, so [holdtest.CheckStorageReplaceSuccess] fails.
-type storReplaceNoop struct{ m map[string][]byte }
-
-func newStorReplaceNoop() *storReplaceNoop { return &storReplaceNoop{m: make(map[string][]byte)} }
-
-func (s *storReplaceNoop) Create(_ context.Context, ns, id string, ct []byte) error {
-	s.m[storK(ns, id)] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storReplaceNoop) Get(_ context.Context, ns, id string) ([]byte, error) {
-	v, ok := s.m[storK(ns, id)]
-	if !ok {
-		return nil, verrors.ErrNotFound
+		return nil, perrors.ErrNotFound
 	}
 	return append([]byte(nil), v...), nil
 }
 
-func (s *storReplaceNoop) Replace(context.Context, string, string, []byte) error { return nil }
-
-func (s *storReplaceNoop) Delete(_ context.Context, ns, id string) error {
-	delete(s.m, storK(ns, id))
+func (h *casAlwaysSucceedHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storReplaceNoop) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	k := storK(ns, id)
-	cur, ok := s.m[k]
-	if !ok {
-		return verrors.ErrNotFound
+func (h *casAlwaysSucceedHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *casAlwaysSucceedHold) CompareAndSwap(_ context.Context, ns, id string, _, newCt []byte) error {
+	// Broken: always succeeds regardless of old value.
+	h.m[ns+":"+id] = append([]byte(nil), newCt...)
+	return nil
+}
+
+// replacePermissiveHold does not return ErrNotFound when replacing a missing row.
+type replacePermissiveHold struct{ m map[string][]byte }
+
+func newReplacePermissiveHold() *replacePermissiveHold {
+	return &replacePermissiveHold{m: map[string][]byte{}}
+}
+
+func (h *replacePermissiveHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *replacePermissiveHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
 	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *replacePermissiveHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
 	}
-	s.m[k] = append([]byte(nil), newCt...)
+	h.m[k] = append([]byte(nil), ct...)
 	return nil
 }
 
-// storReplaceMissingOK returns nil on Replace for a missing row instead of [verrors.ErrNotFound].
-type storReplaceMissingOK struct{}
-
-func (storReplaceMissingOK) Create(context.Context, string, string, []byte) error { return nil }
-
-func (storReplaceMissingOK) Get(context.Context, string, string) ([]byte, error) {
-	return nil, verrors.ErrNotFound
-}
-
-func (storReplaceMissingOK) Replace(context.Context, string, string, []byte) error { return nil }
-
-func (storReplaceMissingOK) Delete(context.Context, string, string) error { return nil }
-
-func (storReplaceMissingOK) CompareAndSwap(context.Context, string, string, []byte, []byte) error {
-	return verrors.ErrNotFound
-}
-
-// storDeleteErrMissing returns an error on Delete for a missing row; vault requires idempotent delete.
-type storDeleteErrMissing struct{}
-
-func (storDeleteErrMissing) Create(context.Context, string, string, []byte) error { return nil }
-
-func (storDeleteErrMissing) Get(context.Context, string, string) ([]byte, error) {
-	return nil, verrors.ErrNotFound
-}
-
-func (storDeleteErrMissing) Replace(context.Context, string, string, []byte) error {
-	return verrors.ErrNotFound
-}
-
-func (storDeleteErrMissing) Delete(context.Context, string, string) error {
-	return errors.New("delete missing not allowed")
-}
-
-func (storDeleteErrMissing) CompareAndSwap(context.Context, string, string, []byte, []byte) error {
-	return verrors.ErrNotFound
-}
-
-// storDeleteNoop pretends Delete succeeded but leaves the row in the map, so Get still succeeds.
-type storDeleteNoop struct{ m map[string][]byte }
-
-func newStorDeleteNoop() *storDeleteNoop { return &storDeleteNoop{m: make(map[string][]byte)} }
-
-func (s *storDeleteNoop) Create(_ context.Context, ns, id string, ct []byte) error {
-	s.m[storK(ns, id)] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storDeleteNoop) Get(_ context.Context, ns, id string) ([]byte, error) {
-	v, ok := s.m[storK(ns, id)]
+func (h *replacePermissiveHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
 	if !ok {
-		return nil, verrors.ErrNotFound
+		return nil, perrors.ErrNotFound
 	}
 	return append([]byte(nil), v...), nil
 }
 
-func (s *storDeleteNoop) Replace(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
-	}
-	s.m[k] = append([]byte(nil), ct...)
+func (h *replacePermissiveHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	// Broken: silently creates if missing instead of returning ErrNotFound.
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storDeleteNoop) Delete(context.Context, string, string) error { return nil }
+func (h *replacePermissiveHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
 
-func (s *storDeleteNoop) CompareAndSwap(_ context.Context, ns, id string, old, newCt []byte) error {
-	k := storK(ns, id)
-	cur, ok := s.m[k]
+func (h *replacePermissiveHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return perrors.ErrCASFailed
+	}
+	h.m[k] = append([]byte(nil), newCt...)
+	return nil
+}
+
+// getMissingPermissiveHold returns nil,nil instead of ErrNotFound for missing rows.
+type getMissingPermissiveHold struct{ m map[string][]byte }
+
+func newGetMissingPermissiveHold() *getMissingPermissiveHold {
+	return &getMissingPermissiveHold{m: map[string][]byte{}}
+}
+
+func (h *getMissingPermissiveHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *getMissingPermissiveHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *getMissingPermissiveHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[k] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *getMissingPermissiveHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v := h.m[ns+":"+id]
+	// Broken: returns nil, nil when key is missing.
+	return v, nil
+}
+
+func (h *getMissingPermissiveHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	if _, ok := h.m[ns+":"+id]; !ok {
+		return perrors.ErrNotFound
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *getMissingPermissiveHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *getMissingPermissiveHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return perrors.ErrCASFailed
+	}
+	h.m[k] = append([]byte(nil), newCt...)
+	return nil
+}
+
+// deleteNonIdempotentHold returns an error on double-delete instead of nil.
+type deleteNonIdempotentHold struct{ m map[string][]byte }
+
+func newDeleteNonIdempotentHold() *deleteNonIdempotentHold {
+	return &deleteNonIdempotentHold{m: map[string][]byte{}}
+}
+
+func (h *deleteNonIdempotentHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *deleteNonIdempotentHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *deleteNonIdempotentHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[k] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *deleteNonIdempotentHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
 	if !ok {
-		return verrors.ErrNotFound
-	}
-	if !bytes.Equal(cur, old) {
-		return verrors.ErrCASFailed
-	}
-	s.m[k] = append([]byte(nil), newCt...)
-	return nil
-}
-
-// storCASBlind ignores the old ciphertext and always applies the new value, so a stale CAS cannot
-// return [verrors.ErrCASFailed]—[holdtest.CheckStorageCompareAndSwapSuccessAndConflict] fails.
-type storCASBlind struct{ m map[string][]byte }
-
-func newStorCASBlind() *storCASBlind { return &storCASBlind{m: make(map[string][]byte)} }
-
-func (s *storCASBlind) Create(_ context.Context, ns, id string, ct []byte) error {
-	s.m[storK(ns, id)] = append([]byte(nil), ct...)
-	return nil
-}
-
-func (s *storCASBlind) Get(_ context.Context, ns, id string) ([]byte, error) {
-	v, ok := s.m[storK(ns, id)]
-	if !ok {
-		return nil, verrors.ErrNotFound
+		return nil, perrors.ErrNotFound
 	}
 	return append([]byte(nil), v...), nil
 }
 
-func (s *storCASBlind) Replace(_ context.Context, ns, id string, ct []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
+func (h *deleteNonIdempotentHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	if _, ok := h.m[ns+":"+id]; !ok {
+		return perrors.ErrNotFound
 	}
-	s.m[k] = append([]byte(nil), ct...)
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
 	return nil
 }
 
-func (s *storCASBlind) Delete(_ context.Context, ns, id string) error {
-	delete(s.m, storK(ns, id))
-	return nil
-}
-
-func (s *storCASBlind) CompareAndSwap(_ context.Context, ns, id string, _ []byte, newCt []byte) error {
-	k := storK(ns, id)
-	if _, ok := s.m[k]; !ok {
-		return verrors.ErrNotFound
+func (h *deleteNonIdempotentHold) Delete(_ context.Context, ns, id string) error {
+	k := ns + ":" + id
+	if _, ok := h.m[k]; !ok {
+		// Broken: returns error on missing row instead of nil (not idempotent).
+		return errors.New("not found")
 	}
-	s.m[k] = append([]byte(nil), newCt...)
+	delete(h.m, k)
 	return nil
 }
 
-// storCASMissingWrong returns [verrors.ErrCASFailed] instead of [verrors.ErrNotFound] for CAS on a missing row.
-type storCASMissingWrong struct{}
-
-func (storCASMissingWrong) Create(context.Context, string, string, []byte) error { return nil }
-
-func (storCASMissingWrong) Get(context.Context, string, string) ([]byte, error) {
-	return nil, verrors.ErrNotFound
+func (h *deleteNonIdempotentHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return perrors.ErrCASFailed
+	}
+	h.m[k] = append([]byte(nil), newCt...)
+	return nil
 }
 
-func (storCASMissingWrong) Replace(context.Context, string, string, []byte) error {
-	return verrors.ErrNotFound
+// casMissingPermissiveHold CAS on a missing key returns nil instead of ErrNotFound.
+type casMissingPermissiveHold struct{ m map[string][]byte }
+
+func newCASMissingPermissiveHold() *casMissingPermissiveHold {
+	return &casMissingPermissiveHold{m: map[string][]byte{}}
 }
 
-func (storCASMissingWrong) Delete(context.Context, string, string) error { return nil }
+func (h *casMissingPermissiveHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
 
-func (storCASMissingWrong) CompareAndSwap(context.Context, string, string, []byte, []byte) error {
-	return verrors.ErrCASFailed
+func (h *casMissingPermissiveHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *casMissingPermissiveHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[k] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *casMissingPermissiveHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
+	if !ok {
+		return nil, perrors.ErrNotFound
+	}
+	return append([]byte(nil), v...), nil
+}
+
+func (h *casMissingPermissiveHold) Replace(_ context.Context, ns, id string, ct []byte) error {
+	if _, ok := h.m[ns+":"+id]; !ok {
+		return perrors.ErrNotFound
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *casMissingPermissiveHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *casMissingPermissiveHold) CompareAndSwap(_ context.Context, ns, id string, _, newCt []byte) error {
+	// Broken: silently succeeds even when the key is missing.
+	h.m[ns+":"+id] = append([]byte(nil), newCt...)
+	return nil
+}
+
+// namespaceBlindHold ignores the namespace in all operations, keying by ID only.
+type namespaceBlindHold struct{ m map[string][]byte }
+
+func newNamespaceBlindHold() *namespaceBlindHold {
+	return &namespaceBlindHold{m: map[string][]byte{}}
+}
+
+func (h *namespaceBlindHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *namespaceBlindHold) Create(_ context.Context, _ string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	// Broken: ignores namespace.
+	h.m[id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *namespaceBlindHold) CreateWithIdentifier(_ context.Context, _, id string, ct []byte) error {
+	if _, exists := h.m[id]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *namespaceBlindHold) Get(_ context.Context, _, id string) ([]byte, error) {
+	v, ok := h.m[id]
+	if !ok {
+		return nil, perrors.ErrNotFound
+	}
+	return append([]byte(nil), v...), nil
+}
+
+func (h *namespaceBlindHold) Replace(_ context.Context, _, id string, ct []byte) error {
+	if _, ok := h.m[id]; !ok {
+		return perrors.ErrNotFound
+	}
+	h.m[id] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *namespaceBlindHold) Delete(_ context.Context, _, id string) error {
+	delete(h.m, id)
+	return nil
+}
+
+func (h *namespaceBlindHold) CompareAndSwap(_ context.Context, _, id string, oldCt, newCt []byte) error {
+	if !bytes.Equal(h.m[id], oldCt) {
+		return perrors.ErrCASFailed
+	}
+	h.m[id] = append([]byte(nil), newCt...)
+	return nil
+}
+
+// replaceNoopHold ignores Replace calls—stored data never changes.
+type replaceNoopHold struct{ m map[string][]byte }
+
+func newReplaceNoopHold() *replaceNoopHold {
+	return &replaceNoopHold{m: map[string][]byte{}}
+}
+
+func (h *replaceNoopHold) Identifier() identifier.Identifier { return hexid.Identifier{} }
+
+func (h *replaceNoopHold) Create(_ context.Context, ns string, ct []byte) (string, error) {
+	id, err := h.Identifier().New()
+	if err != nil {
+		return "", err
+	}
+	h.m[ns+":"+id] = append([]byte(nil), ct...)
+	return id, nil
+}
+
+func (h *replaceNoopHold) CreateWithIdentifier(_ context.Context, ns, id string, ct []byte) error {
+	k := ns + ":" + id
+	if _, exists := h.m[k]; exists {
+		return perrors.ErrDuplicateKey
+	}
+	h.m[k] = append([]byte(nil), ct...)
+	return nil
+}
+
+func (h *replaceNoopHold) Get(_ context.Context, ns, id string) ([]byte, error) {
+	v, ok := h.m[ns+":"+id]
+	if !ok {
+		return nil, perrors.ErrNotFound
+	}
+	return append([]byte(nil), v...), nil
+}
+
+func (h *replaceNoopHold) Replace(_ context.Context, _, _ string, _ []byte) error {
+	// Broken: silently ignores the replacement.
+	return nil
+}
+
+func (h *replaceNoopHold) Delete(_ context.Context, ns, id string) error {
+	delete(h.m, ns+":"+id)
+	return nil
+}
+
+func (h *replaceNoopHold) CompareAndSwap(_ context.Context, ns, id string, oldCt, newCt []byte) error {
+	k := ns + ":" + id
+	if !bytes.Equal(h.m[k], oldCt) {
+		return perrors.ErrCASFailed
+	}
+	h.m[k] = append([]byte(nil), newCt...)
+	return nil
 }

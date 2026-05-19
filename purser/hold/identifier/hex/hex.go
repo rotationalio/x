@@ -1,18 +1,20 @@
 package hex
 
+// 16-byte random identifiers encoded as 32-character lowercase hex strings.
+
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"go.rtnl.ai/x/purser/hold/identifier"
 	"io"
 
-	verrors "go.rtnl.ai/x/purser/errors"
+	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/hold/identifier"
 )
 
-// Identifier implements [Identifier] using 16-byte random ids encoded as hex (32 chars).
+// Identifier implements [identifier.Identifier] using 16-byte random ids encoded as hex (32 chars).
 type Identifier struct{}
 
-// Identifier implements [Identifier].
+// Identifier implements [identifier.Identifier].
 var _ identifier.Identifier = Identifier{}
 
 // New mints a random 16-byte value encoded as 32 hex characters.
@@ -28,7 +30,7 @@ func (Identifier) New() (string, error) {
 func (Identifier) Parse(id string) error {
 	b, err := hex.DecodeString(id)
 	if err != nil || len(b) != 16 {
-		return verrors.ErrInvalidHexID
+		return perrors.ErrInvalidHexIdentifier
 	}
 	return nil
 }
@@ -37,7 +39,7 @@ func (Identifier) Parse(id string) error {
 func (Identifier) MarshalBinary(id string) ([]byte, error) {
 	b, err := hex.DecodeString(id)
 	if err != nil || len(b) != 16 {
-		return nil, verrors.ErrInvalidHexID
+		return nil, perrors.ErrInvalidHexIdentifier
 	}
 	return b, nil
 }

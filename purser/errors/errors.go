@@ -1,26 +1,25 @@
-// Package errors defines stable operational and crypto-helper sentinel errors shared across vault
-// versions. Classify with errors.Is from the standard library "errors" package. Wire-specific v1 errors live in
-// [go.rtnl.ai/x/purser/locker/v1/errors].
+// Package errors defines stable operational and crypto-helper sentinel errors shared across purser
+// versions. Classify with [errors.Is] from the standard library "errors" package.
 package errors
 
 import stderrors "errors"
 
 //=============================================================================
-// Vault construction and receiver
+// Purser construction and receiver
 //=============================================================================
 
 var (
 	// ErrNilPrivateKey means the private key is nil or missing where one is required.
-	ErrNilPrivateKey = stderrors.New("vault: PrivateKey is required")
+	ErrNilPrivateKey = stderrors.New("purser: PrivateKey is required")
 
 	// ErrInvalidWrappingKey means the long-term key is not usable with this module (for example, not X25519).
-	ErrInvalidWrappingKey = stderrors.New("vault: wrapping key not supported")
+	ErrInvalidWrappingKey = stderrors.New("purser: wrapping key not supported")
 
-	// ErrInvalidNewArgs means the vault constructor was called without required dependencies (storage or identifier).
-	ErrInvalidNewArgs = stderrors.New("vault: storage and identifier are required")
+	// ErrInvalidNewArgs means a constructor was called without required dependencies.
+	ErrInvalidNewArgs = stderrors.New("purser: required dependency is nil")
 
-	// ErrNilVault means a method was called on a nil Vault receiver (including a nil *vaulttest.TestVault).
-	ErrNilVault = stderrors.New("vault: vault is nil")
+	// ErrNilPurser means a method was called on a nil Purser receiver.
+	ErrNilPurser = stderrors.New("purser: purser is nil")
 )
 
 //=============================================================================
@@ -28,93 +27,159 @@ var (
 //=============================================================================
 
 var (
-	// ErrInvalidAEADKey means key material was rejected for AES-GCM construction (wrong length or cipher failure).
-	ErrInvalidAEADKey = stderrors.New("vault: invalid AEAD key material")
+	// ErrInvalidAEADKey means key material was rejected for AES-GCM construction.
+	ErrInvalidAEADKey = stderrors.New("purser: invalid AEAD key material")
 
-	// ErrCiphertextTooShort means input bytes are shorter than required for the nonce prefix or ciphertext layout.
-	ErrCiphertextTooShort = stderrors.New("vault: ciphertext too short")
-
-	// ErrDecrypt means decryption or GCM authentication failed (wrong AAD, corrupt ciphertext, wrong key, etc.).
-	ErrDecrypt = stderrors.New("vault: decrypt failed")
+	// ErrDecrypt means decryption or GCM authentication failed.
+	ErrDecrypt = stderrors.New("purser: decrypt failed")
 
 	// ErrSealFailed means sealing failed, for example when reading random bytes for a nonce.
-	ErrSealFailed = stderrors.New("vault: seal failed")
+	ErrSealFailed = stderrors.New("purser: seal failed")
 
 	// ErrNilAEAD means a crypto helper received a nil AEAD implementation.
-	ErrNilAEAD = stderrors.New("vault: nil AEAD")
+	ErrNilAEAD = stderrors.New("purser: nil AEAD")
 
 	// ErrMalformedParameters means a gcm helper received invalid lengths, nonce size, or AEAD output layout.
-	ErrMalformedParameters = stderrors.New("vault: malformed parameters")
+	ErrMalformedParameters = stderrors.New("purser: malformed parameters")
 )
 
 //=============================================================================
-// Identifiers and storage
+// Identifiers, lockers, and hold
 //=============================================================================
 
 var (
-	// ErrInvalidHexID means the string is not a valid 32-character hex encoding of 16 bytes for hex row ids.
-	ErrInvalidHexID = stderrors.New("vault: invalid hex identifier")
+	// ErrInvalidHexIdentifier means the string is not a valid 32-character hex encoding of 16 bytes.
+	ErrInvalidHexIdentifier = stderrors.New("purser: invalid hex identifier")
 
-	// ErrInvalidIdentifier means the identifier implementation rejected the id (format or policy).
-	ErrInvalidIdentifier = stderrors.New("vault: invalid identifier")
+	// ErrInvalidIdentifier means the identifier implementation rejected the id.
+	ErrInvalidIdentifier = stderrors.New("purser: invalid identifier")
 
-	// ErrDuplicateKey means a storage create or write conflicted with an existing row id in that namespace.
-	ErrDuplicateKey = stderrors.New("vault: duplicate key")
+	// ErrNoLocker means no locker is registered for the key identifier found in a ciphertext blob.
+	ErrNoLocker = stderrors.New("purser: no locker registered for key identifier")
+
+	// ErrDuplicateKeyID means a locker with the same key identifier is already registered in the keyring.
+	ErrDuplicateKeyID = stderrors.New("purser: duplicate key identifier in keyring")
+
+	// ErrDuplicateKey means a hold create or write conflicted with an existing row id in that namespace.
+	ErrDuplicateKey = stderrors.New("purser: duplicate key")
 
 	// ErrNotFound means no sealed row exists for the requested namespace and id.
-	ErrNotFound = stderrors.New("vault: secret not found")
+	ErrNotFound = stderrors.New("purser: secret not found")
 
-	// ErrCASFailed means CompareAndSwap lost the race: stored plaintext did not match currentPlain.
-	ErrCASFailed = stderrors.New("vault: secret was modified concurrently; compare-and-swap lost")
+	// ErrCASFailed means CompareAndSwap lost the race.
+	ErrCASFailed = stderrors.New("purser: secret was modified concurrently; compare-and-swap lost")
 
 	// ErrMoveNamespaceIncomplete means MoveNamespace could not finish moving every matching row.
-	ErrMoveNamespaceIncomplete = stderrors.New("vault: namespace relocation incomplete")
+	ErrMoveNamespaceIncomplete = stderrors.New("purser: namespace relocation incomplete")
 
-	// ErrStorage means the underlying storage.Storage implementation returned a failure unrelated to vault logic.
-	ErrStorage = stderrors.New("vault: storage operation failed")
+	// ErrHold means the underlying hold implementation returned a failure unrelated to purser logic.
+	ErrHold = stderrors.New("purser: hold operation failed")
 
 	// ErrWrongCurrent means CompareAndSwap failed because stored plaintext did not equal expected currentPlain.
-	ErrWrongCurrent = stderrors.New("vault: stored secret does not match expected plaintext")
+	ErrWrongCurrent = stderrors.New("purser: stored secret does not match expected plaintext")
 )
 
 //=============================================================================
-// Keys ([keys] at go.rtnl.ai/x/purser/keyring)
+// Keys ([keyring] at go.rtnl.ai/x/purser/keyring)
 //=============================================================================
 
 var (
 	// ErrInvalidOut means the output buffer length is not valid for the requested operation.
-	ErrInvalidOut = stderrors.New("vault/keys: invalid output length")
+	ErrInvalidOut = stderrors.New("purser/keyring: invalid output length")
 
-	// ErrInvalidSeed means the seed length is not valid for [keys.FromSeed].
-	ErrInvalidSeed = stderrors.New("vault/keys: invalid seed")
+	// ErrInvalidSeed means the seed length is not valid for the target locker's FromSeed.
+	ErrInvalidSeed = stderrors.New("purser/keyring: invalid seed")
 
-	// ErrInvalidSalt means the salt length is not valid for [keys.Derive].
-	ErrInvalidSalt = stderrors.New("vault/keys: invalid salt")
+	// ErrInvalidSalt means the salt length is not valid for [keyring.Derive].
+	ErrInvalidSalt = stderrors.New("purser/keyring: invalid salt")
 
-	// ErrNilPassword means [keys.Derive] received a nil password slice.
-	ErrNilPassword = stderrors.New("vault/keys: nil password")
+	// ErrNilPassword means [keyring.Derive] received a nil password slice.
+	ErrNilPassword = stderrors.New("purser/keyring: nil password")
 
 	// ErrRandSalt means reading random bytes for a new salt failed.
-	ErrRandSalt = stderrors.New("vault/keys: failed to read random salt")
+	ErrRandSalt = stderrors.New("purser/keyring: failed to read random salt")
 )
 
 //=============================================================================
-// JSON and UTF-8 wrappers ([jsonvault], [stringvault])
+// JSON and UTF-8 wrappers ([wrappers/json], [wrappers/string])
 //=============================================================================
 
 var (
 	// ErrJSONMarshal means JSON encoding of a store payload failed before encryption.
-	ErrJSONMarshal = stderrors.New("vault: json marshal failed")
+	ErrJSONMarshal = stderrors.New("purser: json marshal failed")
 
-	// ErrNilRetrieveDst means [jsonvault.Vault.Retrieve] was called with a nil dst (see [encoding/json.Unmarshal] for valid dst shapes).
-	ErrNilRetrieveDst = stderrors.New("vault: json retrieve destination is nil")
+	// ErrNilRetrieveDst means wrappers/json.Retrieve was called with a nil dst.
+	ErrNilRetrieveDst = stderrors.New("purser: json retrieve destination is nil")
 
 	// ErrJSONUnmarshal means JSON decoding of decrypted bytes into the retrieve destination failed.
-	ErrJSONUnmarshal = stderrors.New("vault: json unmarshal failed")
+	ErrJSONUnmarshal = stderrors.New("purser: json unmarshal failed")
 
-	// ErrInvalidJSON means decrypted plaintext is non-empty and not valid JSON per [encoding/json.Valid].
-	ErrInvalidJSON = stderrors.New("vault: json plaintext is not valid JSON")
+	// ErrInvalidJSON means decrypted plaintext is non-empty and not valid JSON.
+	ErrInvalidJSON = stderrors.New("purser: json plaintext is not valid JSON")
 
-	// ErrInvalidUTF8 means a string payload is not valid UTF-8 (store input or decrypted bytes).
-	ErrInvalidUTF8 = stderrors.New("vault: plain text is not valid UTF-8")
+	// ErrInvalidUTF8 means a string payload is not valid UTF-8.
+	ErrInvalidUTF8 = stderrors.New("purser: plain text is not valid UTF-8")
+)
+
+//=============================================================================
+// locker/v1 wire metadata, framing, and suite metadata on rows
+//=============================================================================
+
+var (
+	// ErrNilInnerPointer means [*models.Inner.UnmarshalBinary] was called with a nil receiver.
+	ErrNilInnerPointer = stderrors.New("purser/locker/v1: nil Inner receiver")
+
+	// ErrNilDekEnvelopePointer means [*models.DekEnvelope.UnmarshalBinary] was called with a nil receiver.
+	ErrNilDekEnvelopePointer = stderrors.New("purser/locker/v1: nil DekEnvelope receiver")
+
+	// ErrMalformedWire means bytes are corrupt, truncated, or not a valid v1 wire layout for the operation.
+	ErrMalformedWire = stderrors.New("purser/locker/v1: malformed wire encoding")
+
+	// ErrNilMetaPointer means [*models.Meta.UnmarshalBinary] was called with a nil receiver.
+	ErrNilMetaPointer = stderrors.New("purser/locker/v1: nil Meta")
+
+	// ErrMetaKeyIDTooLarge means [models.Meta.KeyID] exceeds the wire limit.
+	ErrMetaKeyIDTooLarge = stderrors.New("purser/locker/v1: meta key identifier exceeds limit")
+
+	// ErrMetaNamespaceTooLarge means [models.Meta.Namespace] exceeds the wire limit.
+	ErrMetaNamespaceTooLarge = stderrors.New("purser/locker/v1: namespace exceeds limit")
+
+	// ErrNilSealedPointer means [*models.Sealed.UnmarshalBinary] was called with a nil receiver.
+	ErrNilSealedPointer = stderrors.New("purser/locker/v1: nil Sealed receiver")
+
+	// ErrBadMagic means the wire blob does not begin with the expected v1 magic bytes.
+	ErrBadMagic = stderrors.New("purser/locker/v1: bad magic")
+
+	// ErrUnsupportedVersion means the row format version byte is not supported by this module.
+	ErrUnsupportedVersion = stderrors.New("purser/locker/v1: unsupported version")
+
+	// ErrVersionMismatch means the outer format version disagrees with the decoded metadata version.
+	ErrVersionMismatch = stderrors.New("purser/locker/v1: unsupported format version")
+
+	// ErrUnknownSuite means the metadata suite id is not a known v1 suite.
+	ErrUnknownSuite = stderrors.New("purser/locker/v1: unknown suite")
+
+	// ErrNamespaceMismatch means the row was opened under a namespace that does not match the row metadata.
+	ErrNamespaceMismatch = stderrors.New("purser/locker/v1: namespace mismatch")
+)
+
+//=============================================================================
+// locker/v1 suite ID parse and marshal ([locker/v1/suite])
+//=============================================================================
+
+var (
+	// ErrNilSuiteID means [*suite.ID.UnmarshalBinary] was called with a nil receiver.
+	ErrNilSuiteID = stderrors.New("purser/locker/v1/suite: nil ID receiver")
+
+	// ErrInvalidSuiteWire means decoded suite bytes are not the expected length.
+	ErrInvalidSuiteWire = stderrors.New("purser/locker/v1/suite: invalid wire encoding")
+
+	// ErrInvalidSuiteValue means a numeric suite id is not usable.
+	ErrInvalidSuiteValue = stderrors.New("purser/locker/v1/suite: invalid suite value")
+
+	// ErrUnknownSuiteName means the string does not name a known suite.
+	ErrUnknownSuiteName = stderrors.New("purser/locker/v1/suite: unknown suite name")
+
+	// ErrInvalidSuiteInput means the argument type is not supported for suite.Parse.
+	ErrInvalidSuiteInput = stderrors.New("purser/locker/v1/suite: invalid input type")
 )

@@ -1,585 +1,437 @@
 package purser_test
 
-// Tests for [v1.New] and [v1.Vault].
+// Tests for purser orchestration and locker wiring.
+//
+// Most tests use the null locker (via pursertest) because they exercise the purser →
+// keyring → locker → hold wiring, not the locker's crypto. Tests that specifically
+// depend on the locker consuming crypto/rand.Reader (entropy-failure paths) build a
+// v1-backed purser inline.
 
 import (
 	"context"
 	"crypto/ecdh"
-	"crypto/rand"
-	"errors"
+	crand "crypto/rand"
 	"io"
+	"sync"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	vault "go.rtnl.ai/x/purser"
-	verrors "go.rtnl.ai/x/purser/errors"
-	storage "go.rtnl.ai/x/purser/hold"
-	"go.rtnl.ai/x/purser/hold/identifier"
+	"go.rtnl.ai/x/purser"
+	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/hold"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	"go.rtnl.ai/x/purser/internal/nulllocker"
+	"go.rtnl.ai/x/purser/keyring/memring"
 	v1 "go.rtnl.ai/x/purser/locker/v1"
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
-	"go.rtnl.ai/x/purser/locker/v1/models"
+	"go.rtnl.ai/x/purser/pursertest"
 )
 
 //=============================================================================
 // Tests: New
 //=============================================================================
 
-// TestNew_nilStorage verifies New rejects nil storage.
-func TestNew_nilStorage(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+// TestNew_nilHold verifies New rejects a nil hold.
+func TestNew_nilHold(t *testing.T) {
+	// A valid keyring built around a null locker so only the hold argument is invalid.
+	lck, err := nulllocker.New(t, nulllocker.VariantA, []byte("seed"))
 	assert.Ok(t, err)
-	_, err = v1.New(priv, nil, hexid.Identifier{})
-	assert.ErrorIs(t, err, verrors.ErrInvalidNewArgs)
+	kr, err := memring.New(lck)
+	assert.Ok(t, err)
+
+	_, err = purser.New(nil, kr)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
 }
 
-// TestNew_nilIdentifier verifies New rejects a nil Identifier.
-func TestNew_nilIdentifier(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
+// TestNew_nilKeyring verifies New rejects a nil Keyring.
+func TestNew_nilKeyring(t *testing.T) {
+	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
-	_, err = v1.New(priv, storage.NewMemStorage(), nil)
-	assert.ErrorIs(t, err, verrors.ErrInvalidNewArgs)
-}
-
-// TestNew_nilPrivateKey verifies New rejects a nil wrapping key.
-func TestNew_nilPrivateKey(t *testing.T) {
-	_, err := v1.New(nil, storage.NewMemStorage(), hexid.Identifier{})
-	assert.ErrorIs(t, err, verrors.ErrNilPrivateKey)
+	_, err = purser.New(h, nil)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
 }
 
 // TestNew_ok verifies a minimal valid New succeeds.
 func TestNew_ok(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	v, err := v1.New(priv, storage.NewMemStorage(), hexid.Identifier{})
-	assert.Ok(t, err)
-	assert.NotNil(t, v)
+	p, _ := newPurser(t)
+	assert.NotNil(t, p)
 }
 
 //=============================================================================
-// Tests: Vault (envelope)
+// Tests: Store / Retrieve
 //=============================================================================
 
-// TestVault_envelope_store_retrieve exercises a minimal Store then Retrieve on a real
-// [v1.Vault] with in-memory storage and hex ids.
-func TestVault_envelope_store_retrieve(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	v, err := v1.New(priv, storage.NewMemStorage(), hexid.Identifier{})
-	assert.Ok(t, err)
+// TestPurser_storeRetrieveRoundTrip exercises the basic happy path: Store then Retrieve.
+// The active locker is a null locker so this only checks orchestration wiring; the
+// envelope crypto round-trip is exercised directly in locker/v1's locker_test.go.
+func TestPurser_storeRetrieveRoundTrip(t *testing.T) {
 	ctx := context.Background()
+	p, _ := newPurser(t)
 
-	// End-to-end envelope path: store ciphertext, retrieve decrypts to same bytes.
-	id, err := v.Store(ctx, "ns1", []byte("payload"))
+	id, err := p.Store(ctx, "ns", []byte("hello"))
 	assert.Ok(t, err)
-	got, err := v.Retrieve(ctx, "ns1", id)
+	assert.True(t, id != "", "Store: expected non-empty identifier")
+
+	got, err := p.Retrieve(ctx, "ns", id)
 	assert.Ok(t, err)
-	assert.Equal(t, []byte("payload"), got)
+	assert.Equal(t, []byte("hello"), got)
 }
 
-// TestVault_envelope_wrong_namespace ensures ciphertext copied to another namespace key
-// fails open with [v1errs.ErrNamespaceMismatch].
-func TestVault_envelope_wrong_namespace(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	st := storage.NewMemStorage()
-	v, err := v1.New(priv, st, hexid.Identifier{})
-	assert.Ok(t, err)
+// TestPurser_retrieveMissing asserts a hex-formatted but unbound id surfaces ErrNotFound.
+func TestPurser_retrieveMissing(t *testing.T) {
 	ctx := context.Background()
+	p, _ := newPurser(t)
 
-	id, err := v.Store(ctx, "ns1", []byte("x"))
-	assert.Ok(t, err)
-	blob, err := st.Get(ctx, "ns1", id)
-	assert.Ok(t, err)
-
-	// Same ciphertext under another namespace key must fail namespace binding.
-	assert.Ok(t, st.Create(ctx, "ns2", id, blob))
-
-	_, err = v.Retrieve(ctx, "ns2", id)
-	assert.ErrorIs(t, err, v1errs.ErrNamespaceMismatch)
+	_, err := p.Retrieve(ctx, "ns", "00112233445566778899aabbccddeeff")
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
-// TestVault_Store_sealEntropyFailure verifies [v1.Vault.Store] maps [crypto/rand.Reader] failures
-// during envelope sealing (DEK, inner nonce, ephemeral key, or wrap nonce reads) to [verrors.ErrSealFailed].
-func TestVault_Store_sealEntropyFailure(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	v, err := v1.New(priv, storage.NewMemStorage(), dupNewIdentifier{})
-	assert.Ok(t, err)
+// TestPurser_retrieveMalformedIdentifier asserts an invalid hex string surfaces
+// ErrInvalidIdentifier (joined with ErrHold) rather than panicking.
+func TestPurser_retrieveMalformedIdentifier(t *testing.T) {
 	ctx := context.Background()
+	p, _ := newPurser(t)
 
-	// dupNewIdentifier avoids reading [rand.Reader] during id mint so the patched reader fails inside seal only.
-	orig := rand.Reader
-	t.Cleanup(func() { rand.Reader = orig })
-	rand.Reader = vaultEOFReader{}
-
-	_, err = v.Store(ctx, "ns", []byte("payload"))
-	assert.ErrorIs(t, err, verrors.ErrSealFailed)
+	_, err := p.Retrieve(ctx, "ns", "not-a-hex-id")
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrInvalidIdentifier)
 }
 
-// TestVault_Retrieve_badEphemeralPubKey ensures garbage [models.DekEnvelope.Pub] bytes so
-// [ecdh.X25519.NewPublicKey] (or subsequent ECDH) fails open with [verrors.ErrDecrypt].
-func TestVault_Retrieve_badEphemeralPubKey(t *testing.T) {
+//=============================================================================
+// Tests: Update / CompareAndSwap / MoveNamespace / Delete
+//=============================================================================
+
+// TestPurser_update covers happy-path replacement and the missing-row failure mode.
+func TestPurser_update(t *testing.T) {
 	ctx := context.Background()
-	st := storage.NewMemStorage()
-	v := testEnvelopeVault(t, st, hexid.Identifier{})
-	id, err := v.Store(ctx, "ns", []byte("secret"))
-	assert.Ok(t, err)
-	wire, err := st.Get(ctx, "ns", id)
+	p, _ := newPurser(t)
+
+	id, err := p.Store(ctx, "ns", []byte("v1"))
 	assert.Ok(t, err)
 
-	var msg models.Sealed
-	assert.Ok(t, msg.UnmarshalBinary(wire))
-	for i := range msg.Dek.Pub {
-		msg.Dek.Pub[i] = 0xff
+	// Happy path: re-seal under the same id.
+	assert.Ok(t, p.Update(ctx, "ns", id, []byte("v2")))
+	got, err := p.Retrieve(ctx, "ns", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v2"), got)
+
+	// Update on a never-stored identifier surfaces ErrNotFound (joined with ErrHold).
+	err = p.Update(ctx, "ns", "00112233445566778899aabbccddeeff", []byte("v3"))
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
+}
+
+// TestPurser_compareAndSwap covers the wrong-current branch (with post-fail invariant
+// check that the row is unchanged), the success branch, and the missing-row branch.
+func TestPurser_compareAndSwap(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newPurser(t)
+
+	id, err := p.Store(ctx, "ns", []byte("v1"))
+	assert.Ok(t, err)
+
+	// Wrong current — refuses to swap with ErrWrongCurrent.
+	err = p.CompareAndSwap(ctx, "ns", id, []byte("wrong"), []byte("v2"))
+	assert.ErrorIs(t, err, perrors.ErrWrongCurrent)
+
+	// Post-fail invariant: the row's plaintext must still be "v1".
+	got, err := p.Retrieve(ctx, "ns", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v1"), got)
+
+	// Correct current — swap succeeds and the new value is observable.
+	assert.Ok(t, p.CompareAndSwap(ctx, "ns", id, []byte("v1"), []byte("v2")))
+	got, err = p.Retrieve(ctx, "ns", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v2"), got)
+
+	// CAS on a missing identifier — the hold-layer Get fails first, so we surface
+	// ErrHold/ErrNotFound rather than ErrWrongCurrent.
+	err = p.CompareAndSwap(ctx, "ns", "aabbccddeeff00112233445566778899", []byte("a"), []byte("b"))
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
+}
+
+// TestPurser_moveNamespace covers happy path, same-namespace no-op, and missing-row.
+func TestPurser_moveNamespace(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newPurser(t)
+
+	id, err := p.Store(ctx, "ns-a", []byte("v"))
+	assert.Ok(t, err)
+
+	// Successful move — re-seals under new namespace and deletes the old row.
+	assert.Ok(t, p.MoveNamespace(ctx, "ns-a", "ns-b", id))
+	got, err := p.Retrieve(ctx, "ns-b", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v"), got)
+
+	_, err = p.Retrieve(ctx, "ns-a", id)
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
+
+	// Same-namespace move is a no-op (preserves the row in place and returns nil).
+	assert.Ok(t, p.MoveNamespace(ctx, "ns-b", "ns-b", id))
+	got, err = p.Retrieve(ctx, "ns-b", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v"), got)
+
+	// Move from a missing source surfaces the hold-layer not-found error.
+	err = p.MoveNamespace(ctx, "ns-x", "ns-y", "00112233445566778899aabbccddeeff")
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
+}
+
+// TestPurser_delete covers idempotent delete, post-condition (row absent), and
+// deleting a never-created row.
+func TestPurser_delete(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newPurser(t)
+
+	id, err := p.Store(ctx, "ns", []byte("v"))
+	assert.Ok(t, err)
+
+	assert.Ok(t, p.Delete(ctx, "ns", id))
+
+	// Post-condition: the row is no longer retrievable.
+	_, err = p.Retrieve(ctx, "ns", id)
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrNotFound)
+
+	// Re-deleting is a no-op (idempotent).
+	assert.Ok(t, p.Delete(ctx, "ns", id))
+
+	// Deleting a never-created row is also a no-op (per MemHold contract).
+	assert.Ok(t, p.Delete(ctx, "ns", "00112233445566778899aabbccddeeff"))
+}
+
+//=============================================================================
+// Tests: cross-locker routing
+//=============================================================================
+
+// TestPurser_retrieveMissingLocker ensures rows sealed under one purser cannot be
+// opened by a second purser whose keyring lacks the row's locker. Two null variants
+// (different KeyIDs) suffice — no envelope crypto is needed for routing semantics.
+func TestPurser_retrieveMissingLocker(t *testing.T) {
+	ctx := context.Background()
+
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+
+	lckA, err := nulllocker.New(t, nulllocker.VariantA, []byte("seedA"))
+	assert.Ok(t, err)
+	krA, err := memring.New(lckA)
+	assert.Ok(t, err)
+	pA, err := purser.New(h, krA)
+	assert.Ok(t, err)
+
+	lckB, err := nulllocker.New(t, nulllocker.VariantB, []byte("seedB"))
+	assert.Ok(t, err)
+	krB, err := memring.New(lckB)
+	assert.Ok(t, err)
+	pB, err := purser.New(h, krB)
+	assert.Ok(t, err)
+
+	// Seal a row through pA (lckA's key id), then try to retrieve it via pB whose
+	// keyring does not know lckA.
+	id, err := pA.Store(ctx, "ns", []byte("secret"))
+	assert.Ok(t, err)
+
+	_, err = pB.Retrieve(ctx, "ns", id)
+	assert.ErrorIs(t, err, perrors.ErrNoLocker)
+}
+
+// TestPurser_keyringRouteFailurePropagates uses a stub keyring whose RouteKeyID always
+// returns ErrNoLocker to confirm purser propagates that error verbatim instead of
+// wrapping or swallowing it.
+func TestPurser_keyringRouteFailurePropagates(t *testing.T) {
+	ctx := context.Background()
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+
+	// Real null locker so Active().Seal succeeds; the stub overrides only RouteKeyID.
+	real, err := nulllocker.New(t, nulllocker.VariantA, []byte("seed"))
+	assert.Ok(t, err)
+	kr := &stubKeyring{
+		active: real,
+		route: func([]byte) (purser.Locker, error) {
+			return nil, perrors.ErrNoLocker
+		},
 	}
-	bad, err := msg.MarshalBinary()
+	p, err := purser.New(h, kr)
 	assert.Ok(t, err)
-	assert.Ok(t, st.Replace(ctx, "ns", id, bad))
 
-	_, err = v.Retrieve(ctx, "ns", id)
-	assert.ErrorIs(t, err, verrors.ErrDecrypt)
+	id, err := p.Store(ctx, "ns", []byte("v"))
+	assert.Ok(t, err)
+
+	_, err = p.Retrieve(ctx, "ns", id)
+	assert.ErrorIs(t, err, perrors.ErrNoLocker)
 }
 
-// TestVault_retrieve_wrongLongTermKey ensures ciphertext sealed under one X25519 wrapping key
-// cannot be decrypted by a [v1.Vault] built from a different long-term key ([verrors.ErrDecrypt]).
-func TestVault_retrieve_wrongLongTermKey(t *testing.T) {
-	ctx := context.Background()
-	st := storage.NewMemStorage()
-	privAlice, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	privBob, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(t, err)
-	vAlice, err := v1.New(privAlice, st, hexid.Identifier{})
-	assert.Ok(t, err)
-	id, err := vAlice.Store(ctx, "ns", []byte("secret"))
-	assert.Ok(t, err)
+//=============================================================================
+// Tests: entropy-failure paths
+//
+// These tests need a locker that consumes crypto/rand.Reader during Seal — the null
+// locker is deterministic and would silently no-op the swap. Using a v1 locker proves
+// purser correctly maps reader failures to ErrSealFailed regardless of which Seal-side
+// operation triggered them (Store, Update, MoveNamespace).
+//=============================================================================
 
-	vBob, err := v1.New(privBob, st, hexid.Identifier{})
-	assert.Ok(t, err)
-	_, err = vBob.Retrieve(ctx, "ns", id)
-	assert.ErrorIs(t, err, verrors.ErrDecrypt)
+// TestPurser_storeEntropyFailure ensures Store maps crand.Reader failures to ErrSealFailed.
+func TestPurser_storeEntropyFailure(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newCryptoPurser(t)
+
+	withFailingEntropy(t)
+
+	_, err := p.Store(ctx, "ns", []byte("x"))
+	assert.ErrorIs(t, err, perrors.ErrSealFailed)
 }
 
-// TestVault_nilReceiver_contract asserts every [v1.Vault] method on a nil [*sealedVault] returns [verrors.ErrNilVault].
-func TestVault_nilReceiver_contract(t *testing.T) {
+// TestPurser_updateEntropyFailure ensures Update propagates entropy failures.
+func TestPurser_updateEntropyFailure(t *testing.T) {
 	ctx := context.Background()
-	nv := v1.NilSealedVault
+	p, _ := newCryptoPurser(t)
+
+	id, err := p.Store(ctx, "ns", []byte("v"))
+	assert.Ok(t, err)
+
+	withFailingEntropy(t)
+
+	err = p.Update(ctx, "ns", id, []byte("v2"))
+	assert.ErrorIs(t, err, perrors.ErrSealFailed)
+}
+
+// TestPurser_moveNamespaceEntropyFailure ensures MoveNamespace propagates entropy
+// failures during the re-seal step.
+func TestPurser_moveNamespaceEntropyFailure(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newCryptoPurser(t)
+
+	id, err := p.Store(ctx, "ns-a", []byte("v"))
+	assert.Ok(t, err)
+
+	withFailingEntropy(t)
+
+	err = p.MoveNamespace(ctx, "ns-a", "ns-b", id)
+	assert.ErrorIs(t, err, perrors.ErrSealFailed)
+}
+
+//=============================================================================
+// Tests: concurrent access
+//=============================================================================
+
+// TestPurser_concurrent exercises Store/Retrieve/Update in parallel goroutines against
+// a single shared purser. Primarily a race-detector probe (run with `go test -race`);
+// success criterion is "no race, no deadlock, no panic."
+func TestPurser_concurrent(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newPurser(t)
+
+	// Pre-seed one row so Retrieve and Update have a known target.
+	id, err := p.Store(ctx, "ns", []byte("seed"))
+	assert.Ok(t, err)
+
+	const goroutines = 8
+	const iters = 16
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := range goroutines {
+		go func(i int) {
+			defer wg.Done()
+			for j := range iters {
+				_, _ = p.Store(ctx, "ns", []byte{byte(i), byte(j)})
+				_, _ = p.Retrieve(ctx, "ns", id)
+				_ = p.Update(ctx, "ns", id, []byte{byte(i), byte(j)})
+			}
+		}(i)
+	}
+	wg.Wait()
+}
+
+//=============================================================================
+// Tests: nil receiver contract
+//=============================================================================
+
+// TestPurser_nilReceiverContract asserts every Purser method on a typed-nil purserImpl
+// returns ErrNilPurser without leaking values. The typed nil is constructed via
+// NewNilPurser (export_test.go) since the underlying type is unexported.
+func TestPurser_nilReceiverContract(t *testing.T) {
+	ctx := context.Background()
+	p := purser.NewNilPurser()
 	const id = "0123456789abcdef0123456789abcdef"
 
-	_, err := nv.Store(ctx, "ns", []byte("x"))
-	assert.ErrorIs(t, err, verrors.ErrNilVault)
-
-	_, err = nv.Retrieve(ctx, "ns", id)
-	assert.ErrorIs(t, err, verrors.ErrNilVault)
-
-	assert.ErrorIs(t, nv.Update(ctx, "ns", id, []byte("z")), verrors.ErrNilVault)
-
-	assert.ErrorIs(t, nv.CompareAndSwap(ctx, "ns", id, []byte("a"), []byte("b")), verrors.ErrNilVault)
-
-	assert.ErrorIs(t, nv.MoveNamespace(ctx, "from", "to", id), verrors.ErrNilVault)
-
-	assert.ErrorIs(t, nv.Delete(ctx, "ns", id), verrors.ErrNilVault)
-}
-
-// TestVault_Store covers Store success, identifier errors, and duplicate ids.
-func TestVault_Store(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("happy", func(t *testing.T) {
-
-		// Normal insert: minted id is non-empty and ciphertext lands in storage.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("payload"))
-		assert.Ok(t, err)
-		assert.True(t, len(id) > 0)
-	})
-
-	t.Run("identifier_New_fails", func(t *testing.T) {
-
-		// Store must surface identifier mint errors joined with ErrInvalidIdentifier.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), errNewIdentifier{})
-		_, err := v.Store(ctx, "ns", []byte("x"))
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("duplicate_id_second_store", func(t *testing.T) {
-
-		// Fixed id from Identifier.New makes the second Create hit ErrDuplicateKey.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), dupNewIdentifier{})
-		_, err := v.Store(ctx, "ns", []byte("first"))
-		assert.Ok(t, err)
-		_, err = v.Store(ctx, "ns", []byte("second"))
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrDuplicateKey)
-	})
-}
-
-// TestVault_Retrieve covers happy path, namespace mismatch, missing rows, and corrupt wire.
-func TestVault_Retrieve(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("happy", func(t *testing.T) {
-
-		// Round-trip seal and open under the same namespace.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		want := []byte("secret-bytes")
-		id, err := v.Store(ctx, "ns-a", want)
-		assert.Ok(t, err)
-		got, err := v.Retrieve(ctx, "ns-a", id)
-		assert.Ok(t, err)
-		assert.Equal(t, want, got)
-	})
-
-	t.Run("wrong_namespace_metadata", func(t *testing.T) {
-
-		// Same ciphertext blob copied to another namespace key must fail AAD/namespacing checks.
-		st := storage.NewMemStorage()
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "ns-sealed", []byte("data"))
-		assert.Ok(t, err)
-		blob, err := st.Get(ctx, "ns-sealed", id)
-		assert.Ok(t, err)
-		assert.Ok(t, st.Create(ctx, "ns-other", id, blob))
-		_, err = v.Retrieve(ctx, "ns-other", id)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, v1errs.ErrNamespaceMismatch)
-	})
-
-	t.Run("missing_row", func(t *testing.T) {
-
-		// Retrieve on unknown id yields ErrNotFound from storage.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		_, err := v.Retrieve(ctx, "ns", "0123456789abcdef0123456789abcdef")
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-
-	t.Run("invalid_id", func(t *testing.T) {
-
-		// Parse rejects non-canonical id strings.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		_, err := v.Retrieve(ctx, "ns", "not-a-valid-hex-id")
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("truncated_ciphertext", func(t *testing.T) {
-
-		// Too-short blob cannot carry a valid nonce+tag layout.
-		st := storage.NewMemStorage()
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("ok"))
-		assert.Ok(t, err)
-		st.BypassSemanticsSetBlobForTest("ns", id, []byte{1, 2, 3})
-		_, err = v.Retrieve(ctx, "ns", id)
-		assert.Error(t, err)
-	})
-}
-
-// TestVault_Update covers Update success, invalid ids, and missing rows.
-func TestVault_Update(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("happy", func(t *testing.T) {
-
-		// Blind replace: id exists, new plaintext round-trips through Retrieve.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("v1"))
-		assert.Ok(t, err)
-		assert.Ok(t, v.Update(ctx, "ns", id, []byte("v2")))
-		got, err := v.Retrieve(ctx, "ns", id)
-		assert.Ok(t, err)
-		assert.Equal(t, []byte("v2"), got)
-	})
-
-	t.Run("invalid_id", func(t *testing.T) {
-
-		// Parse fails before storage is touched.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.Update(ctx, "ns", "bad-id", []byte("z"))
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("missing_row", func(t *testing.T) {
-
-		// Replace on a well-formed but unknown id returns ErrNotFound from storage.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.Update(ctx, "ns", "0123456789abcdef0123456789abcdef", []byte("z"))
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-}
-
-// TestVault_CompareAndSwap exercises compare-and-swap on explicit current and new plaintext.
-func TestVault_CompareAndSwap(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("happy", func(t *testing.T) {
-
-		// currentPlain matches decrypted value, so CAS writes newPlain and read sees it.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("alpha"))
-		assert.Ok(t, err)
-		err = v.CompareAndSwap(ctx, "ns", id, []byte("alpha"), []byte("beta"))
-		assert.Ok(t, err)
-		got, err := v.Retrieve(ctx, "ns", id)
-		assert.Ok(t, err)
-		assert.Equal(t, []byte("beta"), got)
-	})
-
-	t.Run("wrong_current_plaintext", func(t *testing.T) {
-
-		// Mismatch before CAS: row must not change, caller gets ErrWrongCurrent.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("stored"))
-		assert.Ok(t, err)
-		err = v.CompareAndSwap(ctx, "ns", id, []byte("not-stored"), []byte("new"))
-		assert.ErrorIs(t, err, verrors.ErrWrongCurrent)
-	})
-
-	t.Run("invalid_id", func(t *testing.T) {
-
-		// Parse rejects id before any read.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.CompareAndSwap(ctx, "ns", "bad", []byte("a"), []byte("b"))
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("missing_row", func(t *testing.T) {
-
-		// Get fails for unknown id before open/compare.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.CompareAndSwap(ctx, "ns", "0123456789abcdef0123456789abcdef", []byte("a"), []byte("b"))
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-
-	t.Run("decrypt_fails_corrupt_ciphertext", func(t *testing.T) {
-
-		// Truncated or random bytes under the id make open fail before plaintext compare.
-		st := storage.NewMemStorage()
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "good-ns", []byte("payload"))
-		assert.Ok(t, err)
-		st.BypassSemanticsSetBlobForTest("good-ns", id, []byte{9, 9, 9})
-		err = v.CompareAndSwap(ctx, "good-ns", id, []byte("payload"), []byte("x"))
-		assert.Error(t, err)
-	})
-
-	t.Run("CAS_lost", func(t *testing.T) {
-
-		// Storage always loses CAS so the vault surfaces ErrCASFailed even when current matches.
-		base := storage.NewMemStorage()
-		st := &casFailStorage{MemStorage: base}
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("cur"))
-		assert.Ok(t, err)
-		err = v.CompareAndSwap(ctx, "ns", id, []byte("cur"), []byte("next"))
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrCASFailed)
-	})
-}
-
-// TestVault_MoveNamespace covers re-sealing across namespaces and failure modes.
-func TestVault_MoveNamespace(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("noop_equal_namespaces", func(t *testing.T) {
-
-		// Same src/dst is a no-op but must still succeed and leave data readable.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "same", []byte("x"))
-		assert.Ok(t, err)
-		assert.Ok(t, v.MoveNamespace(ctx, "same", "same", id))
-		got, err := v.Retrieve(ctx, "same", id)
-		assert.Ok(t, err)
-		assert.Equal(t, []byte("x"), got)
-	})
-
-	t.Run("happy", func(t *testing.T) {
-
-		// Destination holds plaintext; source row is removed after successful re-seal.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "from", []byte("payload"))
-		assert.Ok(t, err)
-		assert.Ok(t, v.MoveNamespace(ctx, "from", "to", id))
-		got, err := v.Retrieve(ctx, "to", id)
-		assert.Ok(t, err)
-		assert.Equal(t, []byte("payload"), got)
-		_, err = v.Retrieve(ctx, "from", id)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-
-	t.Run("invalid_id", func(t *testing.T) {
-
-		// Identifier parse fails before touching storage.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.MoveNamespace(ctx, "a", "b", "bad-id")
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("missing_source", func(t *testing.T) {
-
-		// No row at source id surfaces ErrNotFound.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.MoveNamespace(ctx, "from", "to", "0123456789abcdef0123456789abcdef")
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-
-	t.Run("decrypt_source_fails", func(t *testing.T) {
-
-		// Corrupt source blob cannot be opened, so move aborts before writing destination.
-		st := storage.NewMemStorage()
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "from", []byte("ok"))
-		assert.Ok(t, err)
-		st.BypassSemanticsSetBlobForTest("from", id, []byte{1, 2, 3})
-		err = v.MoveNamespace(ctx, "from", "to", id)
-		assert.Error(t, err)
-	})
-
-	t.Run("duplicate_destination", func(t *testing.T) {
-
-		// Destination key already exists: Create must fail with ErrDuplicateKey.
-		st := storage.NewMemStorage()
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "from", []byte("a"))
-		assert.Ok(t, err)
-		assert.Ok(t, st.Create(ctx, "to", id, []byte("occupies")))
-		err = v.MoveNamespace(ctx, "from", "to", id)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		assert.ErrorIs(t, err, verrors.ErrDuplicateKey)
-	})
-
-	t.Run("incomplete_after_create_delete_fails", func(t *testing.T) {
-
-		// Destination write succeeded but source delete failed: both sides still readable, ErrMoveNamespaceIncomplete.
-		base := storage.NewMemStorage()
-		st := &deleteFailsOnNs{MemStorage: base, ns: "from"}
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "from", []byte("data"))
-		assert.Ok(t, err)
-		err = v.MoveNamespace(ctx, "from", "to", id)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrMoveNamespaceIncomplete)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-		_, err = v.Retrieve(ctx, "to", id)
-		assert.Ok(t, err)
-		_, err = v.Retrieve(ctx, "from", id)
-		assert.Ok(t, err)
-	})
-}
-
-// TestVault_Delete covers successful delete, idempotency, invalid ids, and storage errors.
-func TestVault_Delete(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("happy", func(t *testing.T) {
-
-		// After delete, retrieve must see the row as gone.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("x"))
-		assert.Ok(t, err)
-		assert.Ok(t, v.Delete(ctx, "ns", id))
-		_, err = v.Retrieve(ctx, "ns", id)
-		assert.ErrorIs(t, err, verrors.ErrNotFound)
-	})
-
-	t.Run("idempotent_missing", func(t *testing.T) {
-
-		// Missing row delete is a no-op success (idempotent).
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		assert.Ok(t, v.Delete(ctx, "ns", "0123456789abcdef0123456789abcdef"))
-	})
-
-	t.Run("invalid_id", func(t *testing.T) {
-
-		// Bad id format rejected before storage delete.
-		v := testEnvelopeVault(t, storage.NewMemStorage(), hexid.Identifier{})
-		err := v.Delete(ctx, "ns", "bad-id")
-		assert.ErrorIs(t, err, verrors.ErrInvalidIdentifier)
-	})
-
-	t.Run("delete_storage_error", func(t *testing.T) {
-
-		// Propagate storage delete failures as ErrStorage.
-		base := storage.NewMemStorage()
-		st := &deleteFailsOnNs{MemStorage: base, ns: "ns"}
-		v := testEnvelopeVault(t, st, hexid.Identifier{})
-		id, err := v.Store(ctx, "ns", []byte("x"))
-		assert.Ok(t, err)
-		err = v.Delete(ctx, "ns", id)
-		assert.Error(t, err)
-		assert.ErrorIs(t, err, verrors.ErrStorage)
-	})
+	gotID, err := p.Store(ctx, "ns", []byte("x"))
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+	assert.Equal(t, "", gotID)
+
+	gotPlain, err := p.Retrieve(ctx, "ns", id)
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+	assert.Equal(t, []byte(nil), gotPlain)
+
+	assert.ErrorIs(t, p.Update(ctx, "ns", id, []byte("z")), perrors.ErrNilPurser)
+	assert.ErrorIs(t, p.CompareAndSwap(ctx, "ns", id, []byte("a"), []byte("b")), perrors.ErrNilPurser)
+	assert.ErrorIs(t, p.MoveNamespace(ctx, "from", "to", id), perrors.ErrNilPurser)
+	assert.ErrorIs(t, p.Delete(ctx, "ns", id), perrors.ErrNilPurser)
 }
 
 //=============================================================================
-// Test helpers and fakes
+// Helpers
 //=============================================================================
 
-// testEnvelopeVault returns a [v1.Vault] backed by st and id using a fresh X25519 wrapping key.
-func testEnvelopeVault(tb testing.TB, st storage.Storage, id identifier.Identifier) vault.Vault {
+// newPurser builds a null-locker-backed purser through real purser.New orchestration.
+// Use for any test that does not specifically depend on real envelope crypto.
+func newPurser(tb testing.TB) (purser.Purser, *hold.MemHold) {
 	tb.Helper()
-	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
-	assert.Ok(tb, err)
-	v, err := v1.New(priv, st, id)
-	assert.Ok(tb, err)
-	return v
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(tb, err, "new memhold")
+	return pursertest.NewTestPurser(tb, h), h
 }
 
-type errNewIdentifier struct{ hexid.Identifier }
-
-// vaultEOFReader simulates entropy source failure for seal path tests.
-type vaultEOFReader struct{}
-
-func (vaultEOFReader) Read([]byte) (int, error) { return 0, io.EOF }
-
-// New returns an error so tests can exercise identifier mint failures.
-func (errNewIdentifier) New() (string, error) {
-	return "", errors.New("identifier mint failed")
+// newCryptoPurser builds a v1-locker-backed purser for tests whose contract depends
+// on the locker consuming crypto/rand.Reader (entropy-failure simulation).
+func newCryptoPurser(tb testing.TB) (purser.Purser, *hold.MemHold) {
+	tb.Helper()
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(tb, err, "new memhold")
+	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
+	assert.Ok(tb, err, "new key")
+	lck, err := v1.New(priv)
+	assert.Ok(tb, err, "new locker")
+	kr, err := memring.New(lck)
+	assert.Ok(tb, err, "new keyring")
+	p, err := purser.New(h, kr)
+	assert.Ok(tb, err, "new purser")
+	return p, h
 }
 
-type dupNewIdentifier struct{ hexid.Identifier }
-
-// New returns a fixed id so a second Store hits ErrDuplicateKey.
-func (dupNewIdentifier) New() (string, error) {
-	return "0123456789abcdef0123456789abcdef", nil
+// withFailingEntropy swaps crypto/rand.Reader for one that always returns io.EOF and
+// restores the original on test cleanup.
+func withFailingEntropy(t *testing.T) {
+	t.Helper()
+	orig := crand.Reader
+	t.Cleanup(func() { crand.Reader = orig })
+	crand.Reader = eofReader{}
 }
 
-type casFailStorage struct {
-	*storage.MemStorage
+// eofReader is a crypto/rand.Reader substitute that always returns io.EOF.
+type eofReader struct{}
+
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+
+// stubKeyring is a minimal Keyring whose RouteKeyID is overridable; everything else is
+// a stub. Useful for asserting purser's behavior when the keyring layer fails.
+type stubKeyring struct {
+	active purser.Locker
+	route  func([]byte) (purser.Locker, error)
 }
 
-// CompareAndSwap always reports a lost compare-and-swap race.
-func (*casFailStorage) CompareAndSwap(ctx context.Context, namespace, id string, oldCipher, newCipher []byte) error {
-	_ = ctx
-	_ = namespace
-	_ = id
-	_ = oldCipher
-	_ = newCipher
-	return verrors.ErrCASFailed
-}
+func (s *stubKeyring) Active() purser.Locker { return s.active }
 
-type deleteFailsOnNs struct {
-	*storage.MemStorage
-	ns string
-}
+func (s *stubKeyring) Lookup([]byte) (purser.Locker, bool) { return nil, false }
 
-// Delete simulates a backend failure for namespace ns.
-func (s *deleteFailsOnNs) Delete(ctx context.Context, namespace, id string) error {
-	if namespace == s.ns {
-		return errors.New("simulated delete failure")
-	}
-	return s.MemStorage.Delete(ctx, namespace, id)
-}
+func (s *stubKeyring) Register(purser.Locker) error { return perrors.ErrInvalidNewArgs }
+
+func (s *stubKeyring) SetActive(purser.Locker) error { return perrors.ErrInvalidNewArgs }
+
+func (s *stubKeyring) RouteKeyID(c []byte) (purser.Locker, error) { return s.route(c) }

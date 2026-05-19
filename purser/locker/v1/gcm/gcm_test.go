@@ -97,9 +97,7 @@ func TestGCM_inner_roundtrip(t *testing.T) {
 			assert.Ok(t, err)
 
 			// Ensure distinct ciphertext outputs for each seal operation.
-			if bytes.Equal(n1[:], n2[:]) && bytes.Equal(p1, p2) {
-				t.Fatal("expected distinct inner seals (nonce randomness)")
-			}
+			assert.True(t, !bytes.Equal(n1[:], n2[:]) || !bytes.Equal(p1, p2), "expected distinct inner seals (nonce randomness)")
 		})
 	}
 }

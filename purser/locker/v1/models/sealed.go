@@ -6,8 +6,8 @@ package models
 import (
 	"encoding/binary"
 
+	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // sealedPreambleBytes is the fixed header before variable-length meta: magic(4) + formatVersion(1) + lenMeta u16 BE(2).
@@ -21,62 +21,110 @@ type Sealed struct {
 	Body          Inner
 }
 
+// MarshalBinarySize returns the encoded byte length of Sealed.
+func (s Sealed) MarshalBinarySize() (int, error) {
+	metaSize, err := s.Meta.MarshalBinarySize()
+	if err != nil {
+		return 0, err
+	}
+	if metaSize > constants.MaxMetaWireBytes {
+		return 0, perrors.ErrMalformedWire
+	}
+	return sealedPreambleBytes + metaSize + s.Dek.MarshalBinarySize() + s.Body.MarshalBinarySize(), nil
+}
+
+// MarshalBinaryTo encodes Sealed into dst and returns written bytes.
+func (s Sealed) MarshalBinaryTo(dst []byte) (int, error) {
+	metaSize, err := s.Meta.MarshalBinarySize()
+	if err != nil {
+		return 0, err
+	}
+	if metaSize > constants.MaxMetaWireBytes {
+		return 0, perrors.ErrMalformedWire
+	}
+	return s.marshalBinaryToWithMetaSize(dst, metaSize)
+}
+
 // MarshalBinary encodes the full v1 wire row.
 func (s Sealed) MarshalBinary() ([]byte, error) {
-	// Meta is length-prefixed on the outer row; marshal it first so we know lenMeta for the header.
-	metaRaw, err := s.Meta.MarshalBinary()
+	metaSize, err := s.Meta.MarshalBinarySize()
 	if err != nil {
 		return nil, err
 	}
-	if len(metaRaw) > constants.MaxMetaWireBytes {
-		return nil, v1errs.ErrMalformedWire
+	if metaSize > constants.MaxMetaWireBytes {
+		return nil, perrors.ErrMalformedWire
 	}
-	dekRaw, err := s.Dek.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	innerRaw, err := s.Body.MarshalBinary()
-	if err != nil {
-		return nil, err
+	need := sealedPreambleBytes + metaSize + s.Dek.MarshalBinarySize() + s.Body.MarshalBinarySize()
+	out := make([]byte, need)
+	_, err = s.marshalBinaryToWithMetaSize(out, metaSize)
+	return out, err
+}
+
+// marshalBinaryToWithMetaSize writes the wire bytes into dst using a precomputed metaSize.
+func (s Sealed) marshalBinaryToWithMetaSize(dst []byte, metaSize int) (int, error) {
+	dekSize := s.Dek.MarshalBinarySize()
+	bodySize := s.Body.MarshalBinarySize()
+	need := sealedPreambleBytes + metaSize + dekSize + bodySize
+	if len(dst) < need {
+		return 0, perrors.ErrMalformedWire
 	}
 
-	// Full row: magic | outer formatVersion | big-endian meta length | meta bytes | fixed-size DekEnvelope | inner blob.
-	out := make([]byte, 0, sealedPreambleBytes+len(metaRaw)+len(dekRaw)+len(innerRaw))
-	out = append(out, constants.Magic...)
-	out = append(out, s.FormatVersion)
-	var lenMeta [2]byte
-	binary.BigEndian.PutUint16(lenMeta[:], uint16(len(metaRaw)))
-	out = append(out, lenMeta[:]...)
-	out = append(out, metaRaw...)
-	out = append(out, dekRaw...)
-	out = append(out, innerRaw...)
-	return out, nil
+	off := 0
+
+	// Preamble layout is magic||formatVersion||metaLen(u16 big-endian).
+	copy(dst[off:off+4], constants.Magic)
+	off += 4
+	dst[off] = s.FormatVersion
+	off++
+	binary.BigEndian.PutUint16(dst[off:off+2], uint16(metaSize))
+	off += 2
+
+	var n int
+	// Marshal framed sections in wire order: Meta then DEK envelope then Inner payload.
+	n, err := s.Meta.MarshalBinaryTo(dst[off : off+metaSize])
+	if err != nil {
+		return 0, err
+	}
+	off += n
+
+	n, err = s.Dek.MarshalBinaryTo(dst[off : off+dekSize])
+	if err != nil {
+		return 0, err
+	}
+	off += n
+
+	n, err = s.Body.MarshalBinaryTo(dst[off : off+bodySize])
+	if err != nil {
+		return 0, err
+	}
+	off += n
+	return off, nil
 }
 
 // UnmarshalBinary parses magic, dual version checks, framed meta, Dek, Body.
 func (s *Sealed) UnmarshalBinary(data []byte) error {
 	if s == nil {
-		return v1errs.ErrNilSealedPointer
-	}
-	if len(data) < sealedPreambleBytes {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrNilSealedPointer
 	}
 
-	// Magic is ASCII so we compare as bytes without accepting odd UTF-8 interpretations.
-	if string(data[0:4]) != constants.Magic {
-		return v1errs.ErrBadMagic
+	// Ensure preamble is present before reading magic or framed lengths.
+	if len(data) < sealedPreambleBytes {
+		return perrors.ErrMalformedWire
 	}
+	if string(data[0:4]) != constants.Magic {
+		return perrors.ErrBadMagic
+	}
+
+	// Parse top-level format version and declared metadata length.
 	s.FormatVersion = data[4]
 	lenMeta := int(binary.BigEndian.Uint16(data[5:7]))
-
-	// lenMeta must cover at least a minimal valid Meta and stay within the decoder's worst-case bound.
 	if lenMeta < 4 || lenMeta > constants.MaxMetaWireBytes {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 
-	// Ensure the slice is long enough for preamble + meta + fixed DekEnvelope + minimal inner (nonce + tag).
+	// Enforce minimum remaining bytes for DEK envelope and inner nonce+tag.
 	if len(data) < sealedPreambleBytes+lenMeta+constants.DekEnvelopeBytes+constants.InnerNonceBytes+constants.GCMTagBytes {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 	off := sealedPreambleBytes
 	metaSlice := data[off : off+lenMeta]
@@ -85,23 +133,16 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 		return err
 	}
 
-	// Outer row format byte must match the metadata block's package version (defends against spliced blobs).
+	// Require all version sentinels to agree: row preamble, encoded meta, and package constant.
 	if s.FormatVersion != s.Meta.PackageVersion {
-		return v1errs.ErrVersionMismatch
+		return perrors.ErrVersionMismatch
 	}
 	if s.FormatVersion != constants.PackageVersion {
-		return v1errs.ErrUnsupportedVersion
+		return perrors.ErrUnsupportedVersion
 	}
-
-	// DekEnvelope is fixed width for v1 suite; no length prefix between meta and inner.
 	if err := s.Dek.UnmarshalBinary(data[off : off+constants.DekEnvelopeBytes]); err != nil {
 		return err
 	}
 	off += constants.DekEnvelopeBytes
-
-	// Remainder is the inner structure (nonce + ciphertext+tag); length varies only with plaintext size inside Inner.
-	if err := s.Body.UnmarshalBinary(data[off:]); err != nil {
-		return err
-	}
-	return nil
+	return s.Body.UnmarshalBinary(data[off:])
 }

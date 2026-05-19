@@ -1,4 +1,4 @@
-// Package constants holds normative wire sizes, magic, and version bytes for vault v1 sealed rows.
+// Package constants holds normative wire sizes, magic, and version bytes for purser locker v1 rows.
 package constants
 
 const (
@@ -6,7 +6,7 @@ const (
 	PackageVersion uint8 = 1
 
 	// Magic is the four-byte preamble for sealed rows (wire normative).
-	Magic = "VLT1"
+	Magic = "ARR1"
 
 	// MaxNamespaceBytes is the maximum number of bytes allowed for a namespace identifier on the wire.
 	MaxNamespaceBytes = 255

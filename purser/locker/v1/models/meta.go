@@ -5,9 +5,8 @@ package models
 import (
 	"crypto/ecdh"
 
-	"go.rtnl.ai/x/purser/errors"
+	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
@@ -21,120 +20,159 @@ type Meta struct {
 
 // WithNamespace returns a copy of [Meta] with [Meta.Namespace] set to namespace.
 func (m Meta) WithNamespace(namespace string) (Meta, error) {
-	// Copy-by-value so the template Meta on the vault is never mutated in place.
 	out := m
 	out.Namespace = namespace
-
-	// Enforce wire caps before any marshal or AEAD that would embed this metadata.
 	if err := validateMetaCaps(out); err != nil {
 		return Meta{}, err
 	}
 	return out, nil
 }
 
-// MarshalBinary encodes Meta in deterministic v1 layout.
-func (m Meta) MarshalBinary() ([]byte, error) {
-	// Check if the metadata meets the wire caps.
+// MarshalBinarySize returns the encoded byte length of Meta.
+func (m Meta) MarshalBinarySize() (int, error) {
 	if err := validateMetaCaps(m); err != nil {
-		return nil, err
+		return 0, err
 	}
 	if m.PackageVersion != constants.PackageVersion {
-		return nil, v1errs.ErrUnsupportedVersion
+		return 0, perrors.ErrUnsupportedVersion
 	}
 	if !m.SuiteID.Valid() {
-		return nil, v1errs.ErrUnknownSuite
+		return 0, perrors.ErrUnknownSuite
 	}
-	ns := []byte(m.Namespace)
+	return 1 + 1 + 1 + len(m.KeyID) + 1 + len(m.Namespace), nil
+}
 
-	// Deterministic layout (no padding): version | suite byte | keyID len | keyID | namespace len | namespace UTF-8.
-	// Length bytes are single uint8; KeyID and namespace lengths are bounded by constants.
-	out := make([]byte, 0, 1+1+1+len(m.KeyID)+1+len(ns))
-	out = append(out, m.PackageVersion)
-	out = append(out, byte(m.SuiteID))
-	out = append(out, byte(len(m.KeyID)))
-	out = append(out, m.KeyID...)
-	out = append(out, byte(len(ns)))
-	out = append(out, ns...)
-	return out, nil
+// MarshalBinaryTo encodes Meta into dst and returns written bytes.
+func (m Meta) MarshalBinaryTo(dst []byte) (int, error) {
+	need, err := m.MarshalBinarySize()
+	if err != nil {
+		return 0, err
+	}
+
+	// Reject undersized destinations up front so callers can pre-size once and reuse buffers.
+	if len(dst) < need {
+		return 0, perrors.ErrMalformedWire
+	}
+
+	off := 0
+
+	// Encode fixed one-byte header fields first so variable fields can stream after them.
+	dst[off] = m.PackageVersion
+	off++
+	dst[off] = byte(m.SuiteID)
+	off++
+	dst[off] = byte(len(m.KeyID))
+	off++
+
+	// KeyID occupies exactly the declared length and is copied verbatim.
+	copy(dst[off:off+len(m.KeyID)], m.KeyID)
+	off += len(m.KeyID)
+
+	// Namespace follows as a length-prefixed UTF-8 byte slice.
+	nsLen := len(m.Namespace)
+	dst[off] = byte(nsLen)
+	off++
+	copy(dst[off:off+nsLen], m.Namespace)
+	off += nsLen
+	return off, nil
+}
+
+// MarshalBinary encodes Meta in deterministic v1 layout.
+func (m Meta) MarshalBinary() ([]byte, error) {
+	need, err := m.MarshalBinarySize()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]byte, need)
+	_, err = m.MarshalBinaryTo(out)
+	return out, err
 }
 
 // UnmarshalBinary decodes Meta; rejects trailing bytes and invalid wire.
 func (m *Meta) UnmarshalBinary(data []byte) error {
 	if m == nil {
-		return v1errs.ErrNilMetaPointer
+		return perrors.ErrNilMetaPointer
 	}
 
-	// Need at least: version, suite, keyLen, nsLen — four bytes before any variable payload.
+	// Minimum framing is version, suite, key-length, and namespace-length bytes.
 	if len(data) < 4 {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 	off := 0
+
+	// Parse and validate package version early so downstream parsing can assume known layout.
 	m.PackageVersion = data[off]
 	off++
 	if m.PackageVersion != constants.PackageVersion {
-		return v1errs.ErrUnsupportedVersion
+		return perrors.ErrUnsupportedVersion
 	}
+
+	// Suite ID gates key-agreement and AEAD behavior; unknown suites are hard failures.
 	m.SuiteID = suite.ID(data[off])
 	off++
 	if !m.SuiteID.Valid() {
-		return v1errs.ErrUnknownSuite
+		return perrors.ErrUnknownSuite
 	}
 
-	// Read KeyID with explicit bounds so a corrupt length cannot read past the buffer end.
+	// Read the declared KeyID length and ensure the slice stays in-bounds before copying.
 	lk := int(data[off])
 	off++
 	if lk > constants.MaxKeyIDBytes || off+lk > len(data) {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 	m.KeyID = append([]byte(nil), data[off:off+lk]...)
 	off += lk
 
-	// After KeyID we must still have the namespace length byte.
+	// A namespace length byte must exist even when namespace itself is empty.
 	if off >= len(data) {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
+
+	// Parse namespace length and verify the declared bytes are available.
 	ln := int(data[off])
 	off++
 	if ln > constants.MaxNamespaceBytes || off+ln > len(data) {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 	m.Namespace = string(data[off : off+ln])
 	off += ln
 
-	// Trailing bytes would mean the encoder and decoder disagree on layout; reject rather than ignore.
+	// v1 metadata decoding is strict: trailing bytes indicate malformed framing.
 	if off != len(data) {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 	return nil
 }
 
 // validateMetaCaps checks KeyID and Namespace are within their byte-length caps.
 func validateMetaCaps(m Meta) error {
+	// KeyID is serialized behind a single-byte length field and capped by constants.
 	if len(m.KeyID) > constants.MaxKeyIDBytes {
-		return v1errs.ErrMetaKeyIDTooLarge
+		return perrors.ErrMetaKeyIDTooLarge
 	}
-	if len([]byte(m.Namespace)) > constants.MaxNamespaceBytes {
-		return v1errs.ErrMetaNamespaceTooLarge
+
+	// Namespace cap is enforced in bytes to match on-wire framing.
+	if len(m.Namespace) > constants.MaxNamespaceBytes {
+		return perrors.ErrMetaNamespaceTooLarge
 	}
 	return nil
 }
 
-// MetaFromPrivKey builds the default wire [Meta] template for priv. Namespace is empty;
-// each Store/Update seals the per-call namespace into row metadata.
+// MetaFromPrivKey builds the default wire [Meta] template for priv. Namespace is empty.
 func MetaFromPrivKey(priv *ecdh.PrivateKey) (Meta, error) {
 	if priv == nil {
-		return Meta{}, errors.ErrNilPrivateKey
+		return Meta{}, perrors.ErrNilPrivateKey
 	}
 
-	// v1 envelope is defined only for X25519 long-term keys; other curves cannot derive the same suite semantics.
+	// v1 currently supports only X25519 wrapping keys.
 	if priv.Curve() != ecdh.X25519() {
-		return Meta{}, errors.ErrInvalidWrappingKey
+		return Meta{}, perrors.ErrInvalidWrappingKey
 	}
-	kid := priv.PublicKey().Bytes()
 
-	// Wire caps: if the public encoding ever exceeded MaxKeyIDBytes, we could not store this key id on the row.
+	// The default KeyID is the encoded X25519 public key bytes.
+	kid := priv.PublicKey().Bytes()
 	if len(kid) > constants.MaxKeyIDBytes {
-		return Meta{}, v1errs.ErrMetaKeyIDTooLarge
+		return Meta{}, perrors.ErrMetaKeyIDTooLarge
 	}
 	m := Meta{
 		PackageVersion: constants.PackageVersion,
@@ -142,8 +180,7 @@ func MetaFromPrivKey(priv *ecdh.PrivateKey) (Meta, error) {
 		KeyID:          kid,
 		Namespace:      "",
 	}
-
-	// Marshal as a dry run: catches suite/version/keyid combinations that cannot be encoded.
+	// Re-encode once to validate all invariants through the same public wire path.
 	if _, err := m.MarshalBinary(); err != nil {
 		return Meta{}, err
 	}

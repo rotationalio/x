@@ -1,70 +1,70 @@
 /*
-Package stringvault wraps [rtvault.Vault] with a string-shaped API: plaintext is
-UTF-8 text ([Store], [Retrieve], [Update], [CompareAndSwap]); bytes on the wire remain opaque to your storage implementation via the embedded [rtvault.Vault].
+Package stringpurser wraps purser.Purser with a string-shaped API: plaintext is
+UTF-8 text (Store, Retrieve, Update, CompareAndSwap); bytes on the wire remain opaque.
 */
 package stringpurser
 
-// UTF-8 string payloads on top of [rtvault.Vault]; invalid UTF-8 returns [verrors.ErrInvalidUTF8].
+// UTF-8 string payloads on top of purser.Purser; invalid UTF-8 returns errors.ErrInvalidUTF8.
 
 import (
 	"context"
 	"unicode/utf8"
 
-	rtvault "go.rtnl.ai/x/purser"
-	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser"
+	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// Vault embeds a [rtvault.Vault] and enforces UTF-8 on string plaintext at this API boundary.
-// [MoveNamespace] and [Delete] are promoted from the embedded vault.
-type Vault struct {
-	rtvault.Vault
+// Purser embeds a purser.Purser and enforces UTF-8 on string plaintext at this API boundary.
+// MoveNamespace and Delete are promoted from the embedded Purser.
+type Purser struct {
+	purser.Purser
 }
 
-// New wraps a non-nil [rtvault.Vault] (for example from [go.rtnl.ai/x/vault/v1.New]).
-func New(v rtvault.Vault) *Vault {
-	if v == nil {
-		panic("stringvault: New(nil)")
+// New wraps a non-nil purser.Purser.
+func New(p purser.Purser) *Purser {
+	if p == nil {
+		panic("purser/wrappers/string: New(nil)")
 	}
-	return &Vault{Vault: v}
+	return &Purser{Purser: p}
 }
 
-// Store rejects non-UTF-8 strings, then delegates to the inner [rtvault.Vault.Store].
-func (w *Vault) Store(ctx context.Context, namespace string, plaintext string) (string, error) {
+// Store rejects non-UTF-8 strings, then delegates to the inner purser.Purser.Store.
+func (w *Purser) Store(ctx context.Context, namespace string, plaintext string) (string, error) {
 	if !utf8.ValidString(plaintext) {
-		return "", verrors.ErrInvalidUTF8
+		return "", perrors.ErrInvalidUTF8
 	}
-	return w.Vault.Store(ctx, namespace, []byte(plaintext))
+	return w.Purser.Store(ctx, namespace, []byte(plaintext))
 }
 
-// Retrieve delegates to the inner [rtvault.Vault.Retrieve] and returns UTF-8 text, or [verrors.ErrInvalidUTF8]
+// Retrieve delegates to the inner purser.Purser.Retrieve and returns UTF-8 text, or ErrInvalidUTF8
 // if the decrypted bytes are not valid UTF-8.
-func (w *Vault) Retrieve(ctx context.Context, namespace, id string) (string, error) {
-	b, err := w.Vault.Retrieve(ctx, namespace, id)
+func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string) (string, error) {
+	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
 	if err != nil {
 		return "", err
 	}
 	if !utf8.Valid(b) {
-		return "", verrors.ErrInvalidUTF8
+		return "", perrors.ErrInvalidUTF8
 	}
 	return string(b), nil
 }
 
-// Update rejects non-UTF-8 strings, then delegates to the inner [rtvault.Vault.Update].
-func (w *Vault) Update(ctx context.Context, namespace, id string, plaintext string) error {
+// Update rejects non-UTF-8 strings, then delegates to the inner purser.Purser.Update.
+func (w *Purser) Update(ctx context.Context, namespace, identifier string, plaintext string) error {
 	if !utf8.ValidString(plaintext) {
-		return verrors.ErrInvalidUTF8
+		return perrors.ErrInvalidUTF8
 	}
-	return w.Vault.Update(ctx, namespace, id, []byte(plaintext))
+	return w.Purser.Update(ctx, namespace, identifier, []byte(plaintext))
 }
 
 // CompareAndSwap replaces the row only if decrypted plaintext matches currentPlain, then stores newPlain.
 // currentPlain and newPlain must be valid UTF-8 strings.
-func (w *Vault) CompareAndSwap(ctx context.Context, namespace, id string, currentPlain, newPlain string) error {
+func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain string) error {
 	if !utf8.ValidString(currentPlain) {
-		return verrors.ErrInvalidUTF8
+		return perrors.ErrInvalidUTF8
 	}
 	if !utf8.ValidString(newPlain) {
-		return verrors.ErrInvalidUTF8
+		return perrors.ErrInvalidUTF8
 	}
-	return w.Vault.CompareAndSwap(ctx, namespace, id, []byte(currentPlain), []byte(newPlain))
+	return w.Purser.CompareAndSwap(ctx, namespace, identifier, []byte(currentPlain), []byte(newPlain))
 }

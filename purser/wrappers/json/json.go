@@ -1,12 +1,11 @@
 /*
-Package jsonvault wraps [rtvault.Vault], exposing the same operation names with JSON instead of raw bytes:
-[Store] and [Update] take [any] and marshal with [encoding/json];
-[Retrieve] unmarshals into dst; [CompareAndSwap] takes expected current and new JSON as []byte (validated with [encoding/json.Valid] when non-empty) and delegates to the embedded vault. Rows remain opaque ciphertext in the storage backend; the
-embedded [rtvault.Vault] is also available as the struct field Vault (e.g. calling [rtvault.Vault.Update] with raw bytes in tests).
+Package jsonpurser wraps purser.Purser, exposing the same operation names with JSON instead of raw bytes:
+Store and Update take any and marshal with encoding/json;
+Retrieve unmarshals into dst; CompareAndSwap takes expected current and new JSON as []byte.
 */
 package jsonpurser
 
-// JSON-encoded payloads on top of [rtvault.Vault] using encoding/json.
+// JSON-encoded payloads on top of purser.Purser using encoding/json.
 
 import (
 	"bytes"
@@ -14,72 +13,69 @@ import (
 	"encoding/json"
 	"errors"
 
-	rtvault "go.rtnl.ai/x/purser"
-	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser"
+	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// Vault embeds a [rtvault.Vault] and exposes the same operation names, using JSON
-// ([any] for store/update; [CompareAndSwap] for compare-and-swap on JSON bytes) instead of opaque plaintext bytes.
-// [MoveNamespace] and [Delete] are promoted from the embedded vault.
-type Vault struct {
-	rtvault.Vault
+// Purser embeds a purser.Purser and exposes the same operation names, using JSON
+// (any for store/update; CompareAndSwap for compare-and-swap on JSON bytes) instead of opaque plaintext bytes.
+// MoveNamespace and Delete are promoted from the embedded purser.
+type Purser struct {
+	purser.Purser
 }
 
-// New wraps a non-nil [rtvault.Vault] (for example from [go.rtnl.ai/x/vault/v1.New]).
-func New(v rtvault.Vault) *Vault {
-	if v == nil {
-		panic("jsonvault: New(nil)")
+// New wraps a non-nil purser.Purser.
+func New(p purser.Purser) *Purser {
+	if p == nil {
+		panic("purser/wrappers/json: New(nil)")
 	}
-	return &Vault{Vault: v}
+	return &Purser{Purser: p}
 }
 
-// Store marshals value with [json.Marshal] and stores the result via the inner [rtvault.Vault.Store].
-func (w *Vault) Store(ctx context.Context, namespace string, value any) (string, error) {
+// Store marshals value with json.Marshal and stores the result via the inner purser.Purser.Store.
+func (w *Purser) Store(ctx context.Context, namespace string, value any) (string, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
-		return "", errors.Join(verrors.ErrJSONMarshal, err)
+		return "", errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	return w.Vault.Store(ctx, namespace, b)
+	return w.Purser.Store(ctx, namespace, b)
 }
 
-// Update marshals newValue and updates the row via the inner [rtvault.Vault.Update].
-func (w *Vault) Update(ctx context.Context, namespace, id string, newValue any) error {
+// Update marshals newValue and updates the row via the inner purser.Purser.Update.
+func (w *Purser) Update(ctx context.Context, namespace, identifier string, newValue any) error {
 	b, err := json.Marshal(newValue)
 	if err != nil {
-		return errors.Join(verrors.ErrJSONMarshal, err)
+		return errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	return w.Vault.Update(ctx, namespace, id, b)
+	return w.Purser.Update(ctx, namespace, identifier, b)
 }
 
 // CompareAndSwap replaces the row only if decrypted JSON plaintext matches currentPlain, then stores newPlain.
-// Non-empty currentPlain and newPlain must be valid JSON ([encoding/json.Valid]).
-func (w *Vault) CompareAndSwap(ctx context.Context, namespace, id string, currentPlain, newPlain []byte) error {
+// Non-empty currentPlain and newPlain must be valid JSON.
+func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) error {
 	if len(currentPlain) > 0 && !json.Valid(currentPlain) {
-		return errors.Join(verrors.ErrJSONUnmarshal, verrors.ErrInvalidJSON)
+		return errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
 	if len(newPlain) > 0 && !json.Valid(newPlain) {
-		return errors.Join(verrors.ErrJSONUnmarshal, verrors.ErrInvalidJSON)
+		return errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
-	return w.Vault.CompareAndSwap(ctx, namespace, id, currentPlain, newPlain)
+	return w.Purser.CompareAndSwap(ctx, namespace, identifier, currentPlain, newPlain)
 }
 
-// Retrieve decrypts the row and unmarshals JSON into dst (dst must not be nil;
-// same constraints as [encoding/json.Unmarshal]). A nil dst returns [verrors.ErrNilRetrieveDst].
-// Non-empty stored bytes that are not valid JSON return [errors.Join] of [verrors.ErrJSONUnmarshal] and
-// [verrors.ErrInvalidJSON] before unmarshal.
-func (w *Vault) Retrieve(ctx context.Context, namespace, id string, dst any) error {
+// Retrieve decrypts the row and unmarshals JSON into dst (dst must not be nil).
+func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string, dst any) error {
 	if dst == nil {
-		return verrors.ErrNilRetrieveDst
+		return perrors.ErrNilRetrieveDst
 	}
-	b, err := w.Vault.Retrieve(ctx, namespace, id)
+	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
 	if err != nil {
 		return err
 	}
 	if len(b) > 0 && !json.Valid(b) {
-		return errors.Join(verrors.ErrJSONUnmarshal, verrors.ErrInvalidJSON)
+		return errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
 	if err := json.Unmarshal(b, dst); err != nil {
-		return errors.Join(verrors.ErrJSONUnmarshal, err)
+		return errors.Join(perrors.ErrJSONUnmarshal, err)
 	}
 	return nil
 }
@@ -88,11 +84,11 @@ func (w *Vault) Retrieve(ctx context.Context, namespace, id string, dst any) err
 func EqualJSON(a, b any) (bool, error) {
 	ab, err := json.Marshal(a)
 	if err != nil {
-		return false, errors.Join(verrors.ErrJSONMarshal, err)
+		return false, errors.Join(perrors.ErrJSONMarshal, err)
 	}
 	bb, err := json.Marshal(b)
 	if err != nil {
-		return false, errors.Join(verrors.ErrJSONMarshal, err)
+		return false, errors.Join(perrors.ErrJSONMarshal, err)
 	}
 	return bytes.Equal(ab, bb), nil
 }

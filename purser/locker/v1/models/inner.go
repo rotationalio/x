@@ -1,8 +1,10 @@
 package models
 
+// Inner wire encoding: nonce and GCM ciphertext+tag for the user's plaintext payload.
+
 import (
+	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // Inner is nonce plus inner ciphertext+tag. GCM additional data is the marshaled row [Meta]
@@ -12,27 +14,43 @@ type Inner struct {
 	Payload []byte // inner ciphertext including GCM tag ([constants.GCMTagBytes] bytes).
 }
 
+// MarshalBinarySize returns the encoded byte length of Inner.
+func (i Inner) MarshalBinarySize() int {
+	return len(i.Nonce) + len(i.Payload)
+}
+
+// MarshalBinaryTo encodes Inner into dst and returns written bytes.
+func (i Inner) MarshalBinaryTo(dst []byte) (int, error) {
+	need := i.MarshalBinarySize()
+
+	// Validate output capacity before writing fixed and variable segments.
+	if len(dst) < need {
+		return 0, perrors.ErrMalformedWire
+	}
+
+	// Layout is nonce||payload with no additional framing.
+	copy(dst[:constants.InnerNonceBytes], i.Nonce[:])
+	copy(dst[constants.InnerNonceBytes:need], i.Payload)
+
+	return need, nil
+}
+
 // MarshalBinary encodes Inner as nonce||payload.
 func (i Inner) MarshalBinary() ([]byte, error) {
-	out := make([]byte, 0, len(i.Nonce)+len(i.Payload))
-	out = append(out, i.Nonce[:]...)
-	out = append(out, i.Payload...)
-	return out, nil
+	out := make([]byte, i.MarshalBinarySize())
+	_, err := i.MarshalBinaryTo(out)
+	return out, err
 }
 
 // UnmarshalBinary decodes Inner; consumes the full slice.
 func (i *Inner) UnmarshalBinary(data []byte) error {
-	// Check if the receiver is nil.
 	if i == nil {
-		return v1errs.ErrNilInnerPointer
+		return perrors.ErrNilInnerPointer
 	}
-
-	// Minimum wire is 12-byte nonce plus a GCM tag (empty plaintext still produces ciphertext length 0 + tag).
 	if len(data) < constants.InnerNonceBytes+constants.GCMTagBytes {
-		return v1errs.ErrMalformedWire
+		return perrors.ErrMalformedWire
 	}
 
-	// Split fixed prefix (nonce) from tail (everything the inner AEAD produced).
 	copy(i.Nonce[:], data[:constants.InnerNonceBytes])
 	i.Payload = append([]byte(nil), data[constants.InnerNonceBytes:]...)
 	return nil

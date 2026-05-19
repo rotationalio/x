@@ -1,12 +1,12 @@
 /*
-Package suite defines numeric suite identifiers and stable wire names for vault v1 metadata.
+Package suite defines numeric suite identifiers and stable wire names for purser locker v1 metadata.
 */
 package suite
 
 import (
 	"strconv"
 
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	perrors "go.rtnl.ai/x/purser/errors"
 )
 
 // ID selects the full crypto recipe (wrap + KDF context + inner AEAD).
@@ -50,12 +50,12 @@ func Parse(v any) (ID, error) {
 		return ID(t), nil
 	case int:
 		if t < 0 || t > 255 {
-			return Unknown, v1errs.ErrInvalidSuiteValue
+			return Unknown, perrors.ErrInvalidSuiteValue
 		}
 		return ID(t), nil
 	case int64:
 		if t < 0 || t > 255 {
-			return Unknown, v1errs.ErrInvalidSuiteValue
+			return Unknown, perrors.ErrInvalidSuiteValue
 		}
 		return ID(t), nil
 	case string:
@@ -66,26 +66,42 @@ func Parse(v any) (ID, error) {
 		}
 		n, err := strconv.ParseUint(t, 10, 8)
 		if err != nil {
-			return Unknown, v1errs.ErrUnknownSuiteName
+			return Unknown, perrors.ErrUnknownSuiteName
 		}
 		return ID(n), nil
 	default:
-		return Unknown, v1errs.ErrInvalidSuiteInput
+		return Unknown, perrors.ErrInvalidSuiteInput
 	}
 }
 
 // MarshalBinary encodes id as a single byte.
 func (id ID) MarshalBinary() ([]byte, error) {
-	return []byte{byte(id)}, nil
+	out := make([]byte, 1)
+	_, err := id.MarshalBinaryTo(out)
+	return out, err
+}
+
+// MarshalBinarySize returns the encoded byte length of ID.
+func (id ID) MarshalBinarySize() int {
+	return 1
+}
+
+// MarshalBinaryTo encodes id into dst and returns written bytes.
+func (id ID) MarshalBinaryTo(dst []byte) (int, error) {
+	if len(dst) < 1 {
+		return 0, perrors.ErrInvalidSuiteWire
+	}
+	dst[0] = byte(id)
+	return 1, nil
 }
 
 // UnmarshalBinary decodes a single-byte suite selector.
 func (id *ID) UnmarshalBinary(data []byte) error {
 	if id == nil {
-		return v1errs.ErrNilSuiteID
+		return perrors.ErrNilSuiteID
 	}
 	if len(data) != 1 {
-		return v1errs.ErrInvalidSuiteWire
+		return perrors.ErrInvalidSuiteWire
 	}
 	*id = ID(data[0])
 	return nil

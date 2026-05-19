@@ -3,16 +3,18 @@ package hold_test
 import (
 	"testing"
 
-	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/purser/hold"
 	"go.rtnl.ai/x/purser/hold/holdtest"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 )
 
-// TestMemStorage_compliance runs [holdtest.StorageConforms] against [storage.MemStorage]
-// and [hexid.Identifier].
-func TestMemStorage_compliance(t *testing.T) {
-	holdtest.StorageConforms(t, hexid.Identifier{}, func(tb *testing.T) storage.Storage {
+// TestMemHold_compliance runs holdtest.HoldConforms against hold.MemHold.
+func TestMemHold_compliance(t *testing.T) {
+	holdtest.HoldConforms(t, func(tb *testing.T) hold.Hold {
 		tb.Helper()
-		return storage.NewMemStorage()
+		h, err := hold.NewMemHold(hexid.Identifier{})
+		assert.Ok(tb, err, "new memhold")
+		return h
 	})
 }

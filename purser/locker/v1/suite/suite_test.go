@@ -4,33 +4,41 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
-// TestSuite_wireRoundTrip checks the one-byte wire encoding for the supported v1 suite and that
-// [suite.ID.Valid] matches what [models.Meta] expects after unmarshal.
+// TestSuite_wireRoundTrip checks the one-byte wire encoding round-trips for every
+// non-Unknown entry in suite.Names. Adding a new suite to the Names table extends
+// coverage automatically, so this test must stay table-driven.
 func TestSuite_wireRoundTrip(t *testing.T) {
-	id := suite.X25519HKDFSHA256AES256GCM
-	raw, err := id.MarshalBinary()
-	assert.Ok(t, err)
-	assert.Equal(t, []byte{byte(id)}, raw)
+	for i, name := range suite.Names {
+		id := suite.ID(i)
+		if id == suite.Unknown {
+			continue
+		}
+		t.Run(name, func(t *testing.T) {
+			raw, err := id.MarshalBinary()
+			assert.Ok(t, err)
+			assert.Equal(t, []byte{byte(id)}, raw)
 
-	var got suite.ID
-	assert.Ok(t, got.UnmarshalBinary(raw))
-	assert.Equal(t, id, got)
-	assert.True(t, got.Valid())
-	assert.Equal(t, "x25519_hkdf_sha256_aes256_gcm", got.String())
+			var got suite.ID
+			assert.Ok(t, got.UnmarshalBinary(raw))
+			assert.Equal(t, id, got)
+			assert.True(t, got.Valid(), "%s must report Valid", name)
+			assert.Equal(t, name, got.String())
+		})
+	}
 }
 
 // TestSuite_UnmarshalBinary_rejectsBadInput covers nil receiver and non-single-byte wire (what Meta parsing relies on).
 func TestSuite_UnmarshalBinary_rejectsBadInput(t *testing.T) {
 	var p *suite.ID
-	assert.ErrorIs(t, p.UnmarshalBinary([]byte{1}), v1errs.ErrNilSuiteID)
+	assert.ErrorIs(t, p.UnmarshalBinary([]byte{1}), perrors.ErrNilSuiteID)
 
 	var id suite.ID
-	assert.ErrorIs(t, id.UnmarshalBinary(nil), v1errs.ErrInvalidSuiteWire)
-	assert.ErrorIs(t, id.UnmarshalBinary([]byte{1, 2}), v1errs.ErrInvalidSuiteWire)
+	assert.ErrorIs(t, id.UnmarshalBinary(nil), perrors.ErrInvalidSuiteWire)
+	assert.ErrorIs(t, id.UnmarshalBinary([]byte{1, 2}), perrors.ErrInvalidSuiteWire)
 }
 
 // TestSuite_Parse exercises the coercion paths that actually show up at API boundaries (config / wire decode helpers).
@@ -69,32 +77,32 @@ func TestSuite_Parse(t *testing.T) {
 		{
 			name:    "unknown_name",
 			in:      "totally_unknown_suite",
-			wantErr: v1errs.ErrUnknownSuiteName,
+			wantErr: perrors.ErrUnknownSuiteName,
 		},
 		{
 			name:    "decimal_string_out_of_uint8",
 			in:      "256",
-			wantErr: v1errs.ErrUnknownSuiteName,
+			wantErr: perrors.ErrUnknownSuiteName,
 		},
 		{
 			name:    "int_out_of_range",
 			in:      256,
-			wantErr: v1errs.ErrInvalidSuiteValue,
+			wantErr: perrors.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "int64_out_of_range",
 			in:      int64(256),
-			wantErr: v1errs.ErrInvalidSuiteValue,
+			wantErr: perrors.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "negative_int",
 			in:      -1,
-			wantErr: v1errs.ErrInvalidSuiteValue,
+			wantErr: perrors.ErrInvalidSuiteValue,
 		},
 		{
 			name:    "wrong_go_type",
 			in:      struct{}{},
-			wantErr: v1errs.ErrInvalidSuiteInput,
+			wantErr: perrors.ErrInvalidSuiteInput,
 		},
 	}
 	for _, tc := range cases {
