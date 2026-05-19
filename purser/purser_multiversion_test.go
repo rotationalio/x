@@ -93,6 +93,28 @@ func TestMultiVersion_switchActiveAndRetrieveOld(t *testing.T) {
 	assert.Equal(t, []byte("sealed-v0a"), gotV0A)
 }
 
+// TestMultiVersion_unparseableWireReturnsNoLocker injects bytes that no registered
+// locker's ParseKeyID can decode (random non-magic prefix) and asserts the keyring
+// surfaces ErrNoLocker rather than panicking or returning a parser error.
+func TestMultiVersion_unparseableWireReturnsNoLocker(t *testing.T) {
+	ctx := context.Background()
+	p, h, _, _, _ := newMultiVersionPurser(t)
+
+	// 64 bytes of non-magic garbage — too short for v1 ARR1 framing and the
+	// wrong magic for any null-locker variant, so every registered locker's
+	// ParseKeyID will reject this in turn.
+	garbage := make([]byte, 64)
+	for i := range garbage {
+		garbage[i] = byte(0xAB ^ i)
+	}
+
+	idStr := "1122334455667788aabbccddeeff0011"
+	h.BypassSemanticsSetBlobForTest(t, "ns", idStr, garbage)
+
+	_, err := p.Retrieve(ctx, "ns", idStr)
+	assert.ErrorIs(t, err, perrors.ErrNoLocker)
+}
+
 // TestMultiVersion_unregisteredLockerReturnsError seals with a locker not registered in the
 // keyring and verifies retrieval returns ErrNoLocker.
 func TestMultiVersion_unregisteredLockerReturnsError(t *testing.T) {

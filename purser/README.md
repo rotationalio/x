@@ -136,6 +136,31 @@ go test -count=1 ./purser/...
 go test -race -count=1 ./purser/...
 ```
 
+### Fuzz targets
+
+`purser` ships fuzz tests for the wire parsers and key-id router. They are zero-cost
+under a normal `go test` run — `FuzzXxx` only generates new inputs when invoked with
+`-fuzz`; otherwise the harness just replays the small seed corpus, so `-short` is not
+needed to gate them out.
+
+Available targets:
+
+- `FuzzMeta_unmarshal` (`./purser/locker/v1/models`) — `models.Meta.UnmarshalBinary`
+- `FuzzSealed_unmarshal` (`./purser/locker/v1/models`) — `models.Sealed.UnmarshalBinary`
+- `FuzzParseKeyID` (`./purser/locker/v1`) — `purser.Locker.ParseKeyID` for v1 envelope
+
+Run a single target for a fixed budget (one target per `go test` invocation):
+
+```bash
+go test -run '^$' -fuzz FuzzMeta_unmarshal -fuzztime 30s ./purser/locker/v1/models
+go test -run '^$' -fuzz FuzzSealed_unmarshal -fuzztime 30s ./purser/locker/v1/models
+go test -run '^$' -fuzz FuzzParseKeyID -fuzztime 30s ./purser/locker/v1
+```
+
+If a target finds a crasher, Go writes the offending input under
+`testdata/fuzz/FuzzXxx/`. Commit that file to lock the regression case into the seed
+corpus.
+
 ## Development
 
 ### Add a new locker version (`vN`)

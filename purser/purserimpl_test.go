@@ -11,6 +11,7 @@ import (
 	"context"
 	"crypto/ecdh"
 	crand "crypto/rand"
+	"errors"
 	"io"
 	"sync"
 	"testing"
@@ -180,6 +181,43 @@ func TestPurser_moveNamespace(t *testing.T) {
 	err = p.MoveNamespace(ctx, "ns-x", "ns-y", "00112233445566778899aabbccddeeff")
 	assert.ErrorIs(t, err, perrors.ErrHold)
 	assert.ErrorIs(t, err, perrors.ErrNotFound)
+}
+
+// TestPurser_moveNamespacePartialFailure asserts the post-CreateWithIdentifier
+// Delete-failure branch surfaces ErrMoveNamespaceIncomplete (joined with ErrHold)
+// and leaves the new row in place — i.e. the move is observable in both namespaces
+// so an operator can recover.
+func TestPurser_moveNamespacePartialFailure(t *testing.T) {
+	ctx := context.Background()
+
+	mem, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+	failing := &deleteFailingHold{Hold: mem, failOn: "old-ns"}
+
+	lck, err := nulllocker.New(t, nulllocker.VariantA, []byte("seed"))
+	assert.Ok(t, err)
+	kr, err := memring.New(lck)
+	assert.Ok(t, err)
+	p, err := purser.New(failing, kr)
+	assert.Ok(t, err)
+
+	id, err := p.Store(ctx, "old-ns", []byte("payload"))
+	assert.Ok(t, err)
+
+	err = p.MoveNamespace(ctx, "old-ns", "new-ns", id)
+	assert.ErrorIs(t, err, perrors.ErrMoveNamespaceIncomplete)
+	assert.ErrorIs(t, err, perrors.ErrHold)
+
+	// The new row landed before Delete failed — confirm it is retrievable so
+	// callers can resume cleanup deterministically.
+	got, err := p.Retrieve(ctx, "new-ns", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("payload"), got)
+
+	// The old row is still present (Delete on the source namespace fails).
+	gotOld, err := p.Retrieve(ctx, "old-ns", id)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("payload"), gotOld)
 }
 
 // TestPurser_delete covers idempotent delete, post-condition (row absent), and
@@ -435,3 +473,18 @@ func (s *stubKeyring) Register(purser.Locker) error { return perrors.ErrInvalidN
 func (s *stubKeyring) SetActive(purser.Locker) error { return perrors.ErrInvalidNewArgs }
 
 func (s *stubKeyring) RouteKeyID(c []byte) (purser.Locker, error) { return s.route(c) }
+
+// deleteFailingHold wraps a real hold.Hold and forces Delete on a specific namespace
+// to return an error. Used by the MoveNamespace partial-failure test so the inner
+// CreateWithIdentifier still succeeds and the orchestration reaches the Delete branch.
+type deleteFailingHold struct {
+	hold.Hold
+	failOn string
+}
+
+func (h *deleteFailingHold) Delete(ctx context.Context, namespace, identifier string) error {
+	if namespace == h.failOn {
+		return errors.New("simulated delete failure")
+	}
+	return h.Hold.Delete(ctx, namespace, identifier)
+}
