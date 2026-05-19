@@ -26,6 +26,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [locks](https://go.rtnl.ai/x/locks): key-based lock mechanism to distribute keys across a fixed number of locks
 - [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
+- [purser](https://go.rtnl.ai/x/purser): encrypted secret storage with pluggable persistence and multi-version locker support.
 - [query](https://go.rtnl.ai/x/query): encode struct values as a url query string
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
@@ -35,7 +36,6 @@ This is single repository that stores many, independent small subpackages. This 
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
-- [vault](https://go.rtnl.ai/x/vault): encrypted secret storage with pluggable persistence backends.
 - [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
 
 ## Development
