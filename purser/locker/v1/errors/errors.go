@@ -1,5 +1,5 @@
 // Package errors defines stable sentinel errors for vault v1 wire decoding, [models], and [suite].
-// Operational errors shared across versions live in [go.rtnl.ai/x/vault/errors]. Classify with the standard library errors.Is.
+// Operational errors shared across versions live in [go.rtnl.ai/x/purser/errors]. Classify with the standard library errors.Is.
 package errors
 
 import stderrors "errors"

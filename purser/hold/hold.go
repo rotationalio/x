@@ -4,9 +4,10 @@ for tests and small programs (notably [MemStorage]).
 
 [Storage] abstracts persistence keyed by (namespace, id). Ciphertext values are opaque blobs produced by the
 vault; implementations should map driver-specific failures to the stable sentinels in package
-	go.rtnl.ai/x/vault/errors (not found, duplicate key, CAS failed, storage) where practical.
+
+	go.rtnl.ai/x/purser/errors (not found, duplicate key, CAS failed, storage) where practical.
 */
-package storage
+package hold
 
 import "context"
 

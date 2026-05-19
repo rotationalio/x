@@ -6,7 +6,7 @@ package suite
 import (
 	"strconv"
 
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // ID selects the full crypto recipe (wrap + KDF context + inner AEAD).

@@ -6,7 +6,7 @@ Storage checks ([StorageConforms] and [CheckStorageCreateGetRoundtrip], etc.) li
 storage.go. Identifier checks ([IdentifierConforms] and [CheckIdentifierNewManyDistinct], etc.)
 live in identifier.go.
 */
-package vaulttest
+package pursertest
 
 // Plaintext [TestVault] stores bytes through [storage.Storage] with no envelope crypto, implementing [rtvault.Vault].
 
@@ -16,10 +16,10 @@ import (
 	"errors"
 	"testing"
 
-	rtvault "go.rtnl.ai/x/vault"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
-	verrors "go.rtnl.ai/x/vault/errors"
+	rtvault "go.rtnl.ai/x/purser"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/hold/identifier"
 )
 
 // TestVault stores plaintext through [storage.Storage] using [identifier.Identifier]; it implements [rtvault.Vault]

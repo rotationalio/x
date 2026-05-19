@@ -6,8 +6,8 @@ package models
 import (
 	"encoding/binary"
 
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // sealedPreambleBytes is the fixed header before variable-length meta: magic(4) + formatVersion(1) + lenMeta u16 BE(2).

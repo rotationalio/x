@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/constants"
-	"go.rtnl.ai/x/vault/v1/gcm"
-	"go.rtnl.ai/x/vault/v1/models"
-	"go.rtnl.ai/x/vault/v1/suite"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/locker/v1/gcm"
+	"go.rtnl.ai/x/purser/locker/v1/models"
+	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 // TestSealed_roundtrip builds a full [models.Sealed] row with real inner and wrap crypto, marshals wire bytes,

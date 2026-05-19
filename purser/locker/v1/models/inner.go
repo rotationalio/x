@@ -1,8 +1,8 @@
 package models
 
 import (
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // Inner is nonce plus inner ciphertext+tag. GCM additional data is the marshaled row [Meta]

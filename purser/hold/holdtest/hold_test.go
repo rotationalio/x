@@ -1,4 +1,4 @@
-package vaulttest_test
+package holdtest_test
 
 // Negative conformance tests for the vault Storage contract (see [storage.Storage]).
 //
@@ -13,10 +13,11 @@ import (
 	"errors"
 	"testing"
 
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
-	"go.rtnl.ai/x/vault/vaulttest"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/hold/holdtest"
+	"go.rtnl.ai/x/purser/hold/identifier"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 )
 
 //=============================================================================
@@ -27,7 +28,7 @@ import (
 // exported check that is designed to catch each defect.
 func TestStorageConformance_negative(t *testing.T) {
 	ctx := context.Background()
-	idGen := identifier.HexIdentifier{}
+	idGen := hexid.Identifier{}
 
 	cases := []struct {
 		name string
@@ -37,58 +38,58 @@ func TestStorageConformance_negative(t *testing.T) {
 		{
 			name: "create_get_roundtrip",
 			st:   newStorGetWrong(),
-			fn:   vaulttest.CheckStorageCreateGetRoundtrip,
+			fn:   holdtest.CheckStorageCreateGetRoundtrip,
 		},
 		{
 			name: "create_duplicate",
 			st:   newStorAllowDup(),
-			fn:   vaulttest.CheckStorageCreateDuplicate,
+			fn:   holdtest.CheckStorageCreateDuplicate,
 		},
 		{
 			// Duplicate create must return errors.Is(err, verrors.ErrDuplicateKey), not a generic error.
 			name: "create_duplicate_wrapped_err",
 			st:   newStorWrongDupErr(),
-			fn:   vaulttest.CheckStorageCreateDuplicate,
+			fn:   holdtest.CheckStorageCreateDuplicate,
 		},
 		{
 			name: "namespace_isolation",
 			st:   newStorNSCollide(),
-			fn:   vaulttest.CheckStorageNamespaceIsolation,
+			fn:   holdtest.CheckStorageNamespaceIsolation,
 		},
 		{
 			name: "get_missing",
 			st:   storGetMissingWrong{},
-			fn:   vaulttest.CheckStorageGetMissing,
+			fn:   holdtest.CheckStorageGetMissing,
 		},
 		{
 			name: "replace_success",
 			st:   newStorReplaceNoop(),
-			fn:   vaulttest.CheckStorageReplaceSuccess,
+			fn:   holdtest.CheckStorageReplaceSuccess,
 		},
 		{
 			name: "replace_missing",
 			st:   storReplaceMissingOK{},
-			fn:   vaulttest.CheckStorageReplaceMissing,
+			fn:   holdtest.CheckStorageReplaceMissing,
 		},
 		{
 			name: "delete_idempotent",
 			st:   storDeleteErrMissing{},
-			fn:   vaulttest.CheckStorageDeleteIdempotent,
+			fn:   holdtest.CheckStorageDeleteIdempotent,
 		},
 		{
 			name: "delete_existing_then_get_missing",
 			st:   newStorDeleteNoop(),
-			fn:   vaulttest.CheckStorageDeleteExistingThenGetMissing,
+			fn:   holdtest.CheckStorageDeleteExistingThenGetMissing,
 		},
 		{
 			name: "cas_success_and_conflict",
 			st:   newStorCASBlind(),
-			fn:   vaulttest.CheckStorageCompareAndSwapSuccessAndConflict,
+			fn:   holdtest.CheckStorageCompareAndSwapSuccessAndConflict,
 		},
 		{
 			name: "cas_missing_row",
 			st:   storCASMissingWrong{},
-			fn:   vaulttest.CheckStorageCompareAndSwapMissingRow,
+			fn:   holdtest.CheckStorageCompareAndSwapMissingRow,
 		},
 	}
 
@@ -115,7 +116,7 @@ func storK(ns, id string) string { return ns + "\x00" + id }
 //=============================================================================
 
 // storAllowDup implements Create as blind insert: duplicate keys overwrite instead of returning
-// [verrors.ErrDuplicateKey], so [vaulttest.CheckStorageCreateDuplicate] fails.
+// [verrors.ErrDuplicateKey], so [holdtest.CheckStorageCreateDuplicate] fails.
 type storAllowDup struct{ m map[string][]byte }
 
 func newStorAllowDup() *storAllowDup { return &storAllowDup{m: make(map[string][]byte)} }
@@ -161,7 +162,7 @@ func (s *storAllowDup) CompareAndSwap(_ context.Context, ns, id string, old, new
 }
 
 // storWrongDupErr rejects duplicate creates with a generic error instead of [verrors.ErrDuplicateKey],
-// breaking errors.Is classification required by [vaulttest.CheckStorageCreateDuplicate].
+// breaking errors.Is classification required by [holdtest.CheckStorageCreateDuplicate].
 type storWrongDupErr struct{ m map[string][]byte }
 
 func newStorWrongDupErr() *storWrongDupErr { return &storWrongDupErr{m: make(map[string][]byte)} }
@@ -210,7 +211,7 @@ func (s *storWrongDupErr) CompareAndSwap(_ context.Context, ns, id string, old, 
 	return nil
 }
 
-// storGetWrong returns a wrong constant payload on Get, failing [vaulttest.CheckStorageCreateGetRoundtrip].
+// storGetWrong returns a wrong constant payload on Get, failing [holdtest.CheckStorageCreateGetRoundtrip].
 type storGetWrong struct{ m map[string][]byte }
 
 func newStorGetWrong() *storGetWrong { return &storGetWrong{m: make(map[string][]byte)} }
@@ -255,7 +256,7 @@ func (s *storGetWrong) CompareAndSwap(_ context.Context, ns, id string, old, new
 }
 
 // storNSCollide keys rows by id only, ignoring namespace, so the second namespace overwrites the
-// first—[vaulttest.CheckStorageNamespaceIsolation] must fail.
+// first—[holdtest.CheckStorageNamespaceIsolation] must fail.
 type storNSCollide struct{ m map[string][]byte }
 
 func newStorNSCollide() *storNSCollide { return &storNSCollide{m: make(map[string][]byte)} }
@@ -304,7 +305,7 @@ func (s *storNSCollide) CompareAndSwap(_ context.Context, ns, id string, old, ne
 }
 
 // storGetMissingWrong returns (nil, nil) for missing rows instead of [verrors.ErrNotFound], defeating
-// [vaulttest.CheckStorageGetMissing].
+// [holdtest.CheckStorageGetMissing].
 type storGetMissingWrong struct{}
 
 func (storGetMissingWrong) Create(context.Context, string, string, []byte) error { return nil }
@@ -323,7 +324,7 @@ func (storGetMissingWrong) CompareAndSwap(context.Context, string, string, []byt
 	return verrors.ErrNotFound
 }
 
-// storReplaceNoop is a no-op Replace: ciphertext never updates, so [vaulttest.CheckStorageReplaceSuccess] fails.
+// storReplaceNoop is a no-op Replace: ciphertext never updates, so [holdtest.CheckStorageReplaceSuccess] fails.
 type storReplaceNoop struct{ m map[string][]byte }
 
 func newStorReplaceNoop() *storReplaceNoop { return &storReplaceNoop{m: make(map[string][]byte)} }
@@ -442,7 +443,7 @@ func (s *storDeleteNoop) CompareAndSwap(_ context.Context, ns, id string, old, n
 }
 
 // storCASBlind ignores the old ciphertext and always applies the new value, so a stale CAS cannot
-// return [verrors.ErrCASFailed]—[vaulttest.CheckStorageCompareAndSwapSuccessAndConflict] fails.
+// return [verrors.ErrCASFailed]—[holdtest.CheckStorageCompareAndSwapSuccessAndConflict] fails.
 type storCASBlind struct{ m map[string][]byte }
 
 func newStorCASBlind() *storCASBlind { return &storCASBlind{m: make(map[string][]byte)} }

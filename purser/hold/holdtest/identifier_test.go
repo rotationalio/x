@@ -1,9 +1,9 @@
-package vaulttest_test
+package holdtest_test
 
 // Negative conformance tests for the vault Identifier contract (see [identifier.Identifier]).
 //
 // The helpers in identifier.go (CheckIdentifier…, IdentifierConforms) encode
-// contracts that real identifiers such as [identifier.HexIdentifier] must satisfy. Each subtest
+// contracts that real identifiers such as [hexid.Identifier] must satisfy. Each subtest
 // here wires a deliberately broken fake into one of those checks and asserts the check returns a
 // non-nil error—proving the check would fail a non-conforming implementation.
 
@@ -11,9 +11,10 @@ import (
 	"fmt"
 	"testing"
 
-	_ "go.rtnl.ai/x/vault/v1"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/vaulttest"
+	"go.rtnl.ai/x/purser/hold/holdtest"
+	"go.rtnl.ai/x/purser/hold/identifier"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	_ "go.rtnl.ai/x/purser/locker/v1"
 )
 
 //=============================================================================
@@ -25,8 +26,8 @@ import (
 func TestIdentifierConformance_negative(t *testing.T) {
 	t.Run("new_many_distinct_duplicate_ids", func(t *testing.T) {
 		// Real identifiers must mint unique ids; a generator that always returns the same id must
-		// fail [vaulttest.CheckIdentifierNewManyDistinct] once the duplicate is seen.
-		if err := vaulttest.CheckIdentifierNewManyDistinct(idAlwaysSame{}, 100); err == nil {
+		// fail [holdtest.CheckIdentifierNewManyDistinct] once the duplicate is seen.
+		if err := holdtest.CheckIdentifierNewManyDistinct(idAlwaysSame{}, 100); err == nil {
 			t.Fatal("CheckIdentifierNewManyDistinct: expected error for duplicate ids")
 		}
 	})
@@ -34,23 +35,23 @@ func TestIdentifierConformance_negative(t *testing.T) {
 	t.Run("new_many_distinct_varying_length", func(t *testing.T) {
 		// Vault and storage treat the id string as an opaque key, but Parse and wire framing assume
 		// a fixed canonical length; oscillating lengths between mints must fail the distinct check.
-		if err := vaulttest.CheckIdentifierNewManyDistinct(&idOscillatingLen{}, 10); err == nil {
+		if err := holdtest.CheckIdentifierNewManyDistinct(&idOscillatingLen{}, 10); err == nil {
 			t.Fatal("CheckIdentifierNewManyDistinct: expected error for varying id lengths")
 		}
 	})
 
 	t.Run("parse_rejects_wrong_length", func(t *testing.T) {
 		// Parse must reject ids whose length differs from the canonical form; a permissive Parse
-		// that accepts any string breaks [vaulttest.CheckIdentifierParseRejectsWrongLength].
-		if err := vaulttest.CheckIdentifierParseRejectsWrongLength(idParsePermissive{}); err == nil {
+		// that accepts any string breaks [holdtest.CheckIdentifierParseRejectsWrongLength].
+		if err := holdtest.CheckIdentifierParseRejectsWrongLength(idParsePermissive{}); err == nil {
 			t.Fatal("CheckIdentifierParseRejectsWrongLength: expected error when Parse accepts wrong length")
 		}
 	})
 
 	t.Run("marshal_binary_roundtrip", func(t *testing.T) {
 		// MarshalBinary/UnmarshalBinary must be lossless for the canonical id string; truncating on
-		// unmarshal must fail [vaulttest.CheckIdentifierMarshalBinaryRoundtrip].
-		if err := vaulttest.CheckIdentifierMarshalBinaryRoundtrip(idTruncateUnmarshal{}); err == nil {
+		// unmarshal must fail [holdtest.CheckIdentifierMarshalBinaryRoundtrip].
+		if err := holdtest.CheckIdentifierMarshalBinaryRoundtrip(idTruncateUnmarshal{}); err == nil {
 			t.Fatal("CheckIdentifierMarshalBinaryRoundtrip: expected error for lossy UnmarshalBinary")
 		}
 	})
@@ -61,26 +62,26 @@ func TestIdentifierConformance_negative(t *testing.T) {
 //=============================================================================
 
 // idAlwaysSame implements [identifier.Identifier] but returns the same id on every New call, violating
-// uniqueness required by [vaulttest.CheckIdentifierNewManyDistinct]. Parse and binary marshal
-// delegate to [identifier.HexIdentifier] so only New is defective.
+// uniqueness required by [holdtest.CheckIdentifierNewManyDistinct]. Parse and binary marshal
+// delegate to [hexid.Identifier] so only New is defective.
 type idAlwaysSame struct{}
 
 var _ identifier.Identifier = idAlwaysSame{}
 
 func (idAlwaysSame) New() (string, error) { return "0123456789abcdef0123456789abcdef", nil }
 
-func (idAlwaysSame) Parse(id string) error { return identifier.HexIdentifier{}.Parse(id) }
+func (idAlwaysSame) Parse(id string) error { return hexid.Identifier{}.Parse(id) }
 
 func (idAlwaysSame) MarshalBinary(id string) ([]byte, error) {
-	return identifier.HexIdentifier{}.MarshalBinary(id)
+	return hexid.Identifier{}.MarshalBinary(id)
 }
 
 func (idAlwaysSame) UnmarshalBinary(b []byte) (string, error) {
-	return identifier.HexIdentifier{}.UnmarshalBinary(b)
+	return hexid.Identifier{}.UnmarshalBinary(b)
 }
 
 // idOscillatingLen alternates between two different string lengths on each New call, violating
-// the stable-length requirement enforced by [vaulttest.CheckIdentifierNewManyDistinct].
+// the stable-length requirement enforced by [holdtest.CheckIdentifierNewManyDistinct].
 type idOscillatingLen struct{ n int }
 
 func (g *idOscillatingLen) New() (string, error) {
@@ -102,23 +103,23 @@ func (g *idOscillatingLen) MarshalBinary(id string) ([]byte, error) { return []b
 
 func (g *idOscillatingLen) UnmarshalBinary(b []byte) (string, error) { return string(b), nil }
 
-// idParsePermissive embeds [identifier.HexIdentifier] for New/Marshal/Unmarshal but overrides
+// idParsePermissive embeds [hexid.Identifier] for New/Marshal/Unmarshal but overrides
 // Parse to accept any string, defeating length validation.
-type idParsePermissive struct{ identifier.HexIdentifier }
+type idParsePermissive struct{ hexid.Identifier }
 
 func (idParsePermissive) Parse(string) error { return nil }
 
-// idTruncateUnmarshal delegates New/Parse/Marshal to [identifier.HexIdentifier] but drops the last
+// idTruncateUnmarshal delegates New/Parse/Marshal to [hexid.Identifier] but drops the last
 // byte on UnmarshalBinary, breaking the round-trip contract checked by
-// [vaulttest.CheckIdentifierMarshalBinaryRoundtrip].
+// [holdtest.CheckIdentifierMarshalBinaryRoundtrip].
 type idTruncateUnmarshal struct{}
 
-func (idTruncateUnmarshal) New() (string, error) { return identifier.HexIdentifier{}.New() }
+func (idTruncateUnmarshal) New() (string, error) { return hexid.Identifier{}.New() }
 
-func (idTruncateUnmarshal) Parse(id string) error { return identifier.HexIdentifier{}.Parse(id) }
+func (idTruncateUnmarshal) Parse(id string) error { return hexid.Identifier{}.Parse(id) }
 
 func (idTruncateUnmarshal) MarshalBinary(id string) ([]byte, error) {
-	return identifier.HexIdentifier{}.MarshalBinary(id)
+	return hexid.Identifier{}.MarshalBinary(id)
 }
 
 func (idTruncateUnmarshal) UnmarshalBinary(b []byte) (string, error) {

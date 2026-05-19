@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/v1/models"
-	"go.rtnl.ai/x/vault/v1/suite"
+	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/locker/v1/models"
+	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 // TestMeta_roundtrip checks [models.Meta.MarshalBinary] and [models.Meta.UnmarshalBinary] preserve fields.

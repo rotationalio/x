@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/v1/gcm"
+	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/locker/v1/gcm"
 )
 
 // TestWrap_sealOpen_roundtrip seals a DEK with random wrap nonce and opens with the same AEAD and AAD.

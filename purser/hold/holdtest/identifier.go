@@ -1,4 +1,4 @@
-package vaulttest
+package holdtest
 
 // Identifier conformance helpers for tests.
 //
@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/identifier"
+	"go.rtnl.ai/x/purser/hold/identifier"
 )
 
 // DefaultIdentifierDistinctSamples is the sample count used by [IdentifierConforms] for the

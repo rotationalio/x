@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	v1 "go.rtnl.ai/x/vault/v1"
-	"go.rtnl.ai/x/vault/v1/constants"
+	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
 // TestEmitGoldenV1Wire prints fixed hex for the long-term key and golden sealed wire (build tag emitgolden).

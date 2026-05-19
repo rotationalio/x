@@ -1,4 +1,4 @@
-package storage
+package hold
 
 // In-memory [Storage] using [sync.Map] for concurrent tests and examples.
 
@@ -6,7 +6,7 @@ import (
 	"context"
 	"sync"
 
-	verrors "go.rtnl.ai/x/vault/errors"
+	verrors "go.rtnl.ai/x/purser/errors"
 )
 
 // MemStorage is an in-memory [Storage]. Ciphertext values are opaque bytes;

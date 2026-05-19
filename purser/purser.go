@@ -2,7 +2,7 @@
 Package vault defines the version-neutral [Vault] interface for opaque secret rows. Concrete
 implementations live in versioned subpackages (for example [go.rtnl.ai/x/vault/v1]).
 */
-package vault
+package purser
 
 import "context"
 

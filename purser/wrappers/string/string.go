@@ -2,7 +2,7 @@
 Package stringvault wraps [rtvault.Vault] with a string-shaped API: plaintext is
 UTF-8 text ([Store], [Retrieve], [Update], [CompareAndSwap]); bytes on the wire remain opaque to your storage implementation via the embedded [rtvault.Vault].
 */
-package stringvault
+package stringpurser
 
 // UTF-8 string payloads on top of [rtvault.Vault]; invalid UTF-8 returns [verrors.ErrInvalidUTF8].
 
@@ -10,8 +10,8 @@ import (
 	"context"
 	"unicode/utf8"
 
-	rtvault "go.rtnl.ai/x/vault"
-	verrors "go.rtnl.ai/x/vault/errors"
+	rtvault "go.rtnl.ai/x/purser"
+	verrors "go.rtnl.ai/x/purser/errors"
 )
 
 // Vault embeds a [rtvault.Vault] and enforces UTF-8 on string plaintext at this API boundary.

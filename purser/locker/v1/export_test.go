@@ -5,9 +5,8 @@ package v1
 import (
 	"crypto/ecdh"
 
-	"go.rtnl.ai/x/vault"
-	"go.rtnl.ai/x/vault/v1/constants"
-	"go.rtnl.ai/x/vault/v1/models"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/locker/v1/models"
 )
 
 // ExportTestBuildSealedRow builds a v1 sealed wire blob using fixed DEK, inner and wrap nonces,
@@ -22,6 +21,3 @@ func ExportTestBuildSealedRow(priv *ecdh.PrivateKey, namespace string, plaintext
 	v := &sealedVault{priv: priv, template: meta, st: nil, id: nil}
 	return v.sealPlaintextWith(namespace, plaintext, dekCopy, innerNonce, ephPriv, wrapNonce)
 }
-
-// NilSealedVault is a typed-nil [*sealedVault] as [Vault] for nil-receiver contract tests in package v1_test.
-var NilSealedVault vault.Vault = (*sealedVault)(nil)

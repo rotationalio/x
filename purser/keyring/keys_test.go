@@ -1,4 +1,4 @@
-package keys_test
+package keyring_test
 
 import (
 	cryptorand "crypto/rand"
@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/keys"
+	verrors "go.rtnl.ai/x/purser/errors"
+	keys "go.rtnl.ai/x/purser/keyring"
 )
 
 // TestDerive_rejectsNilPassword ensures a nil password slice returns before Argon2.

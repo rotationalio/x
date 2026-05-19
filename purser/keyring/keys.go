@@ -13,14 +13,14 @@
 // [RFC 9106]: https://www.rfc-editor.org/rfc/rfc9106
 // [argon2.IDKey]: https://pkg.go.dev/golang.org/x/crypto/argon2#IDKey
 // [OWASP Password Storage Cheat Sheet]: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#argon2id
-package keys
+package keyring
 
 import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"io"
 
-	verrors "go.rtnl.ai/x/vault/errors"
+	verrors "go.rtnl.ai/x/purser/errors"
 	"golang.org/x/crypto/argon2"
 )
 

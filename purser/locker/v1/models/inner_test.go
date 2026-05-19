@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/models"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/models"
 )
 
 // TestInner_roundtrip checks [models.Inner.MarshalBinary] and [models.Inner.UnmarshalBinary] preserve nonce and payload.

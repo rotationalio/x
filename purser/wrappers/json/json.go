@@ -4,7 +4,7 @@ Package jsonvault wraps [rtvault.Vault], exposing the same operation names with 
 [Retrieve] unmarshals into dst; [CompareAndSwap] takes expected current and new JSON as []byte (validated with [encoding/json.Valid] when non-empty) and delegates to the embedded vault. Rows remain opaque ciphertext in the storage backend; the
 embedded [rtvault.Vault] is also available as the struct field Vault (e.g. calling [rtvault.Vault.Update] with raw bytes in tests).
 */
-package jsonvault
+package jsonpurser
 
 // JSON-encoded payloads on top of [rtvault.Vault] using encoding/json.
 
@@ -14,8 +14,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	rtvault "go.rtnl.ai/x/vault"
-	verrors "go.rtnl.ai/x/vault/errors"
+	rtvault "go.rtnl.ai/x/purser"
+	verrors "go.rtnl.ai/x/purser/errors"
 )
 
 // Vault embeds a [rtvault.Vault] and exposes the same operation names, using JSON

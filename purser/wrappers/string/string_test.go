@@ -1,23 +1,23 @@
-package stringvault_test
+package stringpurser_test
 
-// Tests stringvault UTF-8 string payloads on top of [vaulttest.TestVault].
+// Tests stringvault UTF-8 string payloads on top of [pursertest.TestVault].
 
 import (
 	"context"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
-	"go.rtnl.ai/x/vault/stringvault"
-	"go.rtnl.ai/x/vault/vaulttest"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	"go.rtnl.ai/x/purser/pursertest"
+	stringpurser "go.rtnl.ai/x/purser/wrappers/string"
 )
 
-// TestStringVault_roundtrip checks [stringvault.Vault.Store] and [stringvault.Vault.Retrieve] preserve a UTF-8 string.
+// TestStringVault_roundtrip checks [stringpurser.Vault.Store] and [stringpurser.Vault.Retrieve] preserve a UTF-8 string.
 func TestStringVault_roundtrip(t *testing.T) {
-	v := vaulttest.NewTestVault(t, storage.NewMemStorage(), identifier.HexIdentifier{})
-	w := stringvault.New(v)
+	v := pursertest.NewTestVault(t, storage.NewMemStorage(), hexid.Identifier{})
+	w := stringpurser.New(v)
 	ctx := context.Background()
 
 	const want = "hello"
@@ -35,8 +35,8 @@ func TestStringVault_roundtrip(t *testing.T) {
 // TestStringVault_invalidUTF8 checks that storing invalid UTF-8 returns [verrors.ErrInvalidUTF8].
 func TestStringVault_invalidUTF8(t *testing.T) {
 	st := storage.NewMemStorage()
-	v := vaulttest.NewTestVault(t, st, identifier.HexIdentifier{})
-	w := stringvault.New(v)
+	v := pursertest.NewTestVault(t, st, hexid.Identifier{})
+	w := stringpurser.New(v)
 	ctx := context.Background()
 
 	// Invalid UTF-8 string: 0xff is not legal in UTF-8.
@@ -47,12 +47,12 @@ func TestStringVault_invalidUTF8(t *testing.T) {
 	assert.ErrorIs(t, err, verrors.ErrInvalidUTF8)
 }
 
-// TestStringVault_invalidUTF8_corrupt_row checks [stringvault.Vault.Retrieve] rejects invalid UTF-8 when the
+// TestStringVault_invalidUTF8_corrupt_row checks [stringpurser.Vault.Retrieve] rejects invalid UTF-8 when the
 // underlying vault stores raw bytes and storage is corrupted, returning [verrors.ErrInvalidUTF8].
 func TestStringVault_invalidUTF8_corrupt_row(t *testing.T) {
 	st := storage.NewMemStorage()
-	v := vaulttest.NewTestVault(t, st, identifier.HexIdentifier{})
-	w := stringvault.New(v)
+	v := pursertest.NewTestVault(t, st, hexid.Identifier{})
+	w := stringpurser.New(v)
 	ctx := context.Background()
 
 	id, err := w.Store(ctx, "ns", "good")

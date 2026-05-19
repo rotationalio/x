@@ -1,17 +1,17 @@
-package storage_test
+package hold_test
 
 import (
 	"testing"
 
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
-	"go.rtnl.ai/x/vault/vaulttest"
+	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/hold/holdtest"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 )
 
-// TestMemStorage_compliance runs [vaulttest.StorageConforms] against [storage.MemStorage]
-// and [identifier.HexIdentifier].
+// TestMemStorage_compliance runs [holdtest.StorageConforms] against [storage.MemStorage]
+// and [hexid.Identifier].
 func TestMemStorage_compliance(t *testing.T) {
-	vaulttest.StorageConforms(t, identifier.HexIdentifier{}, func(tb *testing.T) storage.Storage {
+	holdtest.StorageConforms(t, hexid.Identifier{}, func(tb *testing.T) storage.Storage {
 		tb.Helper()
 		return storage.NewMemStorage()
 	})

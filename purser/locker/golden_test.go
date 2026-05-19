@@ -15,12 +15,12 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
-	verrors "go.rtnl.ai/x/vault/errors"
-	v1 "go.rtnl.ai/x/vault/v1"
-	"go.rtnl.ai/x/vault/v1/constants"
-	"go.rtnl.ai/x/vault/v1/models"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/locker/v1/models"
 )
 
 // Long-term X25519 private key bytes that produced goldenSealedV1Hex (32-byte scalar encoding).
@@ -60,7 +60,7 @@ func TestGoldenV1Contract(t *testing.T) {
 	assert.Ok(t, st.Create(ctx, goldenNS, rowID, wire))
 
 	// Create a new vault instance using the decoded private key and memory storage.
-	v, err := v1.New(priv, st, identifier.HexIdentifier{})
+	v, err := v1.New(priv, st, hexid.Identifier{})
 	assert.Ok(t, err)
 
 	// Retrieve and decrypt, then compare plaintext.
@@ -95,7 +95,7 @@ func TestGoldenV1Contract_tamperedWireFailsDecrypt(t *testing.T) {
 	assert.Ok(t, st.Create(ctx, "golden-ns", rowID, wire))
 
 	// Initialize a new Vault backed by our private key and the test memory storage.
-	v, err := v1.New(priv, st, identifier.HexIdentifier{})
+	v, err := v1.New(priv, st, hexid.Identifier{})
 	assert.Ok(t, err)
 
 	// Attempt to retrieve and decrypt using the tampered wire;

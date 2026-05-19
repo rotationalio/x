@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/suite"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 // TestSuite_wireRoundTrip checks the one-byte wire encoding for the supported v1 suite and that

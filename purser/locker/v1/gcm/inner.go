@@ -5,8 +5,8 @@ import (
 	"crypto/rand"
 	"io"
 
-	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/errors"
+	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
 // NewInnerAEAD constructs inner payload AEAD (AES-256-GCM) for a 32-byte DEK.

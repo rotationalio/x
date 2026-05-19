@@ -23,15 +23,15 @@ import (
 	"errors"
 	"io"
 
-	"go.rtnl.ai/x/vault"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/keys"
-	"go.rtnl.ai/x/vault/storage"
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
-	vaultgcm "go.rtnl.ai/x/vault/v1/gcm"
-	"go.rtnl.ai/x/vault/v1/models"
+	vault "go.rtnl.ai/x/purser"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/hold/identifier"
+	keys "go.rtnl.ai/x/purser/keyring"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	vaultgcm "go.rtnl.ai/x/purser/locker/v1/gcm"
+	"go.rtnl.ai/x/purser/locker/v1/models"
 )
 
 //=============================================================================
@@ -48,6 +48,9 @@ type sealedVault struct {
 
 // Ensure sealedVault implements [vault.Vault].
 var _ vault.Vault = (*sealedVault)(nil)
+
+// NilSealedVault exposes a typed nil sealedVault as the interface for nil-receiver tests.
+var NilSealedVault vault.Vault = (*sealedVault)(nil)
 
 // New constructs a [Vault] for the v1 envelope suite from an X25519 private key.
 // Nil storage or identifier yields [verrors.ErrInvalidNewArgs]; a nil key yields [verrors.ErrNilPrivateKey];

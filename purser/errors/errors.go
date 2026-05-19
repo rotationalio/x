@@ -1,6 +1,6 @@
 // Package errors defines stable operational and crypto-helper sentinel errors shared across vault
 // versions. Classify with errors.Is from the standard library "errors" package. Wire-specific v1 errors live in
-// [go.rtnl.ai/x/vault/v1/errors].
+// [go.rtnl.ai/x/purser/locker/v1/errors].
 package errors
 
 import stderrors "errors"
@@ -78,7 +78,7 @@ var (
 )
 
 //=============================================================================
-// Keys ([keys] at go.rtnl.ai/x/vault/keys)
+// Keys ([keys] at go.rtnl.ai/x/purser/keyring)
 //=============================================================================
 
 var (

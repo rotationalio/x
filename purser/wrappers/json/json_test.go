@@ -1,23 +1,23 @@
-package jsonvault_test
+package jsonpurser_test
 
-// Tests jsonvault JSON encoding on top of [vaulttest.TestVault].
+// Tests jsonvault JSON encoding on top of [pursertest.TestVault].
 
 import (
 	"context"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/jsonvault"
-	"go.rtnl.ai/x/vault/storage"
-	"go.rtnl.ai/x/vault/vaulttest"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	"go.rtnl.ai/x/purser/pursertest"
+	jsonpurser "go.rtnl.ai/x/purser/wrappers/json"
 )
 
 // TestJSONVault_roundtrip ensures Store and Retrieve round-trip JSON through the vault.
 func TestJSONVault_roundtrip(t *testing.T) {
-	v := vaulttest.NewTestVault(t, storage.NewMemStorage(), identifier.HexIdentifier{})
-	w := jsonvault.New(v)
+	v := pursertest.NewTestVault(t, storage.NewMemStorage(), hexid.Identifier{})
+	w := jsonpurser.New(v)
 	ctx := context.Background()
 
 	type payload struct {
@@ -35,8 +35,8 @@ func TestJSONVault_roundtrip(t *testing.T) {
 
 // TestJSONVault_Store_marshal_failure ensures non-marshalable values return ErrJSONMarshal.
 func TestJSONVault_Store_marshal_failure(t *testing.T) {
-	v := vaulttest.NewTestVault(t, storage.NewMemStorage(), identifier.HexIdentifier{})
-	w := jsonvault.New(v)
+	v := pursertest.NewTestVault(t, storage.NewMemStorage(), hexid.Identifier{})
+	w := jsonpurser.New(v)
 	ctx := context.Background()
 
 	ch := make(chan int)
@@ -51,8 +51,8 @@ func TestJSONVault_Store_marshal_failure(t *testing.T) {
 // and [verrors.ErrInvalidJSON] after decrypt.
 func TestJSONVault_Retrieve_unmarshal_failure(t *testing.T) {
 	st := storage.NewMemStorage()
-	v := vaulttest.NewTestVault(t, st, identifier.HexIdentifier{})
-	w := jsonvault.New(v)
+	v := pursertest.NewTestVault(t, st, hexid.Identifier{})
+	w := jsonpurser.New(v)
 	ctx := context.Background()
 
 	type payload struct {
@@ -71,18 +71,18 @@ func TestJSONVault_Retrieve_unmarshal_failure(t *testing.T) {
 	assert.ErrorIs(t, err, verrors.ErrInvalidJSON)
 }
 
-// TestEqualJSON_marshal_failure ensures [jsonvault.EqualJSON] surfaces [verrors.ErrJSONMarshal] when marshal fails.
+// TestEqualJSON_marshal_failure ensures [jsonpurser.EqualJSON] surfaces [verrors.ErrJSONMarshal] when marshal fails.
 func TestEqualJSON_marshal_failure(t *testing.T) {
-	_, err := jsonvault.EqualJSON(make(chan int), 1)
+	_, err := jsonpurser.EqualJSON(make(chan int), 1)
 
 	assert.ErrorIs(t, err, verrors.ErrJSONMarshal)
 }
 
-// TestJSONVault_Retrieve_nil_dst ensures [jsonvault.Vault.Retrieve] rejects a nil dst with [verrors.ErrNilRetrieveDst]
+// TestJSONVault_Retrieve_nil_dst ensures [jsonpurser.Vault.Retrieve] rejects a nil dst with [verrors.ErrNilRetrieveDst]
 // and that a non-pointer dst fails with [verrors.ErrJSONUnmarshal] from [encoding/json.Unmarshal].
 func TestJSONVault_Retrieve_nil_dst(t *testing.T) {
-	v := vaulttest.NewTestVault(t, storage.NewMemStorage(), identifier.HexIdentifier{})
-	w := jsonvault.New(v)
+	v := pursertest.NewTestVault(t, storage.NewMemStorage(), hexid.Identifier{})
+	w := jsonpurser.New(v)
 	ctx := context.Background()
 
 	id, err := w.Store(ctx, "ns", 1)

@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 
-	verrors "go.rtnl.ai/x/vault/errors"
+	verrors "go.rtnl.ai/x/purser/errors"
 )
 
 // newAEAD constructs an AES-GCM AEAD for key material of an allowed size.

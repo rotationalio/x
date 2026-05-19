@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/models"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/models"
 )
 
 // TestDekEnvelope_roundtrip checks [models.DekEnvelope.MarshalBinary] wire size and unmarshal round-trip.

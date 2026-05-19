@@ -1,8 +1,8 @@
 package models
 
 import (
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
 )
 
 // DekEnvelope is the ECDH/HKDF/AEAD-wrapped per-row DEK (fixed 92 bytes for the initial v1 suite).

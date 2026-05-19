@@ -7,8 +7,8 @@ import (
 	"crypto/sha256"
 	"io"
 
-	"go.rtnl.ai/x/vault/v1/constants"
-	verrors "go.rtnl.ai/x/vault/errors"
+	verrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
 // WrappedDEK is the fixed-layout DEK wrap segment (pub, nonce, ciphertext+tag).

@@ -1,13 +1,13 @@
-package identifier_test
+package hex_test
 
 import (
 	"testing"
 
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/vaulttest"
+	"go.rtnl.ai/x/purser/hold/holdtest"
+	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 )
 
-// TestHexIdentifier_compliance runs [vaulttest.IdentifierConforms] against [identifier.HexIdentifier].
+// TestHexIdentifier_compliance runs [holdtest.IdentifierConforms] against [hexid.Identifier].
 func TestHexIdentifier_compliance(t *testing.T) {
-	vaulttest.IdentifierConforms(t, identifier.HexIdentifier{})
+	holdtest.IdentifierConforms(t, hexid.Identifier{})
 }

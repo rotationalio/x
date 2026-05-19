@@ -1,4 +1,4 @@
-package vaulttest
+package holdtest
 
 // Storage conformance helpers for tests.
 //
@@ -17,9 +17,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	verrors "go.rtnl.ai/x/vault/errors"
-	"go.rtnl.ai/x/vault/identifier"
-	"go.rtnl.ai/x/vault/storage"
+	verrors "go.rtnl.ai/x/purser/errors"
+	storage "go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/hold/identifier"
 )
 
 // CheckStorageCreateGetRoundtrip verifies Create then Get returns the same ciphertext.

@@ -5,10 +5,10 @@ package models
 import (
 	"crypto/ecdh"
 
-	"go.rtnl.ai/x/vault/v1/constants"
-	v1errs "go.rtnl.ai/x/vault/v1/errors"
-	"go.rtnl.ai/x/vault/v1/suite"
-	"go.rtnl.ai/x/vault/errors"
+	"go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
+	v1errs "go.rtnl.ai/x/purser/locker/v1/errors"
+	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 // Meta is authenticated metadata carried on the wire; trust fields only after AEAD verify.
