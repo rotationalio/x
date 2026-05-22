@@ -17,23 +17,17 @@ const (
 	// InnerNonceBytes is the inner AES-GCM nonce size in bytes.
 	InnerNonceBytes = 12
 
-	// WrapNonceBytes is the DEK-wrap AES-GCM nonce size in bytes.
-	WrapNonceBytes = 12
-
 	// X25519PubBytes is the length in bytes of an X25519 public key on the wire.
 	X25519PubBytes = 32
 
-	// DEKBytes is the per-row data encryption key length in bytes.
-	DEKBytes = 32
+	// EphPubBytes is the fixed on-wire size of the per-row ephemeral X25519 public key.
+	EphPubBytes = X25519PubBytes
 
-	// WrapKeyBytes is the HKDF-derived AES-256 wrap key length in bytes.
-	WrapKeyBytes = 32
+	// DataKeyBytes is the HKDF-derived AES-256 data key length in bytes.
+	DataKeyBytes = 32
 
 	// GCMTagBytes is the AES-GCM authentication tag size in bytes.
 	GCMTagBytes = 16
-
-	// DekEnvelopeBytes is the fixed on-wire size for the initial v1 suite (32+12+32+16).
-	DekEnvelopeBytes = X25519PubBytes + WrapNonceBytes + DEKBytes + GCMTagBytes
 
 	// MaxMetaWireBytes is the largest possible v1 Meta encoding (bounded decode).
 	MaxMetaWireBytes = 1 + 1 + 1 + MaxKeyIDBytes + 1 + MaxNamespaceBytes

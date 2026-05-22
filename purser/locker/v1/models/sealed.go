@@ -1,7 +1,7 @@
 package models
 
 // Wire framing for the full v1 sealed row: magic, format version, meta length, [Meta],
-// [DekEnvelope], [Inner].
+// [EphPub], [Inner].
 
 import (
 	"encoding/binary"
@@ -13,11 +13,11 @@ import (
 // sealedPreambleBytes is the fixed header before variable-length meta: magic(4) + formatVersion(1) + lenMeta u16 BE(2).
 const sealedPreambleBytes = 4 + 1 + 2
 
-// Sealed is the full stored row: preamble, Meta, Dek, Body.
+// Sealed is the full stored row: preamble, Meta, Eph, Body.
 type Sealed struct {
 	FormatVersion uint8
 	Meta          Meta
-	Dek           DekEnvelope
+	Eph           EphPub
 	Body          Inner
 }
 
@@ -30,7 +30,7 @@ func (s Sealed) MarshalBinarySize() (int, error) {
 	if metaSize > constants.MaxMetaWireBytes {
 		return 0, perrors.ErrMalformedWire
 	}
-	return sealedPreambleBytes + metaSize + s.Dek.MarshalBinarySize() + s.Body.MarshalBinarySize(), nil
+	return sealedPreambleBytes + metaSize + s.Eph.MarshalBinarySize() + s.Body.MarshalBinarySize(), nil
 }
 
 // MarshalBinaryTo encodes Sealed into dst and returns written bytes.
@@ -54,7 +54,7 @@ func (s Sealed) MarshalBinary() ([]byte, error) {
 	if metaSize > constants.MaxMetaWireBytes {
 		return nil, perrors.ErrMalformedWire
 	}
-	need := sealedPreambleBytes + metaSize + s.Dek.MarshalBinarySize() + s.Body.MarshalBinarySize()
+	need := sealedPreambleBytes + metaSize + s.Eph.MarshalBinarySize() + s.Body.MarshalBinarySize()
 	out := make([]byte, need)
 	_, err = s.marshalBinaryToWithMetaSize(out, metaSize)
 	return out, err
@@ -62,9 +62,9 @@ func (s Sealed) MarshalBinary() ([]byte, error) {
 
 // marshalBinaryToWithMetaSize writes the wire bytes into dst using a precomputed metaSize.
 func (s Sealed) marshalBinaryToWithMetaSize(dst []byte, metaSize int) (int, error) {
-	dekSize := s.Dek.MarshalBinarySize()
+	ephSize := s.Eph.MarshalBinarySize()
 	bodySize := s.Body.MarshalBinarySize()
-	need := sealedPreambleBytes + metaSize + dekSize + bodySize
+	need := sealedPreambleBytes + metaSize + ephSize + bodySize
 	if len(dst) < need {
 		return 0, perrors.ErrMalformedWire
 	}
@@ -80,14 +80,15 @@ func (s Sealed) marshalBinaryToWithMetaSize(dst []byte, metaSize int) (int, erro
 	off += 2
 
 	var n int
-	// Marshal framed sections in wire order: Meta then DEK envelope then Inner payload.
-	n, err := s.Meta.MarshalBinaryTo(dst[off : off+metaSize])
+	var err error
+	// Marshal framed sections in wire order: Meta then ephemeral pubkey then Inner payload.
+	n, err = s.Meta.MarshalBinaryTo(dst[off : off+metaSize])
 	if err != nil {
 		return 0, err
 	}
 	off += n
 
-	n, err = s.Dek.MarshalBinaryTo(dst[off : off+dekSize])
+	n, err = s.Eph.MarshalBinaryTo(dst[off : off+ephSize])
 	if err != nil {
 		return 0, err
 	}
@@ -101,7 +102,7 @@ func (s Sealed) marshalBinaryToWithMetaSize(dst []byte, metaSize int) (int, erro
 	return off, nil
 }
 
-// UnmarshalBinary parses magic, dual version checks, framed meta, Dek, Body.
+// UnmarshalBinary parses magic, dual version checks, framed meta, Eph, Body.
 func (s *Sealed) UnmarshalBinary(data []byte) error {
 	if s == nil {
 		return perrors.ErrNilSealedPointer
@@ -122,8 +123,8 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 		return perrors.ErrMalformedWire
 	}
 
-	// Enforce minimum remaining bytes for DEK envelope and inner nonce+tag.
-	if len(data) < sealedPreambleBytes+lenMeta+constants.DekEnvelopeBytes+constants.InnerNonceBytes+constants.GCMTagBytes {
+	// Enforce minimum remaining bytes for ephemeral pubkey and inner nonce+tag.
+	if len(data) < sealedPreambleBytes+lenMeta+constants.EphPubBytes+constants.InnerNonceBytes+constants.GCMTagBytes {
 		return perrors.ErrMalformedWire
 	}
 	off := sealedPreambleBytes
@@ -140,9 +141,9 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 	if s.FormatVersion != constants.PackageVersion {
 		return perrors.ErrUnsupportedVersion
 	}
-	if err := s.Dek.UnmarshalBinary(data[off : off+constants.DekEnvelopeBytes]); err != nil {
+	if err := s.Eph.UnmarshalBinary(data[off : off+constants.EphPubBytes]); err != nil {
 		return err
 	}
-	off += constants.DekEnvelopeBytes
+	off += constants.EphPubBytes
 	return s.Body.UnmarshalBinary(data[off:])
 }

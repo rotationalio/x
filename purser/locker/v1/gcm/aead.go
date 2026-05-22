@@ -1,6 +1,6 @@
 package gcm
 
-// AES-GCM AEAD construction shared by inner-payload and DEK-wrap paths.
+// AES-GCM AEAD construction for the inner payload path.
 
 import (
 	"crypto/aes"

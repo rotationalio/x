@@ -203,14 +203,24 @@ func TestGCM_inner_nilAEAD_sealAndOpen(t *testing.T) {
 	assert.ErrorIs(t, err, verrors.ErrNilAEAD)
 }
 
-// TestGCM_NewInnerAEAD_rejectsBadDEKLength ensures only a 32-byte DEK is accepted for inner AEAD.
-func TestGCM_NewInnerAEAD_rejectsBadDEKLength(t *testing.T) {
-	_, err := gcm.NewInnerAEAD(make([]byte, constants.DEKBytes-1))
+// TestGCM_NewInnerAEAD_rejectsBadKeyLength ensures only a 32-byte data key is accepted for inner AEAD.
+func TestGCM_NewInnerAEAD_rejectsBadKeyLength(t *testing.T) {
+	_, err := gcm.NewInnerAEAD(make([]byte, constants.DataKeyBytes-1))
 	assert.ErrorIs(t, err, verrors.ErrMalformedParameters)
 }
 
-// TestGCM_inner_wrongDEK_failsAuth opens with a different inner key than was used to seal.
-func TestGCM_inner_wrongDEK_failsAuth(t *testing.T) {
+// TestDeriveDataKey_deterministic asserts HKDF output is stable for the same X25519 shared secret.
+func TestDeriveDataKey_deterministic(t *testing.T) {
+	secret := bytes.Repeat([]byte{0xab}, 32)
+	k1, err := gcm.DeriveDataKey(secret)
+	assert.Ok(t, err)
+	k2, err := gcm.DeriveDataKey(secret)
+	assert.Ok(t, err)
+	assert.Equal(t, k1, k2)
+}
+
+// TestGCM_inner_wrongKey_failsAuth opens with a different inner key than was used to seal.
+func TestGCM_inner_wrongKey_failsAuth(t *testing.T) {
 	// Seal with one key.
 	keySeal := bytes.Repeat([]byte{0x40}, 32)
 

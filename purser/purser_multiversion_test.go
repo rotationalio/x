@@ -19,7 +19,7 @@ import (
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring/memring"
-	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1"
 )
 
 // TestMultiVersion_sealWithActiveRetrieve seals with v1 (active) and verifies retrieval
@@ -63,7 +63,7 @@ func TestMultiVersion_switchActiveAndRetrieveOld(t *testing.T) {
 
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	lckV1, err := v1.New(priv)
+	lckV1, err := locker.New(priv)
 	assert.Ok(t, err)
 
 	lckV0A, err := nulllocker.New(t, nulllocker.VariantA, []byte("seedA"))
@@ -147,7 +147,7 @@ func TestMultiVersion_updateReEncryptsWithActive(t *testing.T) {
 
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	lckV1, err := v1.New(priv)
+	lckV1, err := locker.New(priv)
 	assert.Ok(t, err)
 
 	// Start with v0A as active.
@@ -186,7 +186,7 @@ func TestMultiVersion_moveNamespaceAcrossLockerVersions(t *testing.T) {
 
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	lckV1, err := v1.New(priv)
+	lckV1, err := locker.New(priv)
 	assert.Ok(t, err)
 
 	// Start with v0A active.
@@ -220,7 +220,7 @@ func newMultiVersionPurser(t *testing.T) (purser.Purser, *hold.MemHold, purser.L
 
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	lckV1, err := v1.New(priv)
+	lckV1, err := locker.New(priv)
 	assert.Ok(t, err)
 
 	lckV0A, err := nulllocker.New(t, nulllocker.VariantA, []byte("seedA"))

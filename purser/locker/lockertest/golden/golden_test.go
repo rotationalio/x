@@ -24,7 +24,7 @@ import (
 	"go.rtnl.ai/x/purser"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring"
-	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1"
 )
 
 //=============================================================================
@@ -45,7 +45,7 @@ var goldenParams = keyring.Params{Iterations: 1, MemoryKiB: 32, Threads: 1}
 // version-specific key via its own FromSeed (or equivalent).
 func goldenSeed(t *testing.T) []byte {
 	t.Helper()
-	seed, err := keyring.Derive(goldenPassword, goldenSalt, goldenParams, v1.SeedBytes)
+	seed, err := keyring.Derive(goldenPassword, goldenSalt, goldenParams, locker.SeedBytes)
 	assert.Ok(t, err)
 	return seed
 }
@@ -89,11 +89,7 @@ func cases() []lockerCase {
 		{
 			version: "v1",
 			newLocker: func(t *testing.T, seed []byte) (purser.Locker, error) {
-				priv, err := v1.FromSeed(seed)
-				if err != nil {
-					return nil, err
-				}
-				return v1.New(priv)
+				return locker.FromSeed(seed)
 			},
 		},
 	}

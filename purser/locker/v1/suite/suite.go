@@ -9,7 +9,7 @@ import (
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// ID selects the full crypto recipe (wrap + KDF context + inner AEAD).
+// ID selects the full crypto recipe (ECDH + HKDF + AES-GCM).
 type ID uint8
 
 const (

@@ -1,10 +1,12 @@
-package v1_test
+package locker_test
 
-// Direct tests for locker/v1 seal, open, key-id parsing, and constructor validation.
+// Direct tests for locker seal, open, key-id parsing, and constructor validation.
 
 import (
 	"crypto/ecdh"
 	crand "crypto/rand"
+	"crypto/x509"
+	"io"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
@@ -12,21 +14,22 @@ import (
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/keyring"
 	"go.rtnl.ai/x/purser/locker/lockertest"
-	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
 //=============================================================================
 // Tests: conformance
 //=============================================================================
 
-// TestLocker_conforms runs the shared locker conformance suite against v1.
+// TestLocker_conforms runs the shared locker conformance suite against locker.
 func TestLocker_conforms(t *testing.T) {
 	err := lockertest.LockerConforms(func() (purser.Locker, error) {
 		priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 		if err != nil {
 			return nil, err
 		}
-		return v1.New(priv)
+		return locker.New(priv)
 	})
 	assert.Ok(t, err)
 }
@@ -37,7 +40,7 @@ func TestLocker_conforms(t *testing.T) {
 
 // TestNew_nilKey verifies New rejects a nil private key.
 func TestNew_nilKey(t *testing.T) {
-	_, err := v1.New(nil)
+	_, err := locker.New(nil)
 	assert.ErrorIs(t, err, perrors.ErrNilPrivateKey)
 }
 
@@ -45,7 +48,7 @@ func TestNew_nilKey(t *testing.T) {
 func TestNew_nonX25519Key(t *testing.T) {
 	priv, err := ecdh.P256().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	_, err = v1.New(priv)
+	_, err = locker.New(priv)
 	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
@@ -146,6 +149,29 @@ func TestSeal_uniqueCiphertexts(t *testing.T) {
 }
 
 //=============================================================================
+// Tests: Seal negative cases
+//=============================================================================
+
+// sealedPreambleBytes is magic(4) + formatVersion(1) + metaLen u16 BE(2).
+const sealedPreambleBytes = 4 + 1 + 2
+
+// TestSeal_entropyFailure maps [crypto/rand.Reader] failures during Seal to [perrors.ErrSealFailed].
+func TestSeal_entropyFailure(t *testing.T) {
+	_, lck := freshLocker(t)
+	withFailingEntropy(t)
+	_, err := lck.Seal("ns", []byte("x"))
+	assert.ErrorIs(t, err, perrors.ErrSealFailed)
+}
+
+// TestSeal_oversizedNamespace rejects namespaces longer than the wire cap.
+func TestSeal_oversizedNamespace(t *testing.T) {
+	_, lck := freshLocker(t)
+	big := string(make([]byte, constants.MaxNamespaceBytes+1))
+	_, err := lck.Seal(big, []byte("data"))
+	assert.ErrorIs(t, err, perrors.ErrMetaNamespaceTooLarge)
+}
+
+//=============================================================================
 // Tests: Open negative cases
 //=============================================================================
 
@@ -173,9 +199,23 @@ func TestOpen_wrongKey(t *testing.T) {
 	assert.Ok(t, err)
 	_, err = lckB.Open("ns", wire)
 
-	// Open must fail — lckB's private key cannot unwrap the DEK that was wrapped to
-	// lckA's public key.
+	// Open must fail — lckB cannot derive the same row key from the ephemeral pubkey.
 	assert.Error(t, err)
+}
+
+// TestOpen_tamperedMeta flips a byte in the framed Meta region; inner GCM AAD no longer matches.
+func TestOpen_tamperedMeta(t *testing.T) {
+	_, lck := freshLocker(t)
+	wire, err := lck.Seal("ns", []byte("data"))
+	assert.Ok(t, err)
+
+	tampered := append([]byte(nil), wire...)
+	// Meta layout: version, suite, keyID len, keyID… — flip the first KeyID byte.
+	tampered[sealedPreambleBytes+4] ^= 0xff
+
+	_, err = lck.Open("ns", tampered)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, perrors.ErrDecrypt)
 }
 
 // TestOpen_truncatedWire ensures truncated ciphertext returns an error.
@@ -269,48 +309,92 @@ func TestParseKeyID_truncated(t *testing.T) {
 
 // TestFromSeed_ok verifies a 32-byte seed produces a valid locker.
 func TestFromSeed_ok(t *testing.T) {
-	// A deterministic 32-byte seed (0,1,2,…) so the test is reproducible.
-	seed := make([]byte, v1.SeedBytes)
+	seed := make([]byte, locker.SeedBytes)
 	for i := range seed {
 		seed[i] = byte(i)
 	}
 
-	// Map the seed to an X25519 private key and wrap it in a v1 locker.
-	priv, err := v1.FromSeed(seed)
-	assert.Ok(t, err)
-	lck, err := v1.New(priv)
-
-	// The locker is constructed and exposes a non-empty key id.
+	lck, err := locker.FromSeed(seed)
 	assert.Ok(t, err)
 	assert.True(t, len(lck.KeyID()) > 0)
 }
 
 // TestFromSeed_wrongLength rejects seeds that are not exactly 32 bytes.
 func TestFromSeed_wrongLength(t *testing.T) {
-	_, err := v1.FromSeed(make([]byte, 31))
+	_, err := locker.FromSeed(make([]byte, 31))
 	assert.ErrorIs(t, err, perrors.ErrInvalidSeed)
 
-	_, err = v1.FromSeed(make([]byte, 33))
+	_, err = locker.FromSeed(make([]byte, 33))
 	assert.ErrorIs(t, err, perrors.ErrInvalidSeed)
 }
 
-// TestFromSeed_deterministic verifies the same seed always produces the same key.
+// TestFromSeed_deterministic verifies the same seed always produces the same key ID.
 func TestFromSeed_deterministic(t *testing.T) {
-	// A fixed 32-byte seed so both derivations must produce identical key material.
-	seed := make([]byte, v1.SeedBytes)
+	seed := make([]byte, locker.SeedBytes)
 	for i := range seed {
 		seed[i] = byte(i + 42)
 	}
 
-	// Derive the X25519 private key twice from the exact same seed.
-	priv1, err := v1.FromSeed(seed)
+	lck1, err := locker.FromSeed(seed)
 	assert.Ok(t, err)
-	priv2, err := v1.FromSeed(seed)
+	lck2, err := locker.FromSeed(seed)
+	assert.Ok(t, err)
+	assert.Equal(t, lck1.KeyID(), lck2.KeyID())
+}
+
+//=============================================================================
+// Tests: FromPKCS8 / FromKey
+//=============================================================================
+
+// TestFromKey_ok accepts a raw X25519 private key.
+func TestFromKey_ok(t *testing.T) {
+	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
+	assert.Ok(t, err)
+	lck, err := locker.FromKey(priv)
+	assert.Ok(t, err)
+	assert.Equal(t, priv.PublicKey().Bytes(), lck.KeyID())
+}
+
+// TestFromPKCS8_roundtrip marshals an X25519 key to PKCS#8 and loads a locker from it.
+func TestFromPKCS8_roundtrip(t *testing.T) {
+	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
+	assert.Ok(t, err)
+	der, err := x509.MarshalPKCS8PrivateKey(priv)
 	assert.Ok(t, err)
 
-	// Public keys match — confirming the seed-to-key mapping is deterministic and a
-	// caller can reconstruct the same locker after a restart.
-	assert.Equal(t, priv1.PublicKey().Bytes(), priv2.PublicKey().Bytes())
+	lck, err := locker.FromPKCS8(der)
+	assert.Ok(t, err)
+	assert.Equal(t, priv.PublicKey().Bytes(), lck.KeyID())
+}
+
+// TestFromPKCS8_invalidDER rejects malformed PKCS#8 input.
+func TestFromPKCS8_invalidDER(t *testing.T) {
+	_, err := locker.FromPKCS8([]byte{0x30, 0x01, 0x02})
+	assert.Error(t, err)
+}
+
+// TestFromPKCS8_rejectsP256 rejects PKCS#8 material for a non-X25519 key.
+func TestFromPKCS8_rejectsP256(t *testing.T) {
+	priv, err := ecdh.P256().GenerateKey(crand.Reader)
+	assert.Ok(t, err)
+	der, err := x509.MarshalPKCS8PrivateKey(priv)
+	assert.Ok(t, err)
+	_, err = locker.FromPKCS8(der)
+	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
+}
+
+// TestFromKey_rejectsP256 rejects a non-X25519 ECDH private key.
+func TestFromKey_rejectsP256(t *testing.T) {
+	priv, err := ecdh.P256().GenerateKey(crand.Reader)
+	assert.Ok(t, err)
+	_, err = locker.FromKey(priv)
+	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
+}
+
+// TestFromKey_rejectsWrongType rejects non-ECDH key material.
+func TestFromKey_rejectsWrongType(t *testing.T) {
+	_, err := locker.FromKey("not-a-key")
+	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
 //=============================================================================
@@ -324,7 +408,7 @@ func TestFromPassword_roundtrip(t *testing.T) {
 	assert.Ok(t, err)
 
 	// Derive a locker from the password+salt, then seal and open a small payload.
-	lck, err := v1.FromPassword([]byte("test-password"), salt, keyring.MemoryConstrainedParams())
+	lck, err := locker.FromPassword([]byte("test-password"), salt, keyring.MemoryConstrainedParams())
 	assert.Ok(t, err)
 	assert.True(t, len(lck.KeyID()) > 0)
 
@@ -344,9 +428,9 @@ func TestFromPassword_deterministic(t *testing.T) {
 	assert.Ok(t, err)
 
 	// Derive twice from the same inputs.
-	lck1, err := v1.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
+	lck1, err := locker.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
 	assert.Ok(t, err)
-	lck2, err := v1.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
+	lck2, err := locker.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
 	assert.Ok(t, err)
 
 	// Key IDs match, demonstrating the derive→key step is deterministic for fixed
@@ -357,13 +441,13 @@ func TestFromPassword_deterministic(t *testing.T) {
 // TestFromPassword_nilPassword propagates the ErrNilPassword sentinel.
 func TestFromPassword_nilPassword(t *testing.T) {
 	salt := make([]byte, keyring.SaltBytes)
-	_, err := v1.FromPassword(nil, salt, keyring.MemoryConstrainedParams())
+	_, err := locker.FromPassword(nil, salt, keyring.MemoryConstrainedParams())
 	assert.ErrorIs(t, err, perrors.ErrNilPassword)
 }
 
 // TestFromPassword_badSalt propagates the ErrInvalidSalt sentinel.
 func TestFromPassword_badSalt(t *testing.T) {
-	_, err := v1.FromPassword([]byte("pw"), make([]byte, 3), keyring.MemoryConstrainedParams())
+	_, err := locker.FromPassword([]byte("pw"), make([]byte, 3), keyring.MemoryConstrainedParams())
 	assert.ErrorIs(t, err, perrors.ErrInvalidSalt)
 }
 
@@ -380,7 +464,7 @@ func TestFromPassword_badSalt(t *testing.T) {
 func FuzzParseKeyID(f *testing.F) {
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(f, err, "seed key")
-	lck, err := v1.New(priv)
+	lck, err := locker.New(priv)
 	assert.Ok(f, err, "seed locker")
 	wire, err := lck.Seal("ns", []byte("plain"))
 	assert.Ok(f, err, "seed seal")
@@ -413,7 +497,21 @@ func freshLocker(tb testing.TB) (*ecdh.PrivateKey, interface {
 	tb.Helper()
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(tb, err)
-	lck, err := v1.New(priv)
+	lck, err := locker.New(priv)
 	assert.Ok(tb, err)
 	return priv, lck
 }
+
+// withFailingEntropy swaps [crypto/rand.Reader] for one that always returns [io.EOF].
+func withFailingEntropy(t *testing.T) {
+	t.Helper()
+	orig := crand.Reader
+	t.Cleanup(func() { crand.Reader = orig })
+	crand.Reader = eofReader{}
+}
+
+// eofReader is a [crypto/rand.Reader] substitute that always returns [io.EOF].
+type eofReader struct{}
+
+// Read implements [io.Reader].
+func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }

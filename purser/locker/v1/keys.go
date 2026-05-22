@@ -1,10 +1,10 @@
-package v1
+package locker
 
-// Key construction for locker/v1: password-based (FromPassword), seed-based (FromSeed),
-// or bring-your-own X25519 key (New in locker.go).
+// Key construction: FromPassword, FromSeed, FromPKCS8, FromKey, or New in locker.go.
 
 import (
 	"crypto/ecdh"
+	"crypto/x509"
 
 	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
@@ -24,18 +24,35 @@ func FromPassword(password, salt []byte, p keyring.Params) (purser.Locker, error
 		return nil, err
 	}
 	defer purser.Zero(seed)
+	return FromSeed(seed)
+}
 
-	priv, err := FromSeed(seed)
+// FromSeed maps a derived 32-byte seed to a v1 Locker (X25519 long-term key).
+func FromSeed(seed []byte) (purser.Locker, error) {
+	if len(seed) != SeedBytes {
+		return nil, perrors.ErrInvalidSeed
+	}
+	priv, err := ecdh.X25519().NewPrivateKey(seed)
 	if err != nil {
 		return nil, err
 	}
 	return New(priv)
 }
 
-// FromSeed maps a derived 32-byte seed to a long-term X25519 private key for locker/v1.
-func FromSeed(seed []byte) (*ecdh.PrivateKey, error) {
-	if len(seed) != SeedBytes {
-		return nil, perrors.ErrInvalidSeed
+// FromPKCS8 parses a PKCS#8 private key and returns a v1 Locker (X25519 only).
+func FromPKCS8(der []byte) (purser.Locker, error) {
+	key, err := x509.ParsePKCS8PrivateKey(der)
+	if err != nil {
+		return nil, err
 	}
-	return ecdh.X25519().NewPrivateKey(seed)
+	return FromKey(key)
+}
+
+// FromKey accepts an X25519 *ecdh.PrivateKey and returns a v1 Locker.
+func FromKey(key any) (purser.Locker, error) {
+	priv, ok := key.(*ecdh.PrivateKey)
+	if !ok || priv == nil {
+		return nil, perrors.ErrInvalidWrappingKey
+	}
+	return New(priv)
 }

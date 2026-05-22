@@ -23,7 +23,7 @@ import (
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring/memring"
-	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1"
 	"go.rtnl.ai/x/purser/pursertest"
 )
 
@@ -434,7 +434,7 @@ func newCryptoPurser(tb testing.TB) (purser.Purser, *hold.MemHold) {
 	assert.Ok(tb, err, "new memhold")
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(tb, err, "new key")
-	lck, err := v1.New(priv)
+	lck, err := locker.New(priv)
 	assert.Ok(tb, err, "new locker")
 	kr, err := memring.New(lck)
 	assert.Ok(tb, err, "new keyring")

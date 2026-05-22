@@ -4,20 +4,30 @@ package gcm
 
 import (
 	"crypto/cipher"
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"io"
 
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
-// NewInnerAEAD constructs inner payload AEAD (AES-256-GCM) for a 32-byte DEK.
-func NewInnerAEAD(dek []byte) (cipher.AEAD, error) {
+// hkdfDataKeyInfo is the HKDF context string for stretching an X25519 shared secret into the row data key.
+const hkdfDataKeyInfo = "purser/v1/x25519-hkdf-sha256-aes256gcm/data-key"
+
+// DeriveDataKey derives the AES-256 row data key from an ECDH shared secret using HKDF-SHA256.
+func DeriveDataKey(sharedSecret []byte) ([]byte, error) {
+	return hkdf.Key(sha256.New, sharedSecret, nil, hkdfDataKeyInfo, constants.DataKeyBytes)
+}
+
+// NewInnerAEAD constructs inner payload AEAD (AES-256-GCM) for a 32-byte data key.
+func NewInnerAEAD(key []byte) (cipher.AEAD, error) {
 	// Inner AEAD is always AES-256 in v1; reject any other key length before touching the cipher.
-	if len(dek) != constants.DEKBytes {
+	if len(key) != constants.DataKeyBytes {
 		return nil, perrors.ErrMalformedParameters
 	}
-	return newAEAD(dek)
+	return newAEAD(key)
 }
 
 // SealInner encrypts plaintext with aad as GCM additional data using a random nonce.
@@ -33,7 +43,7 @@ func SealInner(aead cipher.AEAD, aad, plaintext []byte) ([constants.InnerNonceBy
 		return [constants.InnerNonceBytes]byte{}, nil, perrors.ErrMalformedParameters
 	}
 
-	// Fresh random nonce per seal; must not repeat for the same DEK under GCM.
+	// Fresh random nonce per seal; must not repeat for the same key under GCM.
 	var nonce [constants.InnerNonceBytes]byte
 	if _, err := io.ReadFull(rand.Reader, nonce[:]); err != nil {
 		return [constants.InnerNonceBytes]byte{}, nil, perrors.ErrSealFailed

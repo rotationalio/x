@@ -129,8 +129,8 @@ var (
 	// ErrNilInnerPointer means [*models.Inner.UnmarshalBinary] was called with a nil receiver.
 	ErrNilInnerPointer = stderrors.New("purser/locker/v1: nil Inner receiver")
 
-	// ErrNilDekEnvelopePointer means [*models.DekEnvelope.UnmarshalBinary] was called with a nil receiver.
-	ErrNilDekEnvelopePointer = stderrors.New("purser/locker/v1: nil DekEnvelope receiver")
+	// ErrNilEphPubPointer means [*models.EphPub.UnmarshalBinary] was called with a nil receiver.
+	ErrNilEphPubPointer = stderrors.New("purser/locker: nil EphPub receiver")
 
 	// ErrMalformedWire means bytes are corrupt, truncated, or not a valid v1 wire layout for the operation.
 	ErrMalformedWire = stderrors.New("purser/locker/v1: malformed wire encoding")

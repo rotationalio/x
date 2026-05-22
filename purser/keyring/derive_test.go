@@ -8,19 +8,19 @@ import (
 	"go.rtnl.ai/x/assert"
 	verrors "go.rtnl.ai/x/purser/errors"
 	keyring "go.rtnl.ai/x/purser/keyring"
-	v1 "go.rtnl.ai/x/purser/locker/v1"
+	"go.rtnl.ai/x/purser/locker/v1"
 )
 
 // TestDerive_rejectsNilPassword ensures a nil password slice returns before Argon2.
 func TestDerive_rejectsNilPassword(t *testing.T) {
 	salt := make([]byte, keyring.SaltBytes)
-	_, err := keyring.Derive(nil, salt, keyring.MemoryConstrainedParams(), v1.SeedBytes)
+	_, err := keyring.Derive(nil, salt, keyring.MemoryConstrainedParams(), locker.SeedBytes)
 	assert.ErrorIs(t, err, verrors.ErrNilPassword)
 }
 
 // TestDerive_rejectsBadSaltLength ensures only [keyring.SaltBytes]-length salts are accepted.
 func TestDerive_rejectsBadSaltLength(t *testing.T) {
-	_, err := keyring.Derive([]byte("pw"), make([]byte, keyring.SaltBytes-1), keyring.MemoryConstrainedParams(), v1.SeedBytes)
+	_, err := keyring.Derive([]byte("pw"), make([]byte, keyring.SaltBytes-1), keyring.MemoryConstrainedParams(), locker.SeedBytes)
 	assert.ErrorIs(t, err, verrors.ErrInvalidSalt)
 }
 
@@ -40,19 +40,19 @@ func TestDerive_FromSeed_roundtrip(t *testing.T) {
 	assert.Ok(t, err)
 
 	// Derive a 32-byte seed, then map it to a v1 X25519 private key.
-	seed, err := keyring.Derive([]byte("unit-test-password"), salt, p, v1.SeedBytes)
+	seed, err := keyring.Derive([]byte("unit-test-password"), salt, p, locker.SeedBytes)
 	assert.Ok(t, err)
-	priv, err := v1.FromSeed(seed)
+	lck, err := locker.FromSeed(seed)
 
-	// Both calls succeed and the derived private key is non-nil — proving the
-	// password→seed→key path produces a usable locker key.
+	// Both calls succeed and the locker is non-nil — proving the password→seed path works.
 	assert.Ok(t, err)
-	assert.NotNil(t, priv)
+	assert.NotNil(t, lck)
+	assert.True(t, len(lck.KeyID()) > 0)
 }
 
 // TestFromSeed_rejectsWrongLength ensures only a v1 seed-length buffer is accepted.
 func TestFromSeed_rejectsWrongLength(t *testing.T) {
-	_, err := v1.FromSeed(make([]byte, v1.SeedBytes-1))
+	_, err := locker.FromSeed(make([]byte, locker.SeedBytes-1))
 	assert.ErrorIs(t, err, verrors.ErrInvalidSeed)
 }
 
