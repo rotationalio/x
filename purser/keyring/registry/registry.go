@@ -7,6 +7,7 @@ root package constant.
 package registry
 
 import (
+	"bytes"
 	"slices"
 
 	perrors "go.rtnl.ai/x/purser/errors"
@@ -14,6 +15,7 @@ import (
 	"go.rtnl.ai/x/purser/locker"
 	lockerv1 "go.rtnl.ai/x/purser/locker/v1"
 	constv1 "go.rtnl.ai/x/purser/locker/v1/constants"
+	modelsv1 "go.rtnl.ai/x/purser/locker/v1/models"
 	"go.rtnl.ai/x/purser/wire"
 )
 
@@ -73,7 +75,7 @@ func FromKey(key any) (locker.Locker, error) {
 
 // ParseKeyID reads the sealing key id from purser wire without decrypting.
 func ParseKeyID(ciphertext []byte) ([]byte, error) {
-	if len(ciphertext) < wire.PreambleBytes || string(ciphertext[:wire.MagicLen]) != wire.Magic {
+	if len(ciphertext) < wire.PreambleBytes || !bytes.Equal(ciphertext[:wire.MagicLen], wire.MagicBytes) {
 		return nil, perrors.ErrUnrecognizedCiphertext
 	}
 	ver := ciphertext[wire.VersionOffset]
@@ -113,7 +115,7 @@ var registered = []editionHooks{
 		fromPassword: lockerv1.FromPassword,
 		fromPKCS8:    lockerv1.FromPKCS8,
 		fromKey:      lockerv1.FromKey,
-		parseKeyID:   lockerv1.ParseKeyID,
+		parseKeyID:   modelsv1.ParseKeyIDFromSealed,
 	},
 }
 

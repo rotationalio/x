@@ -168,12 +168,137 @@ func TestSealed_unmarshalVersionMismatch(t *testing.T) {
 }
 
 //=============================================================================
+// Tests: fast wire parse (ParseKeyIDFromSealed, ParseOpenWire, BindMetaWire)
+//=============================================================================
+
+// TestParseKeyIDFromSealed_matchesUnmarshal confirms routing parse agrees with full decode.
+func TestParseKeyIDFromSealed_matchesUnmarshal(t *testing.T) {
+	good := newValidSealedWire(t)
+
+	kid, err := models.ParseKeyIDFromSealed(good)
+	assert.Ok(t, err)
+
+	var s models.Sealed
+	assert.Ok(t, s.UnmarshalBinary(good))
+	assert.Equal(t, s.Meta.KeyID, kid)
+}
+
+// TestParseKeyIDFromSealed_rejectsMalformedWire mirrors key framing errors from [parseSealedFrame].
+func TestParseKeyIDFromSealed_rejectsMalformedWire(t *testing.T) {
+	good := newValidSealedWire(t)
+
+	t.Run("bad_magic", func(t *testing.T) {
+		bad := append([]byte(nil), good...)
+		bad[0] = 'X'
+		_, err := models.ParseKeyIDFromSealed(bad)
+		assert.ErrorIs(t, err, verrors.ErrBadMagic)
+	})
+
+	t.Run("truncated", func(t *testing.T) {
+		_, err := models.ParseKeyIDFromSealed(good[:sealedPreambleBytes])
+		assert.ErrorIs(t, err, verrors.ErrMalformedWire)
+	})
+}
+
+// TestParseOpenWire_decrypt opens inner ciphertext using subslices from [models.ParseOpenWire].
+func TestParseOpenWire_decrypt(t *testing.T) {
+	fix := newSealedWireFixture(t)
+
+	_, metaAAD, ephWire, nonce, payload, err := models.ParseOpenWire(fix.wire, "ns")
+	assert.Ok(t, err)
+
+	ephPub, err := ecdh.X25519().NewPublicKey(ephWire)
+	assert.Ok(t, err)
+	shared, err := fix.sealKey.ECDH(ephPub)
+	assert.Ok(t, err)
+	dataKey, err := gcm.DeriveDataKey(shared, constants.Version)
+	assert.Ok(t, err)
+	innerAEAD, err := gcm.NewInnerAEAD(dataKey)
+	assert.Ok(t, err)
+
+	plain, err := gcm.OpenInner(innerAEAD, metaAAD, nonce, payload)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("plain"), plain)
+}
+
+// TestParseOpenWire_namespaceMismatch rejects wrong namespace before AEAD (same as locker Open).
+func TestParseOpenWire_namespaceMismatch(t *testing.T) {
+	good := newValidSealedWire(t)
+	_, _, _, _, _, err := models.ParseOpenWire(good, "other-ns")
+	assert.ErrorIs(t, err, verrors.ErrNamespaceMismatch)
+}
+
+// TestBindMetaWire_marshalUsesBoundBytes verifies marshal emits bound meta even when [Meta] differs.
+func TestBindMetaWire_marshalUsesBoundBytes(t *testing.T) {
+	good := newValidSealedWire(t)
+
+	var decoded models.Sealed
+	assert.Ok(t, decoded.UnmarshalBinary(good))
+	metaRaw, err := decoded.Meta.MarshalBinary()
+	assert.Ok(t, err)
+
+	// Meta struct says "wrong" namespace; bound wire still says "ns".
+	bound := models.Sealed{
+		FormatVersion: constants.Version,
+		Meta: models.Meta{
+			Version:   constants.Version,
+			KeyID:     decoded.Meta.KeyID,
+			Namespace: "wrong",
+		},
+		Eph:  decoded.Eph,
+		Body: decoded.Body,
+	}
+	bound.BindMetaWire(metaRaw)
+
+	out, err := bound.MarshalBinary()
+	assert.Ok(t, err)
+	assert.Equal(t, string(good), string(out))
+}
+
+// TestBindMetaWire_matchesMetaMarshal confirms bind+marshal equals vanilla marshal when Meta matches wire.
+func TestBindMetaWire_matchesMetaMarshal(t *testing.T) {
+	good := newValidSealedWire(t)
+
+	var decoded models.Sealed
+	assert.Ok(t, decoded.UnmarshalBinary(good))
+	metaRaw, err := decoded.Meta.MarshalBinary()
+	assert.Ok(t, err)
+
+	decoded.BindMetaWire(metaRaw)
+	boundOut, err := decoded.MarshalBinary()
+	assert.Ok(t, err)
+
+	var plain models.Sealed
+	plain.FormatVersion = decoded.FormatVersion
+	plain.Meta = decoded.Meta
+	plain.Eph = decoded.Eph
+	plain.Body = decoded.Body
+	plainOut, err := plain.MarshalBinary()
+	assert.Ok(t, err)
+
+	assert.Equal(t, string(good), string(plainOut))
+	assert.Equal(t, string(plainOut), string(boundOut))
+}
+
+//=============================================================================
 // Helpers
 //=============================================================================
+
+// sealedWireFixture holds a valid sealed row and the sealing private key for decrypt tests.
+type sealedWireFixture struct {
+	wire    []byte
+	sealKey *ecdh.PrivateKey
+}
 
 // newValidSealedWire constructs a fully-formed v1 Sealed wire blob suitable for
 // negative-test mutation. Tests own the resulting slice and may modify it freely.
 func newValidSealedWire(tb testing.TB) []byte {
+	tb.Helper()
+	return newSealedWireFixture(tb).wire
+}
+
+// newSealedWireFixture builds sealed wire plus the wrapping key used to encrypt it.
+func newSealedWireFixture(tb testing.TB) sealedWireFixture {
 	tb.Helper()
 
 	priv, err := ecdh.X25519().GenerateKey(rand.Reader)
@@ -215,7 +340,7 @@ func newValidSealedWire(tb testing.TB) []byte {
 	}
 	wire, err := s.MarshalBinary()
 	assert.Ok(tb, err)
-	return wire
+	return sealedWireFixture{wire: wire, sealKey: priv}
 }
 
 //=============================================================================

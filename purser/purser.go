@@ -210,7 +210,7 @@ func newResult(namespace, id string, lck locker.Locker) Result {
 	return Result{
 		ID:        id,
 		Namespace: namespace,
-		KeyID:     append([]byte(nil), lck.KeyID()...),
+		KeyID:     lck.KeyID(),
 		Edition:   lck.Edition(),
 	}
 }

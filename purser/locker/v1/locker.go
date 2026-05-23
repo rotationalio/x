@@ -181,25 +181,30 @@ func (l *envLocker) Seal(namespace string, plaintext []byte) ([]byte, error) {
 		Body:          models.Inner{Nonce: nonce, Payload: payload},
 	}
 
-	// Marshal the sealed row to the wire.
+	// Marshal the sealed row to the wire (metaRaw is GCM AAD; copied verbatim into the row).
+	sealed.BindMetaWire(metaRaw)
 	return sealed.MarshalBinary()
 }
 
 // Open parses wire, derives the row key, verifies plaintext, and checks namespace matches requestedNS.
 func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
-	// Unmarshal the sealed row from the wire.
-	var msg models.Sealed
-	if err := msg.UnmarshalBinary(wire); err != nil {
+	var (
+		formatVersion uint8
+		metaAAD       []byte
+		eph           []byte
+		nonce         [constants.InnerNonceBytes]byte
+		payload       []byte
+		err           error
+	)
+
+	// Parse subslices from the wire; namespace is checked before decrypt.
+	formatVersion, metaAAD, eph, nonce, payload, err = models.ParseOpenWire(wire, requestedNS)
+	if err != nil {
 		return nil, err
 	}
 
-	// Verify the namespace matches the requested namespace.
-	if msg.Meta.Namespace != requestedNS {
-		return nil, perrors.ErrNamespaceMismatch
-	}
-
 	// Construct the ephemeral public key from the wire.
-	epub, err := ecdh.X25519().NewPublicKey(msg.Eph[:])
+	epub, err := ecdh.X25519().NewPublicKey(eph)
 	if err != nil {
 		return nil, perrors.ErrDecrypt
 	}
@@ -212,7 +217,7 @@ func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
 	defer memzero.Zero(shared)
 
 	// Derive the data key from the shared secret using the suite id from the wire.
-	dataKey, err := pgcm.DeriveDataKey(shared, msg.Meta.Version)
+	dataKey, err := pgcm.DeriveDataKey(shared, formatVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -224,26 +229,11 @@ func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// Marshal the metadata for the additional authenticated data.
-	metaRaw, err := msg.Meta.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	// Open the ciphertext with the AEAD and the nonce.
-	return pgcm.OpenInner(innerAEAD, metaRaw, msg.Body.Nonce, msg.Body.Payload)
-}
-
-// ParseKeyID extracts the key identifier from v1 locker wire without decrypting.
-func ParseKeyID(ciphertext []byte) ([]byte, error) {
-	var msg models.Sealed
-	if err := msg.UnmarshalBinary(ciphertext); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), msg.Meta.KeyID...), nil
+	// Open the ciphertext with the AEAD and the nonce (meta AAD is the on-wire meta slice).
+	return pgcm.OpenInner(innerAEAD, metaAAD, nonce, payload)
 }
 
 // ParseKeyID parses ciphertext metadata and returns the key identifier without decrypting.
 func (l *envLocker) ParseKeyID(ciphertext []byte) ([]byte, error) {
-	return ParseKeyID(ciphertext)
+	return models.ParseKeyIDFromSealed(ciphertext)
 }

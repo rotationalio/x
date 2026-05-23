@@ -232,17 +232,19 @@ PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/ben
 python3 ./purser/benchmark/compare.py   # diff previous.json vs latest snapshot
 ```
 
-Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.26` — other platforms will differ:
+Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.26.3` — other platforms will differ; `ns/op` varies with CPU load:
 
 | Benchmark | ns/op | allocs/op |
 |-----------|------:|----------:|
-| `Locker/Seal/size=256` | ~71k | 31 |
-| `Locker/Open/size=256` | ~36k | 29 |
-| `Keyring/Route/1Locker/size=256` | ~201 | 4 |
-| `Registry/ParseKeyID/size=256` | ~189 | 4 |
-| `Purser/Store/size=256` | ~75k | 40 |
-| `Purser/Retrieve/size=256` | ~37k | 35 |
-| `Purser/Orchestration/Nulllocker/Store/size=256` | ~1.1k | 10 |
+| `Locker/Seal/size=256` | ~74k | 31 |
+| `Locker/Open/size=256` | ~40k | 25 |
+| `Keyring/Route/1Locker/size=256` | ~142 | 1 |
+| `Registry/ParseKeyID/size=256` | ~121 | 1 |
+| `Purser/Store/size=256` | ~74k | 38 |
+| `Purser/Retrieve/size=256` | ~38k | 27 |
+| `Purser/Orchestration/Nulllocker/Store/size=256` | ~1.2k | 8 |
+
+`Result.KeyID` and keyring routing return defensive copies on purpose; that shows up in orchestration benchmarks but keeps callers from mutating sealing keys in place.
 
 ## Development
 

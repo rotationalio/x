@@ -14,3 +14,6 @@ const (
 	// PreambleBytes is magic(4) + formatVersion(1) + metaLen u16 BE(2).
 	PreambleBytes = MagicLen + 1 + 2
 )
+
+// MagicBytes is [Magic] as a byte slice for allocation-free preamble checks.
+var MagicBytes = []byte(Magic)

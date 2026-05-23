@@ -44,14 +44,19 @@ func (i Inner) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes Inner; consumes the full slice.
 func (i *Inner) UnmarshalBinary(data []byte) error {
-	if i == nil {
+	return unmarshalInnerInto(i, data)
+}
+
+// unmarshalInnerInto decodes nonce and ciphertext+tag into body (defensive payload copy).
+func unmarshalInnerInto(body *Inner, data []byte) error {
+	if body == nil {
 		return perrors.ErrNilInnerPointer
 	}
 	if len(data) < constants.InnerNonceBytes+constants.GCMTagBytes {
 		return perrors.ErrMalformedWire
 	}
 
-	copy(i.Nonce[:], data[:constants.InnerNonceBytes])
-	i.Payload = append([]byte(nil), data[constants.InnerNonceBytes:]...)
+	copy(body.Nonce[:], data[:constants.InnerNonceBytes])
+	body.Payload = append([]byte(nil), data[constants.InnerNonceBytes:]...)
 	return nil
 }
