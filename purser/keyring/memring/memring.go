@@ -1,11 +1,14 @@
 // Package memring provides an in-memory [contract.Keyring] implementation.
+// RouteKeyID delegates wire classification to [registry.ParseKeyID] before keyring lookup.
 package memring
 
 import (
+	"errors"
 	"sync"
 
 	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/registry"
 )
 
 // Memring is a thread-safe in-memory keyring that supports runtime Register and SetActive operations.
@@ -87,24 +90,35 @@ func (m *Memring) SetActive(lck contract.Locker) error {
 	return nil
 }
 
-// RouteKeyID tries each registered locker's ParseKeyID on ciphertext. The first locker whose
-// ParseKeyID succeeds and whose extracted key ID maps to a registered locker wins. This lets
-// a keyring with multiple locker versions (different wire formats) route ciphertext to the
-// correct locker without requiring the active locker to understand every format.
+// RouteKeyID parses the key identifier and returns the matching locker.
+// If the key identifier is not recognized, it returns [ErrNoLocker]. If the
+// ciphertext is not a valid purser wire, it returns [ErrUnrecognizedCiphertext].
 func (m *Memring) RouteKeyID(ciphertext []byte) (contract.Locker, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
+	// Try registry.ParseKeyID first to avoid unnecessary decryption.
+	keyID, err := registry.ParseKeyID(ciphertext)
+	if err == nil {
+		if lck, ok := m.byID[string(keyID)]; ok {
+			return lck, nil
+		}
+		return nil, perrors.ErrNoLocker
+	}
+	if !errors.Is(err, perrors.ErrUnrecognizedCiphertext) {
+		return nil, err
+	}
+
+	// Fall back for non-PURS wire (e.g. test nulllocker).
 	for _, lck := range m.byID {
-		keyID, err := lck.ParseKeyID(ciphertext)
-		if err != nil {
+		kid, parseErr := lck.ParseKeyID(ciphertext)
+		if parseErr != nil {
 			continue
 		}
-		if found, ok := m.byID[string(keyID)]; ok {
+		if found, ok := m.byID[string(kid)]; ok {
 			return found, nil
 		}
 	}
-
 	return nil, perrors.ErrNoLocker
 }
 

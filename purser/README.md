@@ -17,6 +17,7 @@ Importing `purser` links locker v1 automatically. Use `registry` for edition-dis
 ```go
 import (
     "context"
+    "crypto/ecdh"
     "fmt"
 
     "go.rtnl.ai/x/purser"
@@ -25,30 +26,58 @@ import (
     hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
     "go.rtnl.ai/x/purser/keyring"
     "go.rtnl.ai/x/purser/keyring/memring"
-    "go.rtnl.ai/x/purser/registry"
+    lockerv1 "go.rtnl.ai/x/purser/locker/v1"
     constv1 "go.rtnl.ai/x/purser/locker/v1/constants"
+    "go.rtnl.ai/x/purser/registry"
 )
 
-func buildPurser(password, salt []byte) (contract.Purser, error) {
-    // Derive a v1 locker from password+salt using Argon2id parameters.
-    // Persist the salt with your user/device record.
-    lck, err := registry.FromPassword(constv1.Edition, password, salt, keyring.MemoryConstrainedParams())
-    if err != nil {
-        return nil, fmt.Errorf("build locker: %w", err)
-    }
-
+// newPurser wires Hold + Keyring around an existing locker (any constructor below).
+func newPurser(lck contract.Locker) (contract.Purser, error) {
     h, err := hold.NewMemHold(hexid.Identifier{})
     if err != nil {
         return nil, fmt.Errorf("build hold: %w", err)
     }
-
     kr, err := memring.New(lck)
     if err != nil {
         return nil, fmt.Errorf("build keyring: %w", err)
     }
-
     return purser.New(h, kr)
 }
+
+// registry.FromPassword — password + persisted salt, edition "v1".
+func lockerFromPassword(password, salt []byte) (contract.Locker, error) {
+    return registry.FromPassword(constv1.Edition, password, salt, keyring.MemoryConstrainedParams())
+}
+
+// registry.FromSeed — 32-byte seed (e.g. output of your own KDF), edition "v1".
+func lockerFromSeed(seed []byte) (contract.Locker, error) {
+    return registry.FromSeed(constv1.Edition, seed)
+}
+
+// registry.FromPKCS8 — PKCS#8 DER; tries each registered locker edition until one parses.
+func lockerFromPKCS8(der []byte) (contract.Locker, error) {
+    return registry.FromPKCS8(der)
+}
+
+// registry.FromKey — *ecdh.PrivateKey (X25519); tries each registered edition until one accepts it.
+func lockerFromKey(priv *ecdh.PrivateKey) (contract.Locker, error) {
+    return registry.FromKey(priv)
+}
+
+// Example: password path end-to-end.
+func buildPurser(password, salt []byte) (contract.Purser, error) {
+    lck, err := lockerFromPassword(password, salt)
+    if err != nil {
+        return nil, fmt.Errorf("build locker: %w", err)
+    }
+    return newPurser(lck)
+}
+
+// Same constructors without registry — call lockerv1 directly when you only need v1:
+//   lockerv1.FromPassword(password, salt, keyring.MemoryConstrainedParams())
+//   lockerv1.FromSeed(seed)
+//   lockerv1.FromPKCS8(der)
+//   lockerv1.FromKey(priv)
 
 func exampleUsage(ctx context.Context, p contract.Purser) error {
     id, err := p.Store(ctx, "app", []byte("secret-v1"))
@@ -78,13 +107,15 @@ func exampleUsage(ctx context.Context, p contract.Purser) error {
 }
 ```
 
-Alternatively, construct the locker directly: `lockerv1.FromPassword(...)` returns `contract.Locker` without going through `registry`.
+Use `registry` when you want edition dispatch (`constv1.Edition`); use `lockerv1.From*` when v1 is the only locker you link in.
 
 ## Security and operations
 
-- **Locker registration**: `registry.FromSeed`, `FromPassword`, `FromPKCS8`, `FromKey`, and `registry.ParseKeyID` dispatch over editions registered by each `locker/vN` in `init`. Importing `go.rtnl.ai/x/purser` links v1; add `installv2.go` (or similar) when you ship v2.
+- **Locker registration**: each `locker/vN` calls `registry.Register` from `init` (duplicate editions return `ErrDuplicateLockerEdition`). Importing `go.rtnl.ai/x/purser` links registered editions via [`install.go`](install.go) blank imports.
 - **Salt handling**: store Argon2 salt with user/device metadata, not with each sealed row.
-- **Key routing**: decrypt uses `Keyring.RouteKeyID`, so old rows remain readable when new lockers are added.
+- **Key routing**: `memring.RouteKeyID` calls `registry.ParseKeyID` then looks up the key id; unrecognized v1-class wire returns `ErrNoLocker`. Test-only wire (e.g. nulllocker) falls back to registered lockers in lexicographic key-id order.
+- **Wire preamble**: all sealed rows start with `wire.Magic` (`PURS`) plus a format-version byte (`wire.VersionOffset`). See `purser/wire`.
+- **Deterministic dispatch**: `registry.ParseKeyID` requires `PURS`, then routes by `Hooks.WireVersion`. `FromPKCS8` / `FromKey` try registered editions in sorted edition order.
 - **Metadata-only routing**: `registry.ParseKeyID(wire)` extracts the sealing key id without a keyring; decrypt still requires `RouteKeyID` and a registered locker.
 - **Active locker**: writes always use `Keyring.Active()`; rotate by registering a new locker and calling `SetActive`.
 - **Namespace binding**: ciphertext is namespace-bound; decrypting under the wrong namespace fails.
@@ -97,8 +128,9 @@ Alternatively, construct the locker directly: `lockerv1.FromPassword(...)` retur
 purser/
 ├── contract/                    Purser, Locker, Keyring interfaces
 ├── registry/                    Edition registry; From* and ParseKeyID
+├── wire/                        Shared preamble magic (PURS) and offsets
 ├── purser.go                    purser.New and row operations
-├── installv1.go                 Links locker/v1 into the binary
+├── install.go                   Blank-imports locker editions into the binary
 ├── errors/                      Shared sentinel errors (import as perrors)
 ├── hold/                        Hold interface + in-memory impl
 │   ├── holdtest/                Conformance helpers (HoldConforms, Ciphertext)
@@ -163,19 +195,36 @@ Commit inputs under `testdata/fuzz/FuzzXxx/` when a target finds a crasher.
 
 ### Add a new locker version (`vN`)
 
-1. Create `locker/vN/` implementing `contract.Locker` (`KeyID`, `Seal`, `Open`, `ParseKeyID`).
-2. Add `locker/vN/constants` with `Edition`, wire `Version`, `Recipe`, and `Context`.
-3. Add constructors and `register.go` calling `registry.Register(constants.Edition, registry.Hooks{…})` (see `locker/v1/register.go`). Do not import `purser` root from `locker/vN` (use `contract` + `registry` only).
-4. Add `installvN.go` on the `purser` package: `import _ "go.rtnl.ai/x/purser/locker/vN"`.
-5. Update `TestRegisteredLockerEditions` in `purser_test.go`: add `constvN.Edition` to `required`.
-6. Add a `cases()` entry in `locker/lockertest/golden/golden_test.go` and `testdata/vN.dat`.
-7. Run tests; `TestLockerImplementationsCovered` fails if a `locker/vN` with `locker.go` has no golden case.
+Copy `locker/v1/` layout. Example below uses `v2`.
 
-`registry.FromPKCS8`, `FromKey`, and `ParseKeyID` try every registered edition automatically.
+#### Implement
 
-**Dispatch:** pass `constvN.Edition` to `registry.FromSeed` / `registry.FromPassword`, or call `lockervN.FromPassword` directly.
+- [ ] `locker/v2/locker.go` — `contract.Locker` (see [`contract`](contract/contract.go))
+- [ ] `locker/v2/models/` — seal/open wire types
+- [ ] `locker/v2/keys.go` — `FromSeed`, `FromPassword`, `FromPKCS8`, `FromKey`
+- [ ] `locker/v2/constants/` — `Edition`, `Version`, `Recipe`, `Context`
+- [ ] Wire preamble: `wire.Magic` (`PURS`) + your `Version` byte (must be unique; v1 is `1`)
 
-v1: `constants.Edition` (`v1`), wire `constants.Version` (byte `1`), `constants.Recipe`, `constants.Context` (HKDF).
+#### Register
+
+- [ ] `locker/v2/register.go` — `registry.Register` in `init` (copy [`locker/v1/register.go`](locker/v1/register.go))
+- [ ] `purser/install.go` — add `_ "go.rtnl.ai/x/purser/locker/v2"`
+- [ ] Do **not** import `go.rtnl.ai/x/purser` from `locker/v2`
+
+#### Test
+
+- [ ] `lockertest.LockerConforms` in `locker/v2` tests
+- [ ] `purser_test.go` — add `"v2"` to `TestRegisteredLockerEditions`
+- [ ] `golden/golden_test.go` — `cases()` entry `version: "v2"` (must match folder name)
+- [ ] `go test ./purser/...`
+
+#### Quick reference (v1)
+
+| Field | v1 value |
+|-------|----------|
+| `Edition` | `"v1"` |
+| `Version` (wire byte) | `1` |
+| Magic | `PURS` (shared, [`wire`](wire/wire.go)) |
 
 ### Golden fixtures
 

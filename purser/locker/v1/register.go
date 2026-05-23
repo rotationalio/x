@@ -8,11 +8,14 @@ import (
 )
 
 func init() {
-	registry.Register(constants.Edition, registry.Hooks{
+	if err := registry.Register(constants.Edition, registry.Hooks{
+		WireVersion:  constants.Version,
 		FromSeed:     FromSeed,
 		FromPassword: FromPassword,
 		FromPKCS8:    FromPKCS8,
 		FromKey:      FromKey,
 		ParseKeyID:   ParseKeyID,
-	})
+	}); err != nil {
+		panic(err)
+	}
 }

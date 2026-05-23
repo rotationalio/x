@@ -8,10 +8,11 @@ import (
 
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
+	"go.rtnl.ai/x/purser/wire"
 )
 
-// sealedPreambleBytes is the fixed header before variable-length meta: magic(4) + formatVersion(1) + lenMeta u16 BE(2).
-const sealedPreambleBytes = 4 + 1 + 2
+// sealedPreambleBytes is the fixed header before variable-length meta ([wire.PreambleBytes]).
+const sealedPreambleBytes = wire.PreambleBytes
 
 // Sealed is the full stored row: preamble, Meta, Eph, Body.
 type Sealed struct {
@@ -72,8 +73,8 @@ func (s Sealed) marshalBinaryToWithMetaSize(dst []byte, metaSize int) (int, erro
 	off := 0
 
 	// Preamble layout is magic||formatVersion||metaLen(u16 big-endian).
-	copy(dst[off:off+4], constants.Magic)
-	off += 4
+	copy(dst[off:off+wire.MagicLen], wire.Magic)
+	off += wire.MagicLen
 	dst[off] = s.FormatVersion
 	off++
 	binary.BigEndian.PutUint16(dst[off:off+2], uint16(metaSize))
@@ -112,13 +113,13 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 	if len(data) < sealedPreambleBytes {
 		return perrors.ErrMalformedWire
 	}
-	if string(data[0:4]) != constants.Magic {
+	if string(data[0:wire.MagicLen]) != wire.Magic {
 		return perrors.ErrBadMagic
 	}
 
 	// Parse top-level format version and declared metadata length.
-	s.FormatVersion = data[4]
-	lenMeta := int(binary.BigEndian.Uint16(data[5:7]))
+	s.FormatVersion = data[wire.VersionOffset]
+	lenMeta := int(binary.BigEndian.Uint16(data[wire.VersionOffset+1 : wire.VersionOffset+3]))
 	if lenMeta < 4 || lenMeta > constants.MaxMetaWireBytes {
 		return perrors.ErrMalformedWire
 	}

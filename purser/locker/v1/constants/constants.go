@@ -14,9 +14,6 @@ const (
 	// Context is the KDF/context string for row key derivation (HKDF info in v1).
 	Context = "purser/v1/x25519_hkdf_sha256_aes256_gcm"
 
-	// Magic is the four-byte preamble for sealed rows (wire normative).
-	Magic = "ARR1"
-
 	// MaxNamespaceBytes is the maximum number of bytes allowed for a namespace identifier on the wire.
 	MaxNamespaceBytes = 255
 

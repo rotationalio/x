@@ -58,7 +58,9 @@ func TestRegisterLockerVersion_concurrent(t *testing.T) {
 			defer wg.Done()
 			for i := range perGoroutine {
 				edition := fmt.Sprintf("purser-concurrency-%d-%d", id, i)
-				registry.Register(edition, registry.Hooks{})
+				if err := registry.Register(edition, registry.Hooks{}); err != nil {
+					t.Errorf("register %q: %v", edition, err)
+				}
 			}
 		}(g)
 
@@ -97,19 +99,20 @@ func TestRegisterLockerVersion_concurrent(t *testing.T) {
 	}
 }
 
-// TestRegisterLockerVersion_overwriteSameEdition verifies re-registering one edition is safe.
-func TestRegisterLockerVersion_overwriteSameEdition(t *testing.T) {
-	edition := "purser-concurrency-overwrite"
-	registry.Register(edition, registry.Hooks{})
-	registry.Register(edition, registry.Hooks{
+// TestRegisterLockerVersion_duplicateEditionRejected verifies re-registering one edition fails.
+func TestRegisterLockerVersion_duplicateEditionRejected(t *testing.T) {
+	edition := "purser-duplicate-edition"
+	assert.Ok(t, registry.Register(edition, registry.Hooks{}))
+	err := registry.Register(edition, registry.Hooks{
 		FromSeed: func([]byte) (contract.Locker, error) {
 			return nil, strconv.ErrSyntax
 		},
 	})
+	assert.ErrorIs(t, err, perrors.ErrDuplicateLockerEdition)
 
 	seed := make([]byte, lockerv1.SeedBytes)
-	_, err := registry.FromSeed(edition, seed)
-	assert.ErrorIs(t, err, strconv.ErrSyntax)
+	_, err = registry.FromSeed(edition, seed)
+	assert.ErrorIs(t, err, perrors.ErrUnsupportedLockerVersion)
 }
 
 // TestFromSeed_v1_roundtrip verifies version-dispatched seed construction.
@@ -685,7 +688,7 @@ func TestMultiVersion_updateReEncryptsWithActive(t *testing.T) {
 
 	wire, err := h.Get(ctx, "ns", id)
 	assert.Ok(t, err)
-	assert.Equal(t, "ARR1", string(wire[:4]))
+	assert.Equal(t, "PURS", string(wire[:4]))
 }
 
 // TestMultiVersion_moveNamespaceAcrossLockerVersions re-seals with active v1 on namespace move.

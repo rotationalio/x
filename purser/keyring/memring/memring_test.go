@@ -38,7 +38,7 @@ func TestNew_nilOther(t *testing.T) {
 
 // TestRouteKeyID_multiVersion registers two null locker variants with different KeyID
 // lengths and verifies RouteKeyID dispatches each wire blob to the locker that produced
-// it. Cross-magic-prefix routing (NULL vs ARR1) is exercised separately by purser's
+// it. Cross-magic-prefix routing (NULL vs PURS) is exercised separately by purser's
 // multi-version tests; this test focuses on the keyring's per-locker ParseKeyID
 // fallback when the keyring contains multiple registered lockers.
 func TestRouteKeyID_multiVersion(t *testing.T) {

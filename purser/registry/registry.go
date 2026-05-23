@@ -12,10 +12,14 @@ import (
 	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/keyring"
+	"go.rtnl.ai/x/purser/wire"
 )
 
 // Hooks holds per-edition constructors registered by locker/vN init.
 type Hooks struct {
+	// WireVersion is the format-version byte after wire.Magic (e.g. v1 = 1). Zero skips version routing.
+	WireVersion uint8
+
 	FromSeed     func([]byte) (contract.Locker, error)
 	FromPassword func(password, salt []byte, p keyring.Params) (contract.Locker, error)
 	FromPKCS8    func([]byte) (contract.Locker, error)
@@ -30,10 +34,22 @@ var (
 
 // Register wires locker/vN constructors into the registry.
 // edition must match that package's constants.Edition. Called from locker/vN init only.
-func Register(edition string, h Hooks) {
+// Register returns ErrDuplicateLockerEdition or ErrDuplicateLockerWireVersion on conflict.
+func Register(edition string, h Hooks) error {
 	lockerMu.Lock()
+	defer lockerMu.Unlock()
+	if _, exists := lockerEditions[edition]; exists {
+		return perrors.ErrDuplicateLockerEdition
+	}
+	if h.WireVersion != 0 {
+		for _, existing := range lockerEditions {
+			if existing.WireVersion == h.WireVersion {
+				return perrors.ErrDuplicateLockerWireVersion
+			}
+		}
+	}
 	lockerEditions[edition] = h
-	lockerMu.Unlock()
+	return nil
 }
 
 // Editions returns registered locker edition strings sorted lexicographically.
@@ -56,15 +72,25 @@ func hooks(edition string) (Hooks, bool) {
 	return h, ok
 }
 
-// allHooks returns a snapshot of registered hooks.
-func allHooks() []Hooks {
+// sortedEntries returns registered editions and hooks in lexicographic edition order.
+func sortedEntries() []struct {
+	edition string
+	h       Hooks
+} {
+	editions := Editions()
+	out := make([]struct {
+		edition string
+		h       Hooks
+	}, len(editions))
 	lockerMu.RLock()
-	hooks := make([]Hooks, 0, len(lockerEditions))
-	for _, h := range lockerEditions {
-		hooks = append(hooks, h)
+	for i, edition := range editions {
+		out[i] = struct {
+			edition string
+			h       Hooks
+		}{edition: edition, h: lockerEditions[edition]}
 	}
 	lockerMu.RUnlock()
-	return hooks
+	return out
 }
 
 // FromSeed returns a locker for the given edition using a derived 32-byte seed.
@@ -85,39 +111,48 @@ func FromPassword(edition string, password, salt []byte, p keyring.Params) (cont
 	return h.FromPassword(password, salt, p)
 }
 
-// FromPKCS8 parses a PKCS#8 private key, trying each registered edition until one succeeds.
+// FromPKCS8 parses a PKCS#8 private key, trying each registered edition in sorted order until one succeeds.
 func FromPKCS8(der []byte) (contract.Locker, error) {
-	for _, h := range allHooks() {
-		if h.FromPKCS8 == nil {
+	for _, e := range sortedEntries() {
+		if e.h.FromPKCS8 == nil {
 			continue
 		}
-		if lck, err := h.FromPKCS8(der); err == nil {
+		if lck, err := e.h.FromPKCS8(der); err == nil {
 			return lck, nil
 		}
 	}
 	return nil, perrors.ErrInvalidWrappingKey
 }
 
-// FromKey accepts a private key value, trying each registered edition until one succeeds.
+// FromKey accepts a private key value, trying each registered edition in sorted order until one succeeds.
 func FromKey(key any) (contract.Locker, error) {
-	for _, h := range allHooks() {
-		if h.FromKey == nil {
+	for _, e := range sortedEntries() {
+		if e.h.FromKey == nil {
 			continue
 		}
-		if lck, err := h.FromKey(key); err == nil {
+		if lck, err := e.h.FromKey(key); err == nil {
 			return lck, nil
 		}
 	}
 	return nil, perrors.ErrInvalidWrappingKey
 }
 
-// ParseKeyID reads the sealing key identifier from locker wire without decrypting.
+// ParseKeyID reads the sealing key identifier from purser wire without decrypting.
+// Requires wire.Magic and dispatches by the format-version byte to the matching edition.
 func ParseKeyID(ciphertext []byte) ([]byte, error) {
-	for _, h := range allHooks() {
-		if h.ParseKeyID == nil {
+	if len(ciphertext) < wire.PreambleBytes || string(ciphertext[:wire.MagicLen]) != wire.Magic {
+		return nil, perrors.ErrUnrecognizedCiphertext
+	}
+	ver := ciphertext[wire.VersionOffset]
+	for _, e := range sortedEntries() {
+		if e.h.ParseKeyID == nil {
 			continue
 		}
-		if kid, err := h.ParseKeyID(ciphertext); err == nil {
+		if e.h.WireVersion != 0 && e.h.WireVersion != ver {
+			continue
+		}
+		kid, err := e.h.ParseKeyID(ciphertext)
+		if err == nil {
 			return kid, nil
 		}
 	}

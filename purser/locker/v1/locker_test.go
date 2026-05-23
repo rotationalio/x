@@ -482,7 +482,7 @@ func FuzzParseKeyID(f *testing.F) {
 
 	f.Add(wire)
 	f.Add([]byte{})
-	f.Add([]byte("ARR1"))
+	f.Add([]byte("PURS"))
 	f.Add(append([]byte(nil), wire[:len(wire)-1]...))
 
 	f.Fuzz(func(t *testing.T, data []byte) {

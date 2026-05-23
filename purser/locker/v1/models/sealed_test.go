@@ -11,10 +11,11 @@ import (
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 	"go.rtnl.ai/x/purser/locker/v1/gcm"
 	"go.rtnl.ai/x/purser/locker/v1/models"
+	"go.rtnl.ai/x/purser/wire"
 )
 
 // sealedPreambleBytes mirrors models.sealedPreambleBytes for offset math in tests.
-const sealedPreambleBytes = 4 + 1 + 2
+const sealedPreambleBytes = wire.PreambleBytes
 
 // TestSealed_roundtrip builds a full [models.Sealed] row with ECDH/HKDF/GCM, marshals wire bytes,
 // unmarshals, and opens the inner payload with the derived data key.
@@ -27,9 +28,9 @@ func TestSealed_roundtrip(t *testing.T) {
 		kid = kid[:constants.MaxKeyIDBytes]
 	}
 	meta := models.Meta{
-		Version: constants.Version,
-		KeyID:          kid,
-		Namespace:      "app",
+		Version:   constants.Version,
+		KeyID:     kid,
+		Namespace: "app",
 	}
 
 	metaRaw, err := meta.MarshalBinary()
@@ -183,9 +184,9 @@ func newValidSealedWire(tb testing.TB) []byte {
 		kid = kid[:constants.MaxKeyIDBytes]
 	}
 	meta := models.Meta{
-		Version: constants.Version,
-		KeyID:          kid,
-		Namespace:      "ns",
+		Version:   constants.Version,
+		KeyID:     kid,
+		Namespace: "ns",
 	}
 
 	metaRaw, err := meta.MarshalBinary()

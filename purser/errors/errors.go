@@ -83,6 +83,12 @@ var (
 
 	// ErrUnrecognizedCiphertext means no supported locker version could parse the wire blob.
 	ErrUnrecognizedCiphertext = stderrors.New("purser: unrecognized ciphertext format")
+
+	// ErrDuplicateLockerEdition means registry.Register was called for an edition already registered.
+	ErrDuplicateLockerEdition = stderrors.New("purser: duplicate locker edition in registry")
+
+	// ErrDuplicateLockerWireVersion means registry.Register reused a wire format version byte.
+	ErrDuplicateLockerWireVersion = stderrors.New("purser: duplicate locker wire version in registry")
 )
 
 //=============================================================================
@@ -153,8 +159,8 @@ var (
 	// ErrNilSealedPointer means [*models.Sealed.UnmarshalBinary] was called with a nil receiver.
 	ErrNilSealedPointer = stderrors.New("purser/locker/v1: nil Sealed receiver")
 
-	// ErrBadMagic means the wire blob does not begin with the expected v1 magic bytes.
-	ErrBadMagic = stderrors.New("purser/locker/v1: bad magic")
+	// ErrBadMagic means the wire blob does not begin with wire.Magic ("PURS").
+	ErrBadMagic = stderrors.New("purser: bad wire magic")
 
 	// ErrUnsupportedVersion means the row format version byte is not supported by this module.
 	ErrUnsupportedVersion = stderrors.New("purser/locker/v1: unsupported version")
@@ -165,4 +171,3 @@ var (
 	// ErrNamespaceMismatch means the row was opened under a namespace that does not match the row metadata.
 	ErrNamespaceMismatch = stderrors.New("purser/locker/v1: namespace mismatch")
 )
-
