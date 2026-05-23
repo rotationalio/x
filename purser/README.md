@@ -147,6 +147,7 @@ purser/
 │   ├── lockertest/golden/       Golden tests for all locker versions
 │   └── v1/                      X25519 + HKDF + AES-256-GCM (constants, models, gcm, register.go)
 ├── pursertest/                  NewTestPurser for app-level tests
+├── benchmark/                   Hot-path benchmarks (optional `-bench` run)
 └── wrappers/
     ├── json/                    JSON-typed Purser wrapper
     └── string/                  UTF-8 string Purser wrapper
@@ -190,6 +191,27 @@ go test -run '^$' -fuzz FuzzParseKeyID -fuzztime 30s ./purser/locker/v1
 ```
 
 Commit inputs under `testdata/fuzz/FuzzXxx/` when a target finds a crasher.
+
+### Benchmarks
+
+Benchmarks are zero-cost under a normal `go test` run unless invoked with `-bench`. They live in [`benchmark/`](benchmark/) (`BenchmarkLocker`, `BenchmarkKeyring`, `BenchmarkRegistry`, `BenchmarkPurser`).
+
+```bash
+go test -run=^$ -bench=. -benchmem ./purser/benchmark
+go test -run=^$ -bench=Locker/Seal -benchmem ./purser/benchmark
+```
+
+Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.25` — other platforms will differ:
+
+| Benchmark | ns/op | allocs/op |
+|-----------|------:|----------:|
+| `Locker/Seal` | ~79k | 31 |
+| `Locker/Open` | ~36k | 29 |
+| `Keyring/RouteKeyID` | ~190 | 6 |
+| `Registry/ParseKeyID` | ~163 | 6 |
+| `Purser/Store` | ~71k | 38 |
+| `Purser/Retrieve` | ~36k | 37 |
+| `Purser/Orchestration/Nulllocker/Store` | ~900 | 8 |
 
 ## Development
 
