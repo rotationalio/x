@@ -1,3 +1,10 @@
+/*
+Package benchmark_test provides hot-path benchmarks for purser (locker, keyring,
+registry, and row operations). Fixtures use a fixed v1 seed, memhold, memring,
+and a rotating hex plaintext corpus (plaintext.txt; see genplaintext.sh).
+
+Run: go test -run=^$ -bench=. -benchmem ./purser/benchmark
+*/
 package benchmark_test
 
 // Shared benchmark bodies invoked from Benchmark* entry points.
@@ -5,15 +12,13 @@ package benchmark_test
 import (
 	"testing"
 
+	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/purser"
-	"go.rtnl.ai/x/purser/contract"
 	"go.rtnl.ai/x/purser/hold"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
+	"go.rtnl.ai/x/purser/keyring/registry"
 	"go.rtnl.ai/x/purser/pursertest"
-	"go.rtnl.ai/x/purser/registry"
 )
-
-const benchSize256 = 256
 
 // benchLockerSeal runs v1 Seal at the given plaintext size.
 func benchLockerSeal(b *testing.B, size int) {
@@ -23,9 +28,8 @@ func benchLockerSeal(b *testing.B, size int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		plain := nextPlain(scratch, size, i)
-		if _, err := lck.Seal(benchNS, plain); err != nil {
-			b.Fatal(err)
-		}
+		_, err := lck.Seal(benchNS, plain)
+		assert.Ok(b, err)
 	}
 }
 
@@ -36,9 +40,8 @@ func benchLockerOpen(b *testing.B, size int) {
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := lck.Open(benchNS, wire); err != nil {
-			b.Fatal(err)
-		}
+		_, err := lck.Open(benchNS, wire)
+		assert.Ok(b, err)
 	}
 }
 
@@ -51,12 +54,9 @@ func benchLockerRoundTrip(b *testing.B, size int) {
 	for i := 0; i < b.N; i++ {
 		plain := nextPlain(scratch, size, i)
 		wire, err := lck.Seal(benchNS, plain)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if _, err = lck.Open(benchNS, wire); err != nil {
-			b.Fatal(err)
-		}
+		assert.Ok(b, err)
+		_, err = lck.Open(benchNS, wire)
+		assert.Ok(b, err)
 	}
 }
 
@@ -66,35 +66,34 @@ func benchLockerParseKeyID(b *testing.B, size int) {
 	wire := sealWire(b, lck, size)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := lck.ParseKeyID(wire); err != nil {
-			b.Fatal(err)
-		}
+		_, err := lck.ParseKeyID(wire)
+		assert.Ok(b, err)
 	}
 }
 
-// benchKeyringRouteKeyID runs memring RouteKeyID on v1 wire at size.
-func benchKeyringRouteKeyID(b *testing.B, size int) {
+// benchKeyringRoute runs memring Route on v1 wire at size.
+func benchKeyringRoute(b *testing.B, size int) {
 	kr := newBenchMemring(b)
-	wire := sealWire(b, kr.Active(), size)
+	wire := sealWire(b, newV1Locker(b), size)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := kr.RouteKeyID(wire); err != nil {
-			b.Fatal(err)
-		}
+		_, err := kr.Route(wire)
+		assert.Ok(b, err)
 	}
 }
 
-// benchKeyringActiveSeal runs Active().Seal via memring at size.
-func benchKeyringActiveSeal(b *testing.B, size int) {
+// benchKeyringDefaultSeal runs LockerFor().Seal via memring at size.
+func benchKeyringDefaultSeal(b *testing.B, size int) {
 	kr := newBenchMemring(b)
 	scratch := make([]byte, size)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		plain := nextPlain(scratch, size, i)
-		if _, err := kr.Active().Seal(benchNS, plain); err != nil {
-			b.Fatal(err)
-		}
+		lck, err := kr.LockerFor(benchNS)
+		assert.Ok(b, err)
+		_, err = lck.Seal(benchNS, plain)
+		assert.Ok(b, err)
 	}
 }
 
@@ -104,31 +103,25 @@ func benchRegistryParseKeyID(b *testing.B, size int) {
 	wire := sealWire(b, lck, size)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := registry.ParseKeyID(wire); err != nil {
-			b.Fatal(err)
-		}
+		_, err := registry.ParseKeyID(wire)
+		assert.Ok(b, err)
 	}
 }
 
 // benchPurserStore runs Purser.Store at size (reuses one purser for the timed loop).
 func benchPurserStore(b *testing.B, size int) {
 	h, err := hold.NewMemHold(hexid.Identifier{})
-	if err != nil {
-		b.Fatal(err)
-	}
+	assert.Ok(b, err)
 	kr := newBenchMemring(b)
 	p, err := purser.New(h, kr)
-	if err != nil {
-		b.Fatal(err)
-	}
+	assert.Ok(b, err)
 	scratch := make([]byte, size)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		plain := nextPlain(scratch, size, i)
-		if _, err := p.Store(benchCtx, benchNS, plain); err != nil {
-			b.Fatal(err)
-		}
+		_, err := p.Store(benchCtx, benchNS, plain)
+		assert.Ok(b, err)
 	}
 }
 
@@ -138,45 +131,38 @@ func benchPurserRetrieve(b *testing.B, size int) {
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if _, err := p.Retrieve(benchCtx, benchNS, id); err != nil {
-			b.Fatal(err)
-		}
+		_, err := p.Retrieve(benchCtx, benchNS, id)
+		assert.Ok(b, err)
 	}
 }
 
 // benchPurserNulllockerStore runs pursertest Store without v1 crypto at size.
 func benchPurserNulllockerStore(b *testing.B, size int) {
 	h, err := hold.NewMemHold(hexid.Identifier{})
-	if err != nil {
-		b.Fatal(err)
-	}
+	assert.Ok(b, err)
 	p := pursertest.NewTestPurser(b, h)
 	scratch := make([]byte, size)
 	b.SetBytes(int64(size))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		plain := nextPlain(scratch, size, i)
-		if _, err := p.Store(benchCtx, benchNS, plain); err != nil {
-			b.Fatal(err)
-		}
+		_, err := p.Store(benchCtx, benchNS, plain)
+		assert.Ok(b, err)
 	}
 }
 
+// benchSize256 is the payload size for the nulllocker orchestration sub-benchmark.
+const benchSize256 = 256
+
 // newBenchPurserWithSize stores one row at size and returns purser + id.
-func newBenchPurserWithSize(b *testing.B, size int) (contract.Purser, string) {
+func newBenchPurserWithSize(b *testing.B, size int) (*purser.Purser, string) {
 	b.Helper()
 	h, err := hold.NewMemHold(hexid.Identifier{})
-	if err != nil {
-		b.Fatalf("NewMemHold: %v", err)
-	}
+	assert.Ok(b, err, "NewMemHold")
 	kr := newBenchMemring(b)
 	p, err := purser.New(h, kr)
-	if err != nil {
-		b.Fatalf("purser.New: %v", err)
-	}
-	id, err := p.Store(benchCtx, benchNS, sealPlain(b, size))
-	if err != nil {
-		b.Fatalf("Store setup: %v", err)
-	}
-	return p, id
+	assert.Ok(b, err, "purser.New")
+	res, err := p.Store(benchCtx, benchNS, sealPlain(b, size))
+	assert.Ok(b, err, "Store setup")
+	return p, res.ID
 }

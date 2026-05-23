@@ -24,7 +24,7 @@ type MemHold struct {
 // MemHold implements Hold.
 var _ Hold = (*MemHold)(nil)
 
-// NewMemHold returns an empty MemHold ready for use.
+// NewMemHold returns an empty MemHold ready for use. Single-import clients call [purser.NewMemHold].
 func NewMemHold(i identifier.Identifier) (*MemHold, error) {
 	if i == nil {
 		return nil, perrors.ErrInvalidNewArgs

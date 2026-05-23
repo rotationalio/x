@@ -10,11 +10,11 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
-	"go.rtnl.ai/x/purser/keyring"
+	"go.rtnl.ai/x/purser/keyring/kdf"
+	"go.rtnl.ai/x/purser/locker"
 	"go.rtnl.ai/x/purser/locker/lockertest"
-	"go.rtnl.ai/x/purser/locker/v1"
+	lockerv1 "go.rtnl.ai/x/purser/locker/v1"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
@@ -24,12 +24,12 @@ import (
 
 // TestLocker_conforms runs the shared locker conformance suite against locker.
 func TestLocker_conforms(t *testing.T) {
-	err := lockertest.LockerConforms(func() (contract.Locker, error) {
+	err := lockertest.LockerConforms(func() (locker.Locker, error) {
 		priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 		if err != nil {
 			return nil, err
 		}
-		return locker.New(priv)
+		return lockerv1.New(priv)
 	})
 	assert.Ok(t, err)
 }
@@ -40,7 +40,7 @@ func TestLocker_conforms(t *testing.T) {
 
 // TestNew_nilKey verifies New rejects a nil private key.
 func TestNew_nilKey(t *testing.T) {
-	_, err := locker.New(nil)
+	_, err := lockerv1.New(nil)
 	assert.ErrorIs(t, err, perrors.ErrNilPrivateKey)
 }
 
@@ -48,7 +48,7 @@ func TestNew_nilKey(t *testing.T) {
 func TestNew_nonX25519Key(t *testing.T) {
 	priv, err := ecdh.P256().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	_, err = locker.New(priv)
+	_, err = lockerv1.New(priv)
 	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
@@ -61,9 +61,9 @@ func TestNew_ok(t *testing.T) {
 // TestLocker_edition verifies Version, Edition, Recipe, and Context match v1 constants.
 func TestLocker_edition(t *testing.T) {
 	_, lck := freshLocker(t)
-	l, ok := lck.(contract.Locker)
+	l, ok := lck.(locker.Locker)
 	assert.True(t, ok)
-	assert.Equal(t, int(constants.Version), l.Version())
+	assert.Equal(t, constants.Version, l.Version())
 	assert.Equal(t, constants.Edition, l.Edition())
 	assert.Equal(t, constants.Recipe, l.Recipe())
 	assert.Equal(t, constants.Context, l.Context())
@@ -320,35 +320,35 @@ func TestParseKeyID_truncated(t *testing.T) {
 
 // TestFromSeed_ok verifies a 32-byte seed produces a valid locker.
 func TestFromSeed_ok(t *testing.T) {
-	seed := make([]byte, locker.SeedBytes)
+	seed := make([]byte, lockerv1.SeedBytes)
 	for i := range seed {
 		seed[i] = byte(i)
 	}
 
-	lck, err := locker.FromSeed(seed)
+	lck, err := lockerv1.FromSeed(seed)
 	assert.Ok(t, err)
 	assert.True(t, len(lck.KeyID()) > 0)
 }
 
 // TestFromSeed_wrongLength rejects seeds that are not exactly 32 bytes.
 func TestFromSeed_wrongLength(t *testing.T) {
-	_, err := locker.FromSeed(make([]byte, 31))
+	_, err := lockerv1.FromSeed(make([]byte, 31))
 	assert.ErrorIs(t, err, perrors.ErrInvalidSeed)
 
-	_, err = locker.FromSeed(make([]byte, 33))
+	_, err = lockerv1.FromSeed(make([]byte, 33))
 	assert.ErrorIs(t, err, perrors.ErrInvalidSeed)
 }
 
 // TestFromSeed_deterministic verifies the same seed always produces the same key ID.
 func TestFromSeed_deterministic(t *testing.T) {
-	seed := make([]byte, locker.SeedBytes)
+	seed := make([]byte, lockerv1.SeedBytes)
 	for i := range seed {
 		seed[i] = byte(i + 42)
 	}
 
-	lck1, err := locker.FromSeed(seed)
+	lck1, err := lockerv1.FromSeed(seed)
 	assert.Ok(t, err)
-	lck2, err := locker.FromSeed(seed)
+	lck2, err := lockerv1.FromSeed(seed)
 	assert.Ok(t, err)
 	assert.Equal(t, lck1.KeyID(), lck2.KeyID())
 }
@@ -361,7 +361,7 @@ func TestFromSeed_deterministic(t *testing.T) {
 func TestFromKey_ok(t *testing.T) {
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	lck, err := locker.FromKey(priv)
+	lck, err := lockerv1.FromKey(priv)
 	assert.Ok(t, err)
 	assert.Equal(t, priv.PublicKey().Bytes(), lck.KeyID())
 }
@@ -373,14 +373,14 @@ func TestFromPKCS8_roundtrip(t *testing.T) {
 	der, err := x509.MarshalPKCS8PrivateKey(priv)
 	assert.Ok(t, err)
 
-	lck, err := locker.FromPKCS8(der)
+	lck, err := lockerv1.FromPKCS8(der)
 	assert.Ok(t, err)
 	assert.Equal(t, priv.PublicKey().Bytes(), lck.KeyID())
 }
 
 // TestFromPKCS8_invalidDER rejects malformed PKCS#8 input.
 func TestFromPKCS8_invalidDER(t *testing.T) {
-	_, err := locker.FromPKCS8([]byte{0x30, 0x01, 0x02})
+	_, err := lockerv1.FromPKCS8([]byte{0x30, 0x01, 0x02})
 	assert.Error(t, err)
 }
 
@@ -390,7 +390,7 @@ func TestFromPKCS8_rejectsP256(t *testing.T) {
 	assert.Ok(t, err)
 	der, err := x509.MarshalPKCS8PrivateKey(priv)
 	assert.Ok(t, err)
-	_, err = locker.FromPKCS8(der)
+	_, err = lockerv1.FromPKCS8(der)
 	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
@@ -398,13 +398,13 @@ func TestFromPKCS8_rejectsP256(t *testing.T) {
 func TestFromKey_rejectsP256(t *testing.T) {
 	priv, err := ecdh.P256().GenerateKey(crand.Reader)
 	assert.Ok(t, err)
-	_, err = locker.FromKey(priv)
+	_, err = lockerv1.FromKey(priv)
 	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
 // TestFromKey_rejectsWrongType rejects non-ECDH key material.
 func TestFromKey_rejectsWrongType(t *testing.T) {
-	_, err := locker.FromKey("not-a-key")
+	_, err := lockerv1.FromKey("not-a-key")
 	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
 }
 
@@ -415,11 +415,11 @@ func TestFromKey_rejectsWrongType(t *testing.T) {
 // TestFromPassword_roundtrip derives a locker from a password and performs a seal/open cycle.
 func TestFromPassword_roundtrip(t *testing.T) {
 	// A random salt and the memory-constrained Argon2id profile (cheap enough for tests).
-	salt, err := keyring.RandSalt()
+	salt, err := kdf.RandSalt()
 	assert.Ok(t, err)
 
 	// Derive a locker from the password+salt, then seal and open a small payload.
-	lck, err := locker.FromPassword([]byte("test-password"), salt, keyring.MemoryConstrainedParams())
+	lck, err := lockerv1.FromPassword([]byte("test-password"), salt, kdf.MemoryConstrainedParams)
 	assert.Ok(t, err)
 	assert.True(t, len(lck.KeyID()) > 0)
 
@@ -435,13 +435,13 @@ func TestFromPassword_roundtrip(t *testing.T) {
 // TestFromPassword_deterministic verifies the same password+salt always yields the same key ID.
 func TestFromPassword_deterministic(t *testing.T) {
 	// One shared salt; both derivations use identical password and Argon2id parameters.
-	salt, err := keyring.RandSalt()
+	salt, err := kdf.RandSalt()
 	assert.Ok(t, err)
 
 	// Derive twice from the same inputs.
-	lck1, err := locker.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
+	lck1, err := lockerv1.FromPassword([]byte("pw"), salt, kdf.MemoryConstrainedParams)
 	assert.Ok(t, err)
-	lck2, err := locker.FromPassword([]byte("pw"), salt, keyring.MemoryConstrainedParams())
+	lck2, err := lockerv1.FromPassword([]byte("pw"), salt, kdf.MemoryConstrainedParams)
 	assert.Ok(t, err)
 
 	// Key IDs match, demonstrating the derive→key step is deterministic for fixed
@@ -451,14 +451,14 @@ func TestFromPassword_deterministic(t *testing.T) {
 
 // TestFromPassword_nilPassword propagates the ErrNilPassword sentinel.
 func TestFromPassword_nilPassword(t *testing.T) {
-	salt := make([]byte, keyring.SaltBytes)
-	_, err := locker.FromPassword(nil, salt, keyring.MemoryConstrainedParams())
+	salt := make([]byte, kdf.SaltBytes)
+	_, err := lockerv1.FromPassword(nil, salt, kdf.MemoryConstrainedParams)
 	assert.ErrorIs(t, err, perrors.ErrNilPassword)
 }
 
 // TestFromPassword_badSalt propagates the ErrInvalidSalt sentinel.
 func TestFromPassword_badSalt(t *testing.T) {
-	_, err := locker.FromPassword([]byte("pw"), make([]byte, 3), keyring.MemoryConstrainedParams())
+	_, err := lockerv1.FromPassword([]byte("pw"), make([]byte, 3), kdf.MemoryConstrainedParams)
 	assert.ErrorIs(t, err, perrors.ErrInvalidSalt)
 }
 
@@ -466,7 +466,7 @@ func TestFromPassword_badSalt(t *testing.T) {
 // Fuzz: ParseKeyID
 //=============================================================================
 
-// FuzzParseKeyID exercises [contract.Locker.ParseKeyID] on the v1 envelope locker
+// FuzzParseKeyID exercises [locker.Locker.ParseKeyID] on the v1 envelope locker
 // against semi-random ciphertext blobs. Invariants:
 //
 //   - The parser must not panic on any input.
@@ -475,7 +475,7 @@ func TestFromPassword_badSalt(t *testing.T) {
 func FuzzParseKeyID(f *testing.F) {
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(f, err, "seed key")
-	lck, err := locker.New(priv)
+	lck, err := lockerv1.New(priv)
 	assert.Ok(f, err, "seed locker")
 	wire, err := lck.Seal("ns", []byte("plain"))
 	assert.Ok(f, err, "seed seal")
@@ -498,7 +498,7 @@ func FuzzParseKeyID(f *testing.F) {
 // Helpers
 //=============================================================================
 
-// freshLocker returns a contract.Locker and the associated private key.
+// freshLocker returns a locker.Locker and the associated private key.
 func freshLocker(tb testing.TB) (*ecdh.PrivateKey, interface {
 	KeyID() []byte
 	Seal(string, []byte) ([]byte, error)
@@ -508,7 +508,7 @@ func freshLocker(tb testing.TB) (*ecdh.PrivateKey, interface {
 	tb.Helper()
 	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 	assert.Ok(tb, err)
-	lck, err := locker.New(priv)
+	lck, err := lockerv1.New(priv)
 	assert.Ok(tb, err)
 	return priv, lck
 }

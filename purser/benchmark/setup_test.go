@@ -1,24 +1,16 @@
-/*
-Package benchmark_test provides hot-path benchmarks for purser (locker, keyring,
-registry, and row operations). Fixtures use a fixed v1 seed, memhold, memring,
-and a rotating hex plaintext corpus (plaintext.txt; see genplaintext.sh).
-
-Run: go test -run=^$ -bench=. -benchmem ./purser/benchmark
-*/
 package benchmark_test
 
-// Shared fixtures and helpers for hot-path benchmarks.
+// Fixtures and helpers shared by benchmark bodies and Benchmark* entry points.
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
-	"go.rtnl.ai/x/purser/contract"
+	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/purser/keyring/memring"
+	"go.rtnl.ai/x/purser/locker"
 	lockerv1 "go.rtnl.ai/x/purser/locker/v1"
-
-	_ "go.rtnl.ai/x/purser" // register locker v1 via install.go
 )
 
 const benchNS = "bench-ns"
@@ -34,38 +26,34 @@ var benchSeed = [32]byte{
 // benchSizes are plaintext payload sizes exercised by sub-benchmarks.
 var benchSizes = []int{16, 64, 256, 4096}
 
+// benchCtx is shared by Purser benchmark loops.
 var benchCtx = context.Background()
 
 // newV1Locker returns a v1 locker from the fixed bench seed.
-func newV1Locker(b *testing.B) contract.Locker {
+func newV1Locker(b *testing.B) locker.Locker {
 	b.Helper()
 	lck, err := lockerv1.FromSeed(benchSeed[:])
-	if err != nil {
-		b.Fatalf("FromSeed: %v", err)
-	}
+	assert.Ok(b, err, "FromSeed")
 	return lck
 }
 
 // sealWire seals a corpus-backed plaintext of size bytes and returns wire.
-func sealWire(b *testing.B, lck contract.Locker, size int) []byte {
+func sealWire(b *testing.B, lck locker.Locker, size int) []byte {
 	b.Helper()
 	scratch := make([]byte, size)
 	plain := nextPlain(scratch, size, 0)
 	wire, err := lck.Seal(benchNS, plain)
-	if err != nil {
-		b.Fatalf("Seal setup: %v", err)
-	}
+	assert.Ok(b, err, "Seal setup")
 	return wire
 }
 
-// newBenchMemring returns memring with the fixed v1 locker active.
+// newBenchMemring returns memring with the fixed v1 locker as default.
 func newBenchMemring(b *testing.B) *memring.Memring {
 	b.Helper()
 	lck := newV1Locker(b)
-	kr, err := memring.New(lck)
-	if err != nil {
-		b.Fatalf("memring.New: %v", err)
-	}
+	kr := memring.New()
+	err := kr.SetDefault(lck)
+	assert.Ok(b, err, "SetDefault")
 	return kr
 }
 

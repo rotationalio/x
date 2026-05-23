@@ -12,150 +12,179 @@ go get go.rtnl.ai/x/purser
 
 ## Quick start
 
-Importing `purser` links locker v1 automatically. Use `registry` for edition-dispatched locker construction and `contract` for interface types.
+Import `go.rtnl.ai/x/purser`, describe your key with [`purser.NewPKCS8`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPKCS8), register it on a [`purser.Keyring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring), then use [`purser.Purser`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser) for row operations. Other key shapes ([`purser.NewPassword`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPassword), [`purser.NewSeed`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewSeed), [`purser.NewPrivateKey`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPrivateKey)) follow the same pattern—see **Key material** below.
 
 ```go
+package main
+
 import (
     "context"
-    "crypto/ecdh"
-    "fmt"
 
     "go.rtnl.ai/x/purser"
-    "go.rtnl.ai/x/purser/contract"
-    "go.rtnl.ai/x/purser/hold"
-    hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
-    "go.rtnl.ai/x/purser/keyring"
-    "go.rtnl.ai/x/purser/keyring/memring"
-    lockerv1 "go.rtnl.ai/x/purser/locker/v1"
-    constv1 "go.rtnl.ai/x/purser/locker/v1/constants"
-    "go.rtnl.ai/x/purser/registry"
 )
 
-// newPurser wires Hold + Keyring around an existing locker (any constructor below).
-func newPurser(lck contract.Locker) (contract.Purser, error) {
-    h, err := hold.NewMemHold(hexid.Identifier{})
+func main() {
+    // Create a context for the operations below.
+    ctx := context.Background()
+
+    // Load your PKCS#8-encoded X25519 private key bytes; typically from a KMS, file, or environment variable.
+    pkcs8DER := loadPKCS8()
+
+    // Set up an in-memory Hold for storing encrypted secrets.
+    h, _ := purser.NewMemHold(purser.HexIdentifier{})
+
+    // Set up an in-memory Keyring for managing crypto keys and routing.
+    kr := purser.NewMemring()
+
+    // Parse the PKCS#8 private key into a KeySpec, specifying the locker edition.
+    spec, err := purser.NewPKCS8(pkcs8DER, purser.EditionV1)
     if err != nil {
-        return nil, fmt.Errorf("build hold: %w", err)
+        panic(err)
     }
-    kr, err := memring.New(lck)
+
+    // Register the KeySpec, which builds a Locker and clears any sensitive key material from spec.
+    lck, err := kr.Register(spec)
     if err != nil {
-        return nil, fmt.Errorf("build keyring: %w", err)
+        panic(err)
     }
-    return purser.New(h, kr)
-}
 
-// registry.FromPassword — password + persisted salt, edition "v1".
-func lockerFromPassword(password, salt []byte) (contract.Locker, error) {
-    return registry.FromPassword(constv1.Edition, password, salt, keyring.MemoryConstrainedParams())
-}
+    // Set this Locker as the default for encrypting rows without a namespace binding.
+    kr.SetDefault(lck)
 
-// registry.FromSeed — 32-byte seed (e.g. output of your own KDF), edition "v1".
-func lockerFromSeed(seed []byte) (contract.Locker, error) {
-    return registry.FromSeed(constv1.Edition, seed)
-}
-
-// registry.FromPKCS8 — PKCS#8 DER; tries each registered locker edition until one parses.
-func lockerFromPKCS8(der []byte) (contract.Locker, error) {
-    return registry.FromPKCS8(der)
-}
-
-// registry.FromKey — *ecdh.PrivateKey (X25519); tries each registered edition until one accepts it.
-func lockerFromKey(priv *ecdh.PrivateKey) (contract.Locker, error) {
-    return registry.FromKey(priv)
-}
-
-// Example: password path end-to-end.
-func buildPurser(password, salt []byte) (contract.Purser, error) {
-    lck, err := lockerFromPassword(password, salt)
+    // Create a Purser, connecting it with the Hold (storage) and Keyring (crypto/routing).
+    p, err := purser.New(h, kr)
     if err != nil {
-        return nil, fmt.Errorf("build locker: %w", err)
+        panic(err)
     }
-    return newPurser(lck)
+
+    // Store an encrypted secret under the "app" namespace.
+    res, err := p.Store(ctx, "app", []byte("hello"))
+    if err != nil {
+        panic(err)
+    }
+    _ = res.ID        // unique identifier of the sealed row
+    _ = res.Namespace // namespace under which the row was stored
+    _ = res.KeyID     // identifier of the key used for encryption
+    _ = res.Edition   // locker edition/version used to seal the row
+
+    // Retrieve and decrypt the secret using the Result from the Store op.
+    plain, err := p.Retrieve(ctx, res.Namespace, res.ID)
+    if err != nil {
+        panic(err)
+    }
+    // 'plain' is now []byte("hello")
+
+    // Update that secret in place to a new value.
+    _, err = p.Update(ctx, res.Namespace, res.ID, []byte("world"))
+    if err != nil {
+        panic(err)
+    }
+
+    // Atomically swap when plaintext matches; returns Result like Store and Update.
+    _, err := p.CompareAndSwap(ctx, res.Namespace, res.ID, []byte("world"), []byte("atomic update"))
+    if err != nil {
+        panic(err)
+    }
+
+    // Delete the secret by its ID.
+    _ = p.Delete(ctx, "app", res.ID)
 }
 
-// Same constructors without registry — call lockerv1 directly when you only need v1:
-//   lockerv1.FromPassword(password, salt, keyring.MemoryConstrainedParams())
-//   lockerv1.FromSeed(seed)
-//   lockerv1.FromPKCS8(der)
-//   lockerv1.FromKey(priv)
-
-func exampleUsage(ctx context.Context, p contract.Purser) error {
-    id, err := p.Store(ctx, "app", []byte("secret-v1"))
-    if err != nil {
-        return err
-    }
-
-    plain, err := p.Retrieve(ctx, "app", id)
-    if err != nil {
-        return err
-    }
-    fmt.Println(string(plain))
-
-    if err := p.Update(ctx, "app", id, []byte("secret-v2")); err != nil {
-        return err
-    }
-
-    if err := p.CompareAndSwap(ctx, "app", id, []byte("secret-v2"), []byte("secret-v3")); err != nil {
-        return err
-    }
-
-    if err := p.MoveNamespace(ctx, "app", "archive", id); err != nil {
-        return err
-    }
-
-    return p.Delete(ctx, "archive", id)
-}
+func loadPKCS8() []byte { /* ... */ return nil }
 ```
 
-Use `registry` when you want edition dispatch (`constv1.Edition`); use `lockerv1.From*` when v1 is the only locker you link in.
+### Row operations
+
+| Method | Returns | Notes |
+|--------|---------|--------|
+| [`Store`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Store) | [`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result), `error` | New row; `Result.ID` is the new identifier |
+| [`Update`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Update) | `Result`, `error` | Re-seals in place |
+| [`CompareAndSwap`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.CompareAndSwap) | `Result`, `error` | Swaps only when decrypted plaintext equals `currentPlain`; on [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent) the row is unchanged and `Result` still carries row metadata |
+| [`Retrieve`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Retrieve) | `[]byte`, `error` | Decrypted plaintext |
+| [`Delete`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Delete) | `error` | Idempotent |
+| [`MoveNamespace`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.MoveNamespace) | `error` | Re-seals under a new namespace |
+
+[`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result) fields: `ID`, `Namespace`, `KeyID`, `Edition` (non-secret routing metadata). Namespace-bound writes use [`Keyring.Bind`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring) when you need per-tenant lockers; otherwise use `SetDefault`. Register additional [`KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec) values before revoking old key ids when rotating.
+
+### Key material ([`purser.KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec))
+
+| Constructor | Use when |
+|-------------|----------|
+| [`purser.NewPassword`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPassword) | User password + persisted Argon2 salt ([`purser.RandSalt`](https://pkg.go.dev/go.rtnl.ai/x/purser#RandSalt) at enrollment) |
+| [`purser.NewSeed`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewSeed) | You already derived a 32-byte seed |
+| [`purser.NewPKCS8`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPKCS8) | PKCS#8-encoded private key bytes |
+| [`purser.NewPrivateKey`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPrivateKey) | In-process `*ecdh.PrivateKey` (X25519 for v1) |
+
+Each constructor returns a single-use [`purser.KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec). Pass it to `Register` on [`purser.Keyring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring) (recommended) or call `spec.Locker()` yourself and `SetDefault`. Sensitive fields are zeroed after `Locker()` runs; do not reuse a spec.
+
+Every KeySpec constructor requires a non-empty edition (for example [`purser.EditionV1`](https://pkg.go.dev/go.rtnl.ai/x/purser#EditionV1)); an empty string returns [`ErrInvalidEdition`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrInvalidEdition).
+
+## Root aliases (`aliases.go`)
+
+| Category | Symbols |
+|----------|---------|
+| Editions | [`purser.EditionV1`](https://pkg.go.dev/go.rtnl.ai/x/purser#EditionV1) |
+| Locker | [`purser.Locker`](https://pkg.go.dev/go.rtnl.ai/x/purser#Locker), [`purser.Sealer`](https://pkg.go.dev/go.rtnl.ai/x/purser#Sealer), [`purser.Labeler`](https://pkg.go.dev/go.rtnl.ai/x/purser#Labeler), [`purser.Keyer`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyer) |
+| Keyring | [`purser.Keyring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring), [`purser.Registrator`](https://pkg.go.dev/go.rtnl.ai/x/purser#Registrator), [`purser.Namespacer`](https://pkg.go.dev/go.rtnl.ai/x/purser#Namespacer), [`purser.Router`](https://pkg.go.dev/go.rtnl.ai/x/purser#Router), [`purser.Memring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Memring), [`purser.NewMemring`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewMemring) |
+| KeySpec | [`purser.KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec), [`purser.NewPassword`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPassword), [`purser.NewSeed`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewSeed), [`purser.NewPKCS8`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPKCS8), [`purser.NewPrivateKey`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPrivateKey) |
+| Hold | [`purser.Hold`](https://pkg.go.dev/go.rtnl.ai/x/purser#Hold), [`purser.MemHold`](https://pkg.go.dev/go.rtnl.ai/x/purser#MemHold), [`purser.Identifier`](https://pkg.go.dev/go.rtnl.ai/x/purser#Identifier), [`purser.HexIdentifier`](https://pkg.go.dev/go.rtnl.ai/x/purser#HexIdentifier), [`purser.NewMemHold`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewMemHold) |
+| KDF | [`purser.Params`](https://pkg.go.dev/go.rtnl.ai/x/purser#Params), [`purser.RandSalt`](https://pkg.go.dev/go.rtnl.ai/x/purser#RandSalt), [`purser.DefaultParams`](https://pkg.go.dev/go.rtnl.ai/x/purser#DefaultParams), [`purser.MemoryConstrainedParams`](https://pkg.go.dev/go.rtnl.ai/x/purser#MemoryConstrainedParams) |
+
+Not aliased at the root (import subpackages): [`keyring/registry`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/registry) (edition dispatch and [`ParseKeyID`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/registry#ParseKeyID) for metadata-only routing), [`keyring/kdf`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/kdf) ([`Derive`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/kdf#Derive), [`SaltBytes`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/kdf#SaltBytes)), and [`purser/errors`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors) (sentinels for `errors.Is`). Prefer [`purser.KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec) over calling `registry.From*` directly.
+
+Subpackages also cover conformance tests, wire layout, edition-specific crypto, and wrapper types (`holdtest`, `locker/v1`, `wrappers/json`, …).
 
 ## Security and operations
 
-- **Locker registration**: each `locker/vN` calls `registry.Register` from `init` (duplicate editions return `ErrDuplicateLockerEdition`). Importing `go.rtnl.ai/x/purser` links registered editions via [`install.go`](install.go) blank imports.
-- **Salt handling**: store Argon2 salt with user/device metadata, not with each sealed row.
-- **Key routing**: `memring.RouteKeyID` calls `registry.ParseKeyID` then looks up the key id; unrecognized v1-class wire returns `ErrNoLocker`. Test-only wire (e.g. nulllocker) falls back to registered lockers in lexicographic key-id order.
-- **Wire preamble**: all sealed rows start with `wire.Magic` (`PURS`) plus a format-version byte (`wire.VersionOffset`). See `purser/wire`.
-- **Deterministic dispatch**: `registry.ParseKeyID` requires `PURS`, then routes by `Hooks.WireVersion`. `FromPKCS8` / `FromKey` try registered editions in sorted edition order.
-- **Metadata-only routing**: `registry.ParseKeyID(wire)` extracts the sealing key id without a keyring; decrypt still requires `RouteKeyID` and a registered locker.
-- **Active locker**: writes always use `Keyring.Active()`; rotate by registering a new locker and calling `SetActive`.
+- **Built-in editions**: v1 wiring lives in [`keyring/registry`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/registry) (no `init` registration or blank imports); pass [`purser.EditionV1`](https://pkg.go.dev/go.rtnl.ai/x/purser#EditionV1) to [`purser.NewPassword`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewPassword), [`purser.NewSeed`](https://pkg.go.dev/go.rtnl.ai/x/purser#NewSeed), and related KeySpec constructors.
+- **Key material**: build a [`purser.KeySpec`](https://pkg.go.dev/go.rtnl.ai/x/purser#KeySpec), then `Register` on [`purser.Keyring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring) (or `spec.Locker()` + `SetDefault` for a single key). Do not reuse specs after `Locker()` runs.
+- **Salt handling**: store Argon2 salt with user/device metadata, not with each sealed row; generate with [`purser.RandSalt`](https://pkg.go.dev/go.rtnl.ai/x/purser#RandSalt).
+- **Key routing**: [`purser.Keyring`](https://pkg.go.dev/go.rtnl.ai/x/purser#Keyring) `Route` parses wire (via [`registry.ParseKeyID`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/registry#ParseKeyID), then per-locker fallback in memring) and looks up the sealing key id.
+- **Wire preamble**: sealed rows start with `wire.Magic` (`PURS`) plus a format-version byte. See `purser/wire`.
+- **Metadata-only routing**: `registry.ParseKeyID(wire)` extracts the sealing key id without a keyring; decrypt still requires `Route` and a registered locker.
+- **Default vs bind**: `LockerFor(namespace)` returns the bound locker, else the default; `ErrNoLocker` from `purser/errors` if neither is set.
 - **Namespace binding**: ciphertext is namespace-bound; decrypting under the wrong namespace fails.
-- **Error checks**: classify with `errors.Is` using sentinels from `purser/errors`.
+- **Compare-and-swap**: wrong plaintext returns [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent) with a populated [`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result); hold-level CAS races surface [`ErrCASFailed`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrCASFailed).
+- **Error checks**: classify with `errors.Is` using sentinels from [`purser/errors`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors).
 - **Memory hygiene**: use `memzero.Zero` on sensitive buffers you own; clear returned slices when done.
 
 ## Package map
 
 ```tree
 purser/
-├── contract/                    Purser, Locker, Keyring interfaces
-├── registry/                    Edition registry; From* and ParseKeyID
+├── purser.go                    Purser, New, row operations, Result
+├── aliases.go                   purser.Locker, purser.Keyring, purser.EditionV1, … (see pkg.go.dev)
 ├── wire/                        Shared preamble magic (PURS) and offsets
-├── purser.go                    purser.New and row operations
-├── install.go                   Blank-imports locker editions into the binary
-├── errors/                      Shared sentinel errors (import as perrors)
-├── hold/                        Hold interface + in-memory impl
+├── errors/                      Sentinel errors (import as perrors)
+├── hold/                        Hold interface + in-memory impl (purser.Hold, purser.NewMemHold)
 │   ├── holdtest/                Conformance helpers (HoldConforms, Ciphertext)
-│   └── identifier/              Identifier interface + hex/ impl
+│   └── identifier/              Identifier interface + hex (purser.HexIdentifier)
 │       └── identifiertest/      Conformance helpers (IdentifierConforms)
 ├── internal/
 │   ├── memzero/                 Byte-slice zeroing
 │   └── nulllocker/              Null-encryption Locker for tests
-├── keyring/                     Argon2id Derive, RandSalt, Params
-│   ├── keyringtest/             Conformance helpers (KeyringConforms)
-│   └── memring/                 In-memory Keyring impl
+├── keyring/
+│   ├── keyring.go               Registrator, Namespacer, Router (purser.Keyring, …)
+│   ├── keyspec/                 Primary key path (purser.NewPassword, …)
+│   ├── kdf/                     Argon2id (purser.Params, purser.RandSalt, …)
+│   ├── registry/                Edition dispatch behind KeySpec; ParseKeyID
+│   ├── memring/                 In-memory Keyring (purser.NewMemring)
+│   └── keyringtest/             Conformance helpers (KeyringConforms)
 ├── locker/
-│   ├── lockertest/              LockerConforms (version-neutral locker checks)
+│   ├── locker.go                Sealer, Labeler, Keyer (purser.Locker)
+│   ├── lockertest/              LockerConforms (version-neutral checks)
 │   ├── lockertest/golden/       Golden tests for all locker versions
-│   └── v1/                      X25519 + HKDF + AES-256-GCM (constants, models, gcm, register.go)
+│   └── v1/                      X25519 + HKDF + AES-256-GCM
 ├── pursertest/                  NewTestPurser for app-level tests
 ├── benchmark/                   Hot-path benchmarks (optional `-bench` run)
 └── wrappers/
-    ├── json/                    JSON-typed Purser wrapper
-    └── string/                  UTF-8 string Purser wrapper
+    ├── json/                    JSON-typed Store/Update/CAS (CAS returns purser.Result)
+    └── string/                  UTF-8 string Purser wrapper (CAS returns purser.Result)
 ```
 
 ## Testing
 
-`pursertest.NewTestPurser` builds a `contract.Purser` wired through Hold → Keyring → Locker with a null locker (fast orchestration tests). Use a real v1 locker when you need envelope crypto or `crypto/rand`.
+[`pursertest.NewTestPurser`](https://pkg.go.dev/go.rtnl.ai/x/purser/pursertest#NewTestPurser) builds a [`purser.Purser`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser) wired through Hold → Keyring → Locker with a null locker (fast orchestration tests). Use a real v1 locker when you need envelope crypto or `crypto/rand`.
 
 Conformance suites (import the `*test` packages from `package foo_test`):
 
@@ -163,9 +192,9 @@ Conformance suites (import the `*test` packages from `package foo_test`):
 - `holdtest.Ciphertext(tb, namespace, plaintext)` — same fixture for integration tests
 - `identifiertest.IdentifierConforms(t, idGen)`
 - `keyringtest.KeyringConforms(t, newKeyring)`
-- `lockertest.LockerConforms(factory)` — version-neutral `contract.Locker` invariants; returns `error`, use `assert` in tests
+- `lockertest.LockerConforms(factory)` — version-neutral `locker.Locker` invariants; returns `error`, use `assert` in tests
 
-`purser_test.go` covers registry dispatch, purser orchestration, and multi-version routing.
+`purser_test.go` covers KeySpec registration, registry dispatch, purser orchestration, and multi-version routing.
 
 Run all package tests (from the `x` module root):
 
@@ -182,7 +211,7 @@ Available targets:
 
 - `FuzzMeta_unmarshal` (`./purser/locker/v1/models`) — `models.Meta.UnmarshalBinary`
 - `FuzzSealed_unmarshal` (`./purser/locker/v1/models`) — `models.Sealed.UnmarshalBinary`
-- `FuzzParseKeyID` (`./purser/locker/v1`) — `contract.Locker.ParseKeyID` for v1 envelope
+- `FuzzParseKeyID` (`./purser/locker/v1`) — v1 `ParseKeyID` on envelope wire
 
 ```bash
 go test -run '^$' -fuzz FuzzMeta_unmarshal -fuzztime 30s ./purser/locker/v1/models
@@ -207,7 +236,7 @@ Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.25` �
 |-----------|------:|----------:|
 | `Locker/Seal` | ~79k | 31 |
 | `Locker/Open` | ~36k | 29 |
-| `Keyring/RouteKeyID` | ~190 | 6 |
+| `Keyring/Route` | ~190 | 6 |
 | `Registry/ParseKeyID` | ~163 | 6 |
 | `Purser/Store` | ~71k | 38 |
 | `Purser/Retrieve` | ~36k | 37 |
@@ -221,7 +250,7 @@ Copy `locker/v1/` layout. Example below uses `v2`.
 
 #### Implement
 
-- [ ] `locker/v2/locker.go` — `contract.Locker` (see [`contract`](contract/contract.go))
+- [ ] `locker/v2/locker.go` — `locker.Locker` (see [`locker/locker.go`](locker/locker.go))
 - [ ] `locker/v2/models/` — seal/open wire types
 - [ ] `locker/v2/keys.go` — `FromSeed`, `FromPassword`, `FromPKCS8`, `FromKey`
 - [ ] `locker/v2/constants/` — `Edition`, `Version`, `Recipe`, `Context`
@@ -229,8 +258,7 @@ Copy `locker/v1/` layout. Example below uses `v2`.
 
 #### Register
 
-- [ ] `locker/v2/register.go` — `registry.Register` in `init` (copy [`locker/v1/register.go`](locker/v1/register.go))
-- [ ] `purser/install.go` — add `_ "go.rtnl.ai/x/purser/locker/v2"`
+- [ ] Add an `editionHooks` entry in [`keyring/registry/registry.go`](keyring/registry/registry.go)
 - [ ] Do **not** import `go.rtnl.ai/x/purser` from `locker/v2`
 
 #### Test
@@ -276,13 +304,11 @@ Delete fixtures and rerun tests to regenerate.
 
 #### `Keyring` (`keyringtest.KeyringConforms`)
 
-- `New(nil, ...)` is rejected.
-- `Active()` returns write locker.
-- `Lookup` resolves registered key IDs and misses unknown IDs.
-- `Register(nil)` is rejected; duplicates return `ErrDuplicateKeyID`.
-- `SetActive(nil)` is rejected; valid `SetActive` switches active and keeps locker routable.
-- `RouteKeyID` routes ciphertext sealed by a registered non-active locker (nulllocker wire in tests).
-- Unroutable ciphertext returns `ErrNoLocker`.
+`Keyring` composes `Registrator`, `Namespacer`, and `Router`:
+
+- **Registrator**: `SetDefault` indexes the default locker; `Register`/`Revoke` add and remove lockers from the index (`Revoke` missing id → `ErrNoLocker`).
+- **Namespacer**: `LockerFor` without default or bind → `ErrNoLocker`; namespace `Bind` overrides default; duplicate `Bind` → `ErrAlreadyBound`; `Unbind` returns the former locker (`ErrNotBound` when absent); `Namespaces` snapshot matches bindings.
+- **Router**: `Route` and `ParseKeyID` resolve nulllocker test wire by key id; duplicate key id on index → `ErrDuplicateKeyID`.
 
 #### `Locker` (`lockertest.LockerConforms`)
 

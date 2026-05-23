@@ -15,9 +15,9 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/locker"
 )
 
 //=============================================================================
@@ -34,7 +34,7 @@ func HoldConforms(t *testing.T, newHold func(*testing.T) hold.Hold) {
 
 	checks := []struct {
 		name string
-		fn   func(context.Context, hold.Hold, contract.Locker) error
+		fn   func(context.Context, hold.Hold, locker.Locker) error
 	}{
 		{"create_get_roundtrip", checkHoldCreateGetRoundtrip},
 		{"create_duplicate", checkHoldCreateDuplicate},
@@ -58,7 +58,7 @@ func HoldConforms(t *testing.T, newHold func(*testing.T) hold.Hold) {
 //=============================================================================
 
 // checkHoldCreateGetRoundtrip verifies Create then Get returns the same ciphertext.
-func checkHoldCreateGetRoundtrip(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldCreateGetRoundtrip(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	wire, err := seal(lck, "ns", []byte("cipher-a"))
 	if err != nil {
 		return fmt.Errorf("seal: %w", err)
@@ -78,7 +78,7 @@ func checkHoldCreateGetRoundtrip(ctx context.Context, h hold.Hold, lck contract.
 }
 
 // checkHoldCreateDuplicate verifies CreateWithIdentifier duplicate behavior.
-func checkHoldCreateDuplicate(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldCreateDuplicate(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	id, err := h.Identifier().New()
 	if err != nil {
 		return fmt.Errorf("identifier.New: %w", err)
@@ -105,7 +105,7 @@ func checkHoldCreateDuplicate(ctx context.Context, h hold.Hold, lck contract.Loc
 }
 
 // checkHoldCompareAndSwap verifies CAS behavior.
-func checkHoldCompareAndSwap(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldCompareAndSwap(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	oldWire, err := seal(lck, "n", []byte("old"))
 	if err != nil {
 		return fmt.Errorf("seal old: %w", err)
@@ -133,7 +133,7 @@ func checkHoldCompareAndSwap(ctx context.Context, h hold.Hold, lck contract.Lock
 }
 
 // checkHoldReplaceMissing verifies Replace on a missing row returns ErrNotFound.
-func checkHoldReplaceMissing(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldReplaceMissing(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	id, err := h.Identifier().New()
 	if err != nil {
 		return fmt.Errorf("identifier.New: %w", err)
@@ -153,7 +153,7 @@ func checkHoldReplaceMissing(ctx context.Context, h hold.Hold, lck contract.Lock
 }
 
 // checkHoldGetMissing verifies Get on a missing row returns ErrNotFound.
-func checkHoldGetMissing(ctx context.Context, h hold.Hold, _ contract.Locker) error {
+func checkHoldGetMissing(ctx context.Context, h hold.Hold, _ locker.Locker) error {
 	id, err := h.Identifier().New()
 	if err != nil {
 		return fmt.Errorf("identifier.New: %w", err)
@@ -169,7 +169,7 @@ func checkHoldGetMissing(ctx context.Context, h hold.Hold, _ contract.Locker) er
 }
 
 // checkHoldDeleteIdempotent verifies Delete on a missing row returns nil.
-func checkHoldDeleteIdempotent(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldDeleteIdempotent(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	wire, err := seal(lck, "ns", []byte("data"))
 	if err != nil {
 		return fmt.Errorf("seal: %w", err)
@@ -188,7 +188,7 @@ func checkHoldDeleteIdempotent(ctx context.Context, h hold.Hold, lck contract.Lo
 }
 
 // checkHoldCASMissing verifies CAS on a missing row returns ErrNotFound.
-func checkHoldCASMissing(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldCASMissing(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	id, err := h.Identifier().New()
 	if err != nil {
 		return fmt.Errorf("identifier.New: %w", err)
@@ -212,7 +212,7 @@ func checkHoldCASMissing(ctx context.Context, h hold.Hold, lck contract.Locker) 
 }
 
 // checkHoldNamespaceIsolation verifies that rows in different namespaces are independent.
-func checkHoldNamespaceIsolation(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldNamespaceIsolation(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	id, err := h.Identifier().New()
 	if err != nil {
 		return fmt.Errorf("identifier.New: %w", err)
@@ -259,7 +259,7 @@ func checkHoldNamespaceIsolation(ctx context.Context, h hold.Hold, lck contract.
 }
 
 // checkHoldReplaceUpdatesData verifies Replace changes the stored data.
-func checkHoldReplaceUpdatesData(ctx context.Context, h hold.Hold, lck contract.Locker) error {
+func checkHoldReplaceUpdatesData(ctx context.Context, h hold.Hold, lck locker.Locker) error {
 	origWire, err := seal(lck, "ns", []byte("original"))
 	if err != nil {
 		return fmt.Errorf("seal original: %w", err)

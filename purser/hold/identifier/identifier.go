@@ -1,6 +1,8 @@
 /*
 Package identifier defines the Identifier interface for minting and validating row ids, plus reusable
 implementations.
+
+Single-import clients use [purser.Identifier] and [purser.HexIdentifier] (see purser aliases.go).
 */
 package identifier
 

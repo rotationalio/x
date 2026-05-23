@@ -3,6 +3,7 @@ package constants
 
 const (
 	// Edition is the app-facing locker id passed to registry.FromSeed and FromPassword.
+	// Single-import clients use [purser.EditionV1] as the edition argument.
 	Edition = "v1"
 
 	// Version is the wire format byte (sealed preamble and meta).

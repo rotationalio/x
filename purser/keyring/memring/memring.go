@@ -1,139 +1,237 @@
-// Package memring provides an in-memory [contract.Keyring] implementation.
-// RouteKeyID delegates wire classification to [registry.ParseKeyID] before keyring lookup.
+// Package memring provides an in-memory [keyring.Keyring] for tests and simple programs.
+// Single-import clients use [purser.Memring] and [purser.NewMemring] (see purser aliases.go).
 package memring
 
 import (
 	"errors"
 	"sync"
 
-	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
-	"go.rtnl.ai/x/purser/registry"
+	"go.rtnl.ai/x/purser/keyring"
+	"go.rtnl.ai/x/purser/keyring/keyspec"
+	"go.rtnl.ai/x/purser/keyring/registry"
+	"go.rtnl.ai/x/purser/locker"
 )
 
-// Memring is a thread-safe in-memory keyring that supports runtime Register and SetActive operations.
+// Memring is a thread-safe in-memory keyring.
 type Memring struct {
-	mu     sync.RWMutex
-	active contract.Locker
-	byID   map[string]contract.Locker
+	mu sync.RWMutex
+
+	byID       map[string]locker.Locker
+	namespaces map[string]string // namespace -> keyID string
+	defaultID  string
 }
 
-// Memring implements [contract.Keyring].
-var _ contract.Keyring = (*Memring)(nil)
+var (
+	_ keyring.Registrator = (*Memring)(nil)
+	_ keyring.Namespacer  = (*Memring)(nil)
+	_ keyring.Router      = (*Memring)(nil)
+	_ keyring.Keyring     = (*Memring)(nil)
+)
 
-// New builds an in-memory key registry with an active locker and optional others.
-func New(active contract.Locker, others ...contract.Locker) (*Memring, error) {
-	if active == nil {
-		return nil, perrors.ErrInvalidNewArgs
+// New returns an empty Memring.
+func New() *Memring {
+	return &Memring{
+		byID:       make(map[string]locker.Locker),
+		namespaces: make(map[string]string),
 	}
+}
 
-	m := &Memring{
-		active: active,
-		byID:   make(map[string]contract.Locker),
-	}
+//=============================================================================
+// Registrator
+//=============================================================================
 
-	if err := registerIntoMap(m.byID, active); err != nil {
+// Register builds a locker from spec and indexes it for decrypt routing.
+func (m *Memring) Register(spec *keyspec.KeySpec) (locker.Locker, error) {
+	lck, err := spec.Locker()
+	if err != nil {
 		return nil, err
 	}
-	for _, lck := range others {
-		if err := registerIntoMap(m.byID, lck); err != nil {
-			return nil, err
-		}
-	}
-
-	return m, nil
-}
-
-// Active returns the current write locker.
-func (m *Memring) Active() contract.Locker {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.active
-}
-
-// Lookup returns a registered locker for keyID.
-func (m *Memring) Lookup(keyID []byte) (contract.Locker, bool) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	lck, ok := m.byID[string(keyID)]
-	return lck, ok
-}
-
-// Register adds a locker for decrypt routing.
-func (m *Memring) Register(lck contract.Locker) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return registerIntoMap(m.byID, lck)
+	if err = indexLocker(m.byID, lck); err != nil {
+		return nil, err
+	}
+	return lck, nil
 }
 
-// SetActive sets the write locker. The locker is registered if it wasn't already present.
-// Re-activating an already-registered locker (same key ID) is allowed.
-func (m *Memring) SetActive(lck contract.Locker) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if lck == nil {
-		return perrors.ErrInvalidNewArgs
-	}
-	keyID := lck.KeyID()
+// Revoke removes a locker and any namespace bindings for its key id.
+func (m *Memring) Revoke(keyID []byte) error {
 	if len(keyID) == 0 {
 		return perrors.ErrInvalidNewArgs
 	}
-
-	// Allow re-activation of an already-registered locker.
 	k := string(keyID)
-	if _, exists := m.byID[k]; !exists {
-		m.byID[k] = lck
-	}
 
-	m.active = lck
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.byID[k]; !ok {
+		return perrors.ErrNoLocker
+	}
+	delete(m.byID, k)
+
+	for ns, id := range m.namespaces {
+		if id == k {
+			delete(m.namespaces, ns)
+		}
+	}
+	if m.defaultID == k {
+		m.defaultID = ""
+	}
 	return nil
 }
 
-// RouteKeyID parses the key identifier and returns the matching locker.
-// If the key identifier is not recognized, it returns [ErrNoLocker]. If the
-// ciphertext is not a valid purser wire, it returns [ErrUnrecognizedCiphertext].
-func (m *Memring) RouteKeyID(ciphertext []byte) (contract.Locker, error) {
+//=============================================================================
+// Namespacer
+//=============================================================================
+
+// Bind associates namespace with an indexed locker. Use [Memring.SetDefault] for the fallback write locker.
+func (m *Memring) Bind(namespace string, l locker.Locker) error {
+	if namespace == "" || l == nil {
+		return perrors.ErrInvalidNewArgs
+	}
+	kid := string(l.KeyID())
+	if len(kid) == 0 {
+		return perrors.ErrInvalidNewArgs
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, exists := m.namespaces[namespace]; exists {
+		return perrors.ErrAlreadyBound
+	}
+	if err := indexLocker(m.byID, l); err != nil {
+		return err
+	}
+	m.namespaces[namespace] = kid
+	return nil
+}
+
+// Unbind removes a namespace binding and returns the former key id.
+func (m *Memring) Unbind(namespace string) (locker.Locker, error) {
+	if namespace == "" {
+		return nil, perrors.ErrInvalidNewArgs
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	kid, ok := m.namespaces[namespace]
+	if !ok {
+		return nil, perrors.ErrNotBound
+	}
+	delete(m.namespaces, namespace)
+	return m.byID[kid], nil
+}
+
+// SetDefault sets the fallback write locker.
+func (m *Memring) SetDefault(l locker.Locker) error {
+	if l == nil {
+		return perrors.ErrInvalidNewArgs
+	}
+	kid := l.KeyID()
+	if len(kid) == 0 {
+		return perrors.ErrInvalidNewArgs
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := indexLocker(m.byID, l); err != nil {
+		return err
+	}
+	m.defaultID = string(kid)
+	return nil
+}
+
+// Namespaces returns a snapshot of namespace to key id bindings.
+func (m *Memring) Namespaces() map[string][]byte {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Try registry.ParseKeyID first to avoid unnecessary decryption.
-	keyID, err := registry.ParseKeyID(ciphertext)
-	if err == nil {
-		if lck, ok := m.byID[string(keyID)]; ok {
+	out := make(map[string][]byte, len(m.namespaces))
+	for ns, kid := range m.namespaces {
+		out[ns] = []byte(kid)
+	}
+	return out
+}
+
+// LockerFor returns the locker bound to namespace, or the default when namespace is empty or unbound.
+func (m *Memring) LockerFor(namespace string) (locker.Locker, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if kid, ok := m.namespaces[namespace]; ok {
+		if lck, found := m.byID[kid]; found {
 			return lck, nil
 		}
-		return nil, perrors.ErrNoLocker
 	}
-	if !errors.Is(err, perrors.ErrUnrecognizedCiphertext) {
-		return nil, err
-	}
-
-	// Fall back for non-PURS wire (e.g. test nulllocker).
-	for _, lck := range m.byID {
-		kid, parseErr := lck.ParseKeyID(ciphertext)
-		if parseErr != nil {
-			continue
-		}
-		if found, ok := m.byID[string(kid)]; ok {
-			return found, nil
+	if m.defaultID != "" {
+		if lck, ok := m.byID[m.defaultID]; ok {
+			return lck, nil
 		}
 	}
 	return nil, perrors.ErrNoLocker
 }
 
-// registerIntoMap validates and registers a locker by key id. Duplicate key IDs are rejected
-// so callers cannot silently shadow an existing locker.
-func registerIntoMap(byID map[string]contract.Locker, lck contract.Locker) error {
+//=============================================================================
+// Router
+//=============================================================================
+
+// ParseKeyID delegates to registry with a nulllocker fallback for test wire.
+func (m *Memring) ParseKeyID(ciphertext []byte) ([]byte, error) {
+	keyID, err := registry.ParseKeyID(ciphertext)
+	if err == nil {
+		return keyID, nil
+	}
+	if !errors.Is(err, perrors.ErrUnrecognizedCiphertext) {
+		return nil, err
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	for _, lck := range m.byID {
+		kid, parseErr := lck.ParseKeyID(ciphertext)
+		if parseErr != nil {
+			continue
+		}
+		return kid, nil
+	}
+	return nil, perrors.ErrUnrecognizedCiphertext
+}
+
+// Route resolves a locker for decrypting ciphertext.
+func (m *Memring) Route(ciphertext []byte) (locker.Locker, error) {
+	keyID, err := m.ParseKeyID(ciphertext)
+	if err != nil {
+		return nil, err
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if lck, ok := m.byID[string(keyID)]; ok {
+		return lck, nil
+	}
+	return nil, perrors.ErrNoLocker
+}
+
+// indexLocker adds lck to byID or returns ErrDuplicateKeyID for a different instance.
+func indexLocker(byID map[string]locker.Locker, lck locker.Locker) error {
 	if lck == nil {
 		return perrors.ErrInvalidNewArgs
 	}
-	keyID := lck.KeyID()
-	if len(keyID) == 0 {
+	kid := lck.KeyID()
+	if len(kid) == 0 {
 		return perrors.ErrInvalidNewArgs
 	}
-	k := string(keyID)
-	if _, exists := byID[k]; exists {
+	k := string(kid)
+	if existing, exists := byID[k]; exists {
+		if existing == lck {
+			return nil
+		}
 		return perrors.ErrDuplicateKeyID
 	}
 	byID[k] = lck

@@ -84,11 +84,17 @@ var (
 	// ErrUnrecognizedCiphertext means no supported locker version could parse the wire blob.
 	ErrUnrecognizedCiphertext = stderrors.New("purser: unrecognized ciphertext format")
 
-	// ErrDuplicateLockerEdition means registry.Register was called for an edition already registered.
-	ErrDuplicateLockerEdition = stderrors.New("purser: duplicate locker edition in registry")
+	// ErrAlreadyBound means Bind was called for a namespace that already has a locker.
+	ErrAlreadyBound = stderrors.New("purser: namespace already bound")
 
-	// ErrDuplicateLockerWireVersion means registry.Register reused a wire format version byte.
-	ErrDuplicateLockerWireVersion = stderrors.New("purser: duplicate locker wire version in registry")
+	// ErrNotBound means Unbind was called for a namespace with no binding.
+	ErrNotBound = stderrors.New("purser: namespace not bound")
+
+	// ErrInvalidKeySpec means a KeySpec was missing required material or was reused after Locker.
+	ErrInvalidKeySpec = stderrors.New("purser: invalid key spec")
+
+	// ErrInvalidEdition means a KeySpec constructor was given an empty locker edition string.
+	ErrInvalidEdition = stderrors.New("purser: locker edition is required")
 )
 
 //=============================================================================
@@ -102,14 +108,14 @@ var (
 	// ErrInvalidSeed means the seed length is not valid for the target locker's FromSeed.
 	ErrInvalidSeed = stderrors.New("purser/keyring: invalid seed")
 
-	// ErrInvalidSalt means the salt length is not valid for [keyring.Derive].
-	ErrInvalidSalt = stderrors.New("purser/keyring: invalid salt")
+	// ErrInvalidSalt means the salt length is not valid for [kdf.Derive].
+	ErrInvalidSalt = stderrors.New("purser/keyring/kdf: invalid salt")
 
-	// ErrNilPassword means [keyring.Derive] received a nil password slice.
-	ErrNilPassword = stderrors.New("purser/keyring: nil password")
+	// ErrNilPassword means password material was missing for a KeySpec or Derive call.
+	ErrNilPassword = stderrors.New("purser/keyring/kdf: nil password")
 
 	// ErrRandSalt means reading random bytes for a new salt failed.
-	ErrRandSalt = stderrors.New("purser/keyring: failed to read random salt")
+	ErrRandSalt = stderrors.New("purser/keyring/kdf: failed to read random salt")
 )
 
 //=============================================================================

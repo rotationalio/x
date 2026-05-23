@@ -1,5 +1,5 @@
 /*
-Package locker implements contract.Locker for the v1 row format.
+Package locker implements locker.Locker for the v1 row format.
 
 Role
 
@@ -26,6 +26,7 @@ Key construction
 
   - [New] from an X25519 [*ecdh.PrivateKey]
   - [FromSeed], [FromPassword], [FromPKCS8], and [FromKey] in keys.go (X25519 only for [FromKey])
+  - Prefer [purser.KeySpec] and [purser.Keyring.Register]; edition string [purser.EditionV1]
 
 Subpackages
 
@@ -43,9 +44,9 @@ import (
 	"crypto/rand"
 	"io"
 
-	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/internal/memzero"
+	"go.rtnl.ai/x/purser/locker"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 	pgcm "go.rtnl.ai/x/purser/locker/v1/gcm"
 	"go.rtnl.ai/x/purser/locker/v1/models"
@@ -55,17 +56,17 @@ import (
 // Locker
 //=============================================================================
 
-// envLocker implements contract.Locker using an X25519 private key and envelope encryption.
+// envLocker implements [locker.Locker] using an X25519 private key and envelope encryption.
 type envLocker struct {
 	priv     *ecdh.PrivateKey
 	template models.Meta // namespace is set on each Seal call
 }
 
-// Ensure envLocker implements contract.Locker.
-var _ contract.Locker = (*envLocker)(nil)
+// Ensure envLocker implements [locker.Locker].
+var _ locker.Locker = (*envLocker)(nil)
 
-// New constructs a contract.Locker for the v1 envelope suite from an X25519 private key.
-func New(priv *ecdh.PrivateKey) (contract.Locker, error) {
+// New constructs a [locker.Locker] for the v1 envelope suite from an X25519 private key.
+func New(priv *ecdh.PrivateKey) (locker.Locker, error) {
 	if priv == nil {
 		return nil, perrors.ErrNilPrivateKey
 	}
@@ -91,8 +92,8 @@ func New(priv *ecdh.PrivateKey) (contract.Locker, error) {
 }
 
 // Version returns the v1 wire format byte.
-func (l *envLocker) Version() int {
-	return int(constants.Version)
+func (l *envLocker) Version() uint8 {
+	return constants.Version
 }
 
 // Edition returns the locker edition id ("v1").

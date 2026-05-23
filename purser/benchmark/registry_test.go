@@ -1,6 +1,6 @@
 package benchmark_test
 
-// BenchmarkRegistry measures registry ParseKeyID (metadata routing, not row decrypt).
+// BenchmarkRegistry measures registry.ParseKeyID (metadata routing, not row decrypt).
 
 import "testing"
 

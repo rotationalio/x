@@ -12,6 +12,7 @@ import (
 )
 
 // Identifier implements [identifier.Identifier] using 16-byte random ids encoded as hex (32 chars).
+// Single-import clients use [purser.HexIdentifier].
 type Identifier struct{}
 
 // Identifier implements [identifier.Identifier].
