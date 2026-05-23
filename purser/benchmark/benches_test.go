@@ -4,6 +4,8 @@ registry, and row operations). Fixtures use a fixed v1 seed, memhold, memring,
 and a rotating hex plaintext corpus (plaintext.txt; see genplaintext.sh).
 
 Run: go test -run=^$ -bench=. -benchmem ./purser/benchmark
+Optional JSON snapshot (~1s): PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/benchmark
+Compare captures: python3 ./purser/benchmark/compare.py
 */
 package benchmark_test
 
