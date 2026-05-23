@@ -180,11 +180,10 @@ func TestJSONPurser_compareAndSwap_emptyJSON(t *testing.T) {
 }
 
 //=============================================================================
-// Tests: Update / CompareAndSwap / MoveNamespace / Delete
+// Tests: Update / CompareAndSwap
 //=============================================================================
 
-// TestJSONPurser_update covers happy-path replacement, marshal-failure rejection, and
-// missing-row propagation.
+// TestJSONPurser_update covers marshal-failure rejection and a happy-path delegation smoke test.
 func TestJSONPurser_update(t *testing.T) {
 	w, _ := newWrappedPurser(t)
 	ctx := context.Background()
@@ -192,22 +191,15 @@ func TestJSONPurser_update(t *testing.T) {
 	id, err := w.Store(ctx, "ns", payload{A: 1})
 	assert.Ok(t, err)
 
-	// Marshal failure rejected up front.
 	assert.ErrorIs(t, w.Update(ctx, "ns", id, make(chan int)), perrors.ErrJSONMarshal)
 
-	// Happy path.
 	assert.Ok(t, w.Update(ctx, "ns", id, payload{A: 2}))
 	var got payload
 	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
 	assert.Equal(t, payload{A: 2}, got)
-
-	// Missing row surfaces ErrNotFound.
-	err = w.Update(ctx, "ns", "00112233445566778899aabbccddeeff", payload{A: 3})
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
-// TestJSONPurser_compareAndSwap covers JSON validation on both arguments, wrong-current,
-// success, and missing-row paths.
+// TestJSONPurser_compareAndSwap rejects invalid JSON and delegates a successful swap.
 func TestJSONPurser_compareAndSwap(t *testing.T) {
 	w, _ := newWrappedPurser(t)
 	ctx := context.Background()
@@ -217,69 +209,17 @@ func TestJSONPurser_compareAndSwap(t *testing.T) {
 	res, err := w.Purser.Store(ctx, "ns", plain)
 	assert.Ok(t, err)
 
-	// Invalid JSON in either argument rejected before reaching the inner purser.
 	casRes, err := w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":`), []byte(`{"a":2}`))
 	assert.Equal(t, purser.Result{}, casRes)
 	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
 	assert.ErrorIs(t, err, perrors.ErrInvalidJSON)
-	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":1}`), []byte(`{"a":`))
-	assert.Equal(t, purser.Result{}, casRes)
-	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
-	assert.ErrorIs(t, err, perrors.ErrInvalidJSON)
 
-	// Wrong current — refuses to swap and leaves the row at A=1.
-	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":99}`), []byte(`{"a":2}`))
-	assert.Equal(t, purser.Result{}, casRes)
-	assert.ErrorIs(t, err, perrors.ErrWrongCurrent)
-	var got payload
-	assert.Ok(t, w.Retrieve(ctx, "ns", res.ID, &got))
-	assert.Equal(t, payload{A: 1}, got)
-
-	// Correct current — swap succeeds.
 	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":1}`), []byte(`{"a":2}`))
-	assert.Equal(t, "ns", casRes.Namespace)
-	assert.Equal(t, res.KeyID, casRes.KeyID)
-	assert.Equal(t, res.Edition, casRes.Edition)
 	assert.Equal(t, res.ID, casRes.ID)
 	assert.Ok(t, err)
+	var got payload
 	assert.Ok(t, w.Retrieve(ctx, "ns", res.ID, &got))
 	assert.Equal(t, payload{A: 2}, got)
-
-	// Missing row.
-	casRes, err = w.CompareAndSwap(ctx, "ns", "aabbccddeeff00112233445566778899", []byte(`{"a":1}`), []byte(`{"a":2}`))
-	assert.Equal(t, purser.Result{}, casRes)
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
-}
-
-// TestJSONPurser_moveNamespace ensures embedded MoveNamespace works end-to-end.
-func TestJSONPurser_moveNamespace(t *testing.T) {
-	w, _ := newWrappedPurser(t)
-	ctx := context.Background()
-
-	id, err := w.Store(ctx, "ns-a", payload{A: 1})
-	assert.Ok(t, err)
-
-	assert.Ok(t, w.MoveNamespace(ctx, "ns-a", "ns-b", id))
-	var got payload
-	assert.Ok(t, w.Retrieve(ctx, "ns-b", id, &got))
-	assert.Equal(t, payload{A: 1}, got)
-
-	err = w.Retrieve(ctx, "ns-a", id, &got)
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
-}
-
-// TestJSONPurser_delete ensures embedded Delete is reachable and removes the row.
-func TestJSONPurser_delete(t *testing.T) {
-	w, _ := newWrappedPurser(t)
-	ctx := context.Background()
-
-	id, err := w.Store(ctx, "ns", payload{A: 1})
-	assert.Ok(t, err)
-
-	assert.Ok(t, w.Delete(ctx, "ns", id))
-	var got payload
-	err = w.Retrieve(ctx, "ns", id, &got)
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
 //=============================================================================

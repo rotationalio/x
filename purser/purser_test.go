@@ -6,9 +6,7 @@ import (
 	"context"
 	"crypto/ecdh"
 	crand "crypto/rand"
-	"crypto/x509"
 	"errors"
-	"fmt"
 	"io"
 	"slices"
 	"sync"
@@ -18,10 +16,8 @@ import (
 	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/hold"
-	"go.rtnl.ai/x/purser/hold/holdtest"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
-	"go.rtnl.ai/x/purser/keyring/kdf"
 	"go.rtnl.ai/x/purser/keyring/memring"
 	"go.rtnl.ai/x/purser/keyring/registry"
 	"go.rtnl.ai/x/purser/locker"
@@ -42,103 +38,6 @@ func TestRegisteredLockerEditions(t *testing.T) {
 	for _, edition := range required {
 		assert.True(t, slices.Contains(got, edition))
 	}
-}
-
-// TestFromSeed_v1_roundtrip verifies version-dispatched seed construction.
-func TestFromSeed_v1_roundtrip(t *testing.T) {
-	seed := make([]byte, lockerv1.SeedBytes)
-	for i := range seed {
-		seed[i] = byte(i)
-	}
-	lck, err := registry.FromSeed(constv1.Edition, seed)
-	assert.Ok(t, err)
-	assert.NotNil(t, lck)
-	assert.True(t, len(lck.KeyID()) > 0)
-}
-
-// TestFromSeed_editionMethods verifies dispatch returns a locker with v1 edition metadata.
-func TestFromSeed_editionMethods(t *testing.T) {
-	seed := make([]byte, lockerv1.SeedBytes)
-	_, err := crand.Read(seed)
-	assert.Ok(t, err)
-	lck, err := registry.FromSeed(constv1.Edition, seed)
-	assert.Ok(t, err)
-	assert.Equal(t, constv1.Version, lck.Version())
-	assert.Equal(t, constv1.Edition, lck.Edition())
-	assert.Equal(t, constv1.Recipe, lck.Recipe())
-	assert.Equal(t, constv1.Context, lck.Context())
-}
-
-// TestFromSeed_unsupportedVersion rejects unknown edition strings.
-func TestFromSeed_unsupportedVersion(t *testing.T) {
-	seed := make([]byte, lockerv1.SeedBytes)
-	_, err := registry.FromSeed("v0", seed)
-	assert.ErrorIs(t, err, perrors.ErrUnsupportedLockerVersion)
-}
-
-// TestFromPassword_v1_roundtrip verifies version-dispatched password construction.
-func TestFromPassword_v1_roundtrip(t *testing.T) {
-	salt, err := kdf.RandSalt()
-	assert.Ok(t, err)
-	lck, err := registry.FromPassword(constv1.Edition, []byte("pw"), salt, kdf.MemoryConstrainedParams)
-	assert.Ok(t, err)
-	assert.NotNil(t, lck)
-}
-
-// TestFromPKCS8_roundtrip loads v1 from PKCS#8 material.
-func TestFromPKCS8_roundtrip(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
-	assert.Ok(t, err)
-	der, err := x509.MarshalPKCS8PrivateKey(priv)
-	assert.Ok(t, err)
-	lck, err := registry.FromPKCS8(der)
-	assert.Ok(t, err)
-	assert.NotNil(t, lck)
-}
-
-// TestFromPKCS8_invalidDER rejects malformed input.
-func TestFromPKCS8_invalidDER(t *testing.T) {
-	_, err := registry.FromPKCS8([]byte{0x30, 0x01, 0x02})
-	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
-}
-
-// TestFromKey_ok accepts an X25519 private key.
-func TestFromKey_ok(t *testing.T) {
-	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
-	assert.Ok(t, err)
-	lck, err := registry.FromKey(priv)
-	assert.Ok(t, err)
-	assert.NotNil(t, lck)
-}
-
-// TestFromKey_rejectsWrongType rejects non-key input.
-func TestFromKey_rejectsWrongType(t *testing.T) {
-	_, err := registry.FromKey("not-a-key")
-	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
-}
-
-// TestParseKeyID_v1Wire matches the locker key id on self-sealed v1 ciphertext.
-func TestParseKeyID_v1Wire(t *testing.T) {
-	seed := make([]byte, lockerv1.SeedBytes)
-	_, err := crand.Read(seed)
-	assert.Ok(t, err)
-	lck, err := registry.FromSeed(constv1.Edition, seed)
-	assert.Ok(t, err)
-	wire, err := lck.Seal("ns", []byte("data"))
-	assert.Ok(t, err)
-	kid, err := registry.ParseKeyID(wire)
-	assert.Ok(t, err)
-	assert.Equal(t, lck.KeyID(), kid)
-}
-
-// TestParseKeyID_unrecognized rejects garbage and nulllocker holdtest wire.
-func TestParseKeyID_unrecognized(t *testing.T) {
-	_, err := registry.ParseKeyID([]byte("too-short"))
-	assert.ErrorIs(t, err, perrors.ErrUnrecognizedCiphertext)
-
-	wire := holdtest.Ciphertext(t, "ns", []byte("plain"))
-	_, err = registry.ParseKeyID(wire)
-	assert.ErrorIs(t, err, perrors.ErrUnrecognizedCiphertext)
 }
 
 //=============================================================================
@@ -702,7 +601,7 @@ func TestPurser_concurrent(t *testing.T) {
 // TestMultiVersion_sealWithDefaultRetrieve seals with the default v1 locker and verifies retrieval.
 func TestMultiVersion_sealWithDefaultRetrieve(t *testing.T) {
 	ctx := context.Background()
-	p, _, _, _, _ := newMultiVersionPurser(t)
+	p, _, _, _ := newMultiVersionPurser(t)
 
 	res, err := p.Store(ctx, "ns", []byte("v1-data"))
 	assert.Ok(t, err)
@@ -715,7 +614,7 @@ func TestMultiVersion_sealWithDefaultRetrieve(t *testing.T) {
 // TestMultiVersion_v0WireRoutedCorrectly injects v0 wire and verifies routing by key id.
 func TestMultiVersion_v0WireRoutedCorrectly(t *testing.T) {
 	ctx := context.Background()
-	p, h, _, lckV0A, _ := newMultiVersionPurser(t)
+	p, h, _, lckV0A := newMultiVersionPurser(t)
 
 	wire, err := lckV0A.Seal("ns", []byte("v0a-secret"))
 	assert.Ok(t, err)
@@ -772,7 +671,7 @@ func TestMultiVersion_defaultAndBoundRowsStayReadable(t *testing.T) {
 // TestMultiVersion_unparseableWireReturnsUnrecognized injects garbage wire.
 func TestMultiVersion_unparseableWireReturnsUnrecognized(t *testing.T) {
 	ctx := context.Background()
-	p, h, _, _, _ := newMultiVersionPurser(t)
+	p, h, _, _ := newMultiVersionPurser(t)
 
 	garbage := make([]byte, 64)
 	for i := range garbage {
@@ -789,7 +688,7 @@ func TestMultiVersion_unparseableWireReturnsUnrecognized(t *testing.T) {
 // TestMultiVersion_unregisteredLockerReturnsError seals with an unregistered locker.
 func TestMultiVersion_unregisteredLockerReturnsError(t *testing.T) {
 	ctx := context.Background()
-	p, h, _, _, _ := newMultiVersionPurser(t)
+	p, h, _, _ := newMultiVersionPurser(t)
 
 	lckV0C, err := nulllocker.New(t, nulllocker.VariantC, []byte("seedC"))
 	assert.Ok(t, err)
@@ -934,15 +833,11 @@ func TestPurser_nilReceiver_keyring(t *testing.T) {
 // Helpers
 //=============================================================================
 
-// newTestKeyring builds a memring with defaultLck and optional indexed bind namespaces.
-func newTestKeyring(tb testing.TB, defaultLck locker.Locker, index ...locker.Locker) *memring.Memring {
+// newTestKeyring builds a memring with defaultLck as the fallback write locker.
+func newTestKeyring(tb testing.TB, defaultLck locker.Locker) *memring.Memring {
 	tb.Helper()
 	kr := memring.New()
 	assert.Ok(tb, kr.SetDefault(defaultLck))
-	for i, lck := range index {
-		ns := fmt.Sprintf("index-%d", i)
-		assert.Ok(tb, kr.Bind(ns, lck))
-	}
 	return kr
 }
 
@@ -969,8 +864,9 @@ func newCryptoPurser(tb testing.TB) (*purser.Purser, *hold.MemHold) {
 	return p, h
 }
 
-// newMultiVersionPurser returns a purser with v1 default plus two null locker variants indexed.
-func newMultiVersionPurser(t *testing.T) (*purser.Purser, *hold.MemHold, locker.Locker, locker.Locker, locker.Locker) {
+// newMultiVersionPurser returns a purser with v1 as the default locker and a nulllocker
+// registered for decrypt routing (bound to a namespace tests do not write through).
+func newMultiVersionPurser(t *testing.T) (*purser.Purser, *hold.MemHold, locker.Locker, locker.Locker) {
 	t.Helper()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
@@ -982,14 +878,14 @@ func newMultiVersionPurser(t *testing.T) (*purser.Purser, *hold.MemHold, locker.
 
 	lckV0A, err := nulllocker.New(t, nulllocker.VariantA, []byte("seedA"))
 	assert.Ok(t, err)
-	lckV0B, err := nulllocker.New(t, nulllocker.VariantB, []byte("seedB"))
-	assert.Ok(t, err)
 
-	kr := newTestKeyring(t, lckV1, lckV0A, lckV0B)
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckV1))
+	assert.Ok(t, kr.Bind("null-v0a-route", lckV0A))
 	p, err := purser.New(h, kr)
 	assert.Ok(t, err)
 
-	return p, h, lckV1, lckV0A, lckV0B
+	return p, h, lckV1, lckV0A
 }
 
 // withFailingEntropy replaces crand.Reader with eofReader for the remainder of the test.

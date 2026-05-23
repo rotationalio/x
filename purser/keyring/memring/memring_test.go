@@ -111,7 +111,7 @@ func TestRoute_multiVersion(t *testing.T) {
 // TestConcurrentAccess exercises Bind, LockerFor, SetDefault, and Route under
 // concurrent goroutine pressure (race-detector probe).
 func TestConcurrentAccess(t *testing.T) {
-	lckDefault := newTestLocker(t, nulllocker.VariantA, "active")
+	lckDefault := newTestLocker(t, nulllocker.VariantA, "default-seed")
 	mr := memring.New()
 	assert.Ok(t, mr.SetDefault(lckDefault))
 	wire, err := lckDefault.Seal("ns", []byte("hello"))
