@@ -1,5 +1,5 @@
 /*
-Package locker implements purser.Locker for the v1 row format.
+Package locker implements contract.Locker for the v1 row format.
 
 Role
 
@@ -10,7 +10,7 @@ Seal and Open
 
   - A shared secret is computed using ECDH (ephemeral private with long-term public key on seal,
     long-term private with ephemeral public key from the wire on open).
-  - The shared secret is expanded with HKDF-SHA256 (info "purser/v1/x25519-hkdf-sha256-aes256gcm/data-key", 32 bytes).
+  - The shared secret is expanded with HKDF-SHA256 (info purser/v1/x25519_hkdf_sha256_aes256_gcm, 32 bytes).
   - Plaintext is encrypted with AES-256-GCM; additional authenticated data is the marshaled per-row
     [models.Meta] (namespace, suite, key id, format version).
   - [envLocker.Open] validates the requested namespace from metadata before decrypting.
@@ -32,7 +32,7 @@ Subpackages
   - models: wire framing (Sealed, Meta, EphPub, Inner)
   - gcm: HKDF data-key derivation and AES-GCM seal/open
   - constants: sizes, magic, format version
-  - suite: recipe id x25519_hkdf_sha256_aes256_gcm
+  - constants: edition, version, recipe, and KDF context strings
 */
 package locker
 
@@ -43,29 +43,29 @@ import (
 	"crypto/rand"
 	"io"
 
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/internal/memzero"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 	pgcm "go.rtnl.ai/x/purser/locker/v1/gcm"
 	"go.rtnl.ai/x/purser/locker/v1/models"
-	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 //=============================================================================
 // Locker
 //=============================================================================
 
-// envLocker implements purser.Locker using an X25519 private key and envelope encryption.
+// envLocker implements contract.Locker using an X25519 private key and envelope encryption.
 type envLocker struct {
 	priv     *ecdh.PrivateKey
 	template models.Meta // namespace is set on each Seal call
 }
 
-// Ensure locker implements purser.Locker.
-var _ purser.Locker = (*envLocker)(nil)
+// Ensure envLocker implements contract.Locker.
+var _ contract.Locker = (*envLocker)(nil)
 
-// New constructs a purser.Locker for the v1 envelope suite from an X25519 private key.
-func New(priv *ecdh.PrivateKey) (purser.Locker, error) {
+// New constructs a contract.Locker for the v1 envelope suite from an X25519 private key.
+func New(priv *ecdh.PrivateKey) (contract.Locker, error) {
 	if priv == nil {
 		return nil, perrors.ErrNilPrivateKey
 	}
@@ -79,16 +79,35 @@ func New(priv *ecdh.PrivateKey) (purser.Locker, error) {
 	}
 
 	meta := models.Meta{
-		PackageVersion: constants.PackageVersion,
-		SuiteID:        suite.X25519HKDFSHA256AES256GCM,
-		KeyID:          append([]byte(nil), kid...),
-		Namespace:      "",
+		Version:   constants.Version,
+		KeyID:     append([]byte(nil), kid...),
+		Namespace: "",
 	}
 	if _, err := meta.MarshalBinary(); err != nil {
 		return nil, err
 	}
 
 	return &envLocker{priv: priv, template: meta}, nil
+}
+
+// Version returns the v1 wire format byte.
+func (l *envLocker) Version() int {
+	return int(constants.Version)
+}
+
+// Edition returns the locker edition id ("v1").
+func (l *envLocker) Edition() string {
+	return constants.Edition
+}
+
+// Recipe returns the short crypto recipe name for v1.
+func (l *envLocker) Recipe() string {
+	return constants.Recipe
+}
+
+// Context returns the KDF context string for v1 row key derivation.
+func (l *envLocker) Context() string {
+	return constants.Context
 }
 
 // KeyID returns a defensive copy of the locker key id.
@@ -118,14 +137,14 @@ func (l *envLocker) Seal(namespace string, plaintext []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer purser.Zero(shared)
+	defer memzero.Zero(shared)
 
 	// Derive the data key from the shared secret.
-	dataKey, err := pgcm.DeriveDataKey(shared)
+	dataKey, err := pgcm.DeriveDataKey(shared, l.template.Version)
 	if err != nil {
 		return nil, err
 	}
-	defer purser.Zero(dataKey)
+	defer memzero.Zero(dataKey)
 
 	// Construct the AEAD to seal the plaintext with the data key.
 	innerAEAD, err := pgcm.NewInnerAEAD(dataKey)
@@ -155,7 +174,7 @@ func (l *envLocker) Seal(namespace string, plaintext []byte) ([]byte, error) {
 	var ephPub models.EphPub
 	copy(ephPub[:], ephPriv.PublicKey().Bytes())
 	sealed := models.Sealed{
-		FormatVersion: constants.PackageVersion,
+		FormatVersion: constants.Version,
 		Meta:          row,
 		Eph:           ephPub,
 		Body:          models.Inner{Nonce: nonce, Payload: payload},
@@ -189,14 +208,14 @@ func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
 	if err != nil {
 		return nil, perrors.ErrDecrypt
 	}
-	defer purser.Zero(shared)
+	defer memzero.Zero(shared)
 
-	// Derive the data key from the shared secret.
-	dataKey, err := pgcm.DeriveDataKey(shared)
+	// Derive the data key from the shared secret using the suite id from the wire.
+	dataKey, err := pgcm.DeriveDataKey(shared, msg.Meta.Version)
 	if err != nil {
 		return nil, err
 	}
-	defer purser.Zero(dataKey)
+	defer memzero.Zero(dataKey)
 
 	// Construct the AEAD to open the ciphertext with the data key.
 	innerAEAD, err := pgcm.NewInnerAEAD(dataKey)
@@ -214,11 +233,16 @@ func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
 	return pgcm.OpenInner(innerAEAD, metaRaw, msg.Body.Nonce, msg.Body.Payload)
 }
 
-// ParseKeyID parses ciphertext metadata and returns the key identifier without decrypting.
-func (l *envLocker) ParseKeyID(ciphertext []byte) (keyID []byte, err error) {
+// ParseKeyID extracts the key identifier from v1 locker wire without decrypting.
+func ParseKeyID(ciphertext []byte) ([]byte, error) {
 	var msg models.Sealed
-	if err = msg.UnmarshalBinary(ciphertext); err != nil {
+	if err := msg.UnmarshalBinary(ciphertext); err != nil {
 		return nil, err
 	}
 	return append([]byte(nil), msg.Meta.KeyID...), nil
+}
+
+// ParseKeyID parses ciphertext metadata and returns the key identifier without decrypting.
+func (l *envLocker) ParseKeyID(ciphertext []byte) ([]byte, error) {
+	return ParseKeyID(ciphertext)
 }

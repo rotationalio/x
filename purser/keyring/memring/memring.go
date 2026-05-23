@@ -1,32 +1,32 @@
-// Package memring provides an in-memory [purser.Keyring] implementation.
+// Package memring provides an in-memory [contract.Keyring] implementation.
 package memring
 
 import (
 	"sync"
 
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
 // Memring is a thread-safe in-memory keyring that supports runtime Register and SetActive operations.
 type Memring struct {
 	mu     sync.RWMutex
-	active purser.Locker
-	byID   map[string]purser.Locker
+	active contract.Locker
+	byID   map[string]contract.Locker
 }
 
-// Memring implements [purser.Keyring].
-var _ purser.Keyring = (*Memring)(nil)
+// Memring implements [contract.Keyring].
+var _ contract.Keyring = (*Memring)(nil)
 
 // New builds an in-memory key registry with an active locker and optional others.
-func New(active purser.Locker, others ...purser.Locker) (*Memring, error) {
+func New(active contract.Locker, others ...contract.Locker) (*Memring, error) {
 	if active == nil {
 		return nil, perrors.ErrInvalidNewArgs
 	}
 
 	m := &Memring{
 		active: active,
-		byID:   make(map[string]purser.Locker),
+		byID:   make(map[string]contract.Locker),
 	}
 
 	if err := registerIntoMap(m.byID, active); err != nil {
@@ -42,14 +42,14 @@ func New(active purser.Locker, others ...purser.Locker) (*Memring, error) {
 }
 
 // Active returns the current write locker.
-func (m *Memring) Active() purser.Locker {
+func (m *Memring) Active() contract.Locker {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.active
 }
 
 // Lookup returns a registered locker for keyID.
-func (m *Memring) Lookup(keyID []byte) (purser.Locker, bool) {
+func (m *Memring) Lookup(keyID []byte) (contract.Locker, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	lck, ok := m.byID[string(keyID)]
@@ -57,7 +57,7 @@ func (m *Memring) Lookup(keyID []byte) (purser.Locker, bool) {
 }
 
 // Register adds a locker for decrypt routing.
-func (m *Memring) Register(lck purser.Locker) error {
+func (m *Memring) Register(lck contract.Locker) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return registerIntoMap(m.byID, lck)
@@ -65,7 +65,7 @@ func (m *Memring) Register(lck purser.Locker) error {
 
 // SetActive sets the write locker. The locker is registered if it wasn't already present.
 // Re-activating an already-registered locker (same key ID) is allowed.
-func (m *Memring) SetActive(lck purser.Locker) error {
+func (m *Memring) SetActive(lck contract.Locker) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -91,7 +91,7 @@ func (m *Memring) SetActive(lck purser.Locker) error {
 // ParseKeyID succeeds and whose extracted key ID maps to a registered locker wins. This lets
 // a keyring with multiple locker versions (different wire formats) route ciphertext to the
 // correct locker without requiring the active locker to understand every format.
-func (m *Memring) RouteKeyID(ciphertext []byte) (purser.Locker, error) {
+func (m *Memring) RouteKeyID(ciphertext []byte) (contract.Locker, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -110,7 +110,7 @@ func (m *Memring) RouteKeyID(ciphertext []byte) (purser.Locker, error) {
 
 // registerIntoMap validates and registers a locker by key id. Duplicate key IDs are rejected
 // so callers cannot silently shadow an existing locker.
-func registerIntoMap(byID map[string]purser.Locker, lck purser.Locker) error {
+func registerIntoMap(byID map[string]contract.Locker, lck contract.Locker) error {
 	if lck == nil {
 		return perrors.ErrInvalidNewArgs
 	}

@@ -1,5 +1,5 @@
 /*
-Package lockertest provides conformance helpers for purser.Locker implementations.
+Package lockertest provides conformance helpers for contract.Locker implementations.
 
 LockerConforms encodes the version-neutral invariants every Locker must satisfy
 (KeyID non-empty + defensive copy, Seal/Open round-trip including empty plaintext
@@ -19,13 +19,13 @@ import (
 	"errors"
 	"fmt"
 
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
 // NewFunc constructs a fresh locker for each call. Each conformance check builds
 // a new locker so checks remain independent of one another.
-type NewFunc func() (purser.Locker, error)
+type NewFunc func() (contract.Locker, error)
 
 //=============================================================================
 // Public conformance suite

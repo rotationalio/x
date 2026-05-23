@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring"
 	"go.rtnl.ai/x/purser/locker/v1"
@@ -62,7 +62,7 @@ const (
 // lockerCase binds a version name to a factory that produces a locker from the shared seed.
 type lockerCase struct {
 	version   string
-	newLocker func(t *testing.T, seed []byte) (purser.Locker, error)
+	newLocker func(t *testing.T, seed []byte) (contract.Locker, error)
 }
 
 // cases returns the golden test table. Add a new entry when shipping a new locker version.
@@ -70,25 +70,25 @@ func cases() []lockerCase {
 	return []lockerCase{
 		{
 			version: "v0-a",
-			newLocker: func(t *testing.T, seed []byte) (purser.Locker, error) {
+			newLocker: func(t *testing.T, seed []byte) (contract.Locker, error) {
 				return nulllocker.FromSeed(t, nulllocker.VariantA, seed)
 			},
 		},
 		{
 			version: "v0-b",
-			newLocker: func(t *testing.T, seed []byte) (purser.Locker, error) {
+			newLocker: func(t *testing.T, seed []byte) (contract.Locker, error) {
 				return nulllocker.FromSeed(t, nulllocker.VariantB, seed)
 			},
 		},
 		{
 			version: "v0-c",
-			newLocker: func(t *testing.T, seed []byte) (purser.Locker, error) {
+			newLocker: func(t *testing.T, seed []byte) (contract.Locker, error) {
 				return nulllocker.FromSeed(t, nulllocker.VariantC, seed)
 			},
 		},
 		{
 			version: "v1",
-			newLocker: func(t *testing.T, seed []byte) (purser.Locker, error) {
+			newLocker: func(t *testing.T, seed []byte) (contract.Locker, error) {
 				return locker.FromSeed(seed)
 			},
 		},

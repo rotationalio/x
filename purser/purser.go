@@ -1,68 +1,196 @@
 /*
-Package purser defines the version-neutral Purser, Locker, and Keyring interfaces for opaque secret rows.
-Concrete locker implementations live in versioned subpackages (for example go.rtnl.ai/x/purser/locker/v1).
+Package purser wires Hold persistence, Keyring routing, and Locker crypto into Purser row operations.
+
+Interfaces live in contract; edition dispatch lives in registry. Importing this package links locker/v1.
 */
 package purser
 
-import "context"
+// Purser implementation.
+
+import (
+	"bytes"
+	"context"
+	"errors"
+
+	"go.rtnl.ai/x/purser/contract"
+	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/hold"
+	"go.rtnl.ai/x/purser/internal/memzero"
+)
 
 //=============================================================================
-// Purser
+// New
 //=============================================================================
 
-// Purser is the contract for row operations (seal, open, compare-and-swap, move, delete).
-// Versioned locker packages are wired in by callers through a Keyring.
-type Purser interface {
-	// Store seals plaintext for namespace and returns a new opaque identifier.
-	Store(ctx context.Context, namespace string, plaintext []byte) (identifier string, err error)
-
-	// Retrieve loads and opens the row for (namespace, identifier).
-	Retrieve(ctx context.Context, namespace, identifier string) (plaintext []byte, err error)
-
-	// Update re-seals plaintext using the active locker and replaces row ciphertext.
-	Update(ctx context.Context, namespace, identifier string, plaintext []byte) error
-
-	// CompareAndSwap updates plaintext only when decrypted content equals currentPlain.
-	CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) error
-
-	// MoveNamespace re-seals plaintext for newNamespace and deletes the old row.
-	MoveNamespace(ctx context.Context, oldNamespace, newNamespace, identifier string) error
-
-	// Delete removes a row for (namespace, identifier).
-	Delete(ctx context.Context, namespace, identifier string) error
+// New constructs a Purser from a Hold and Keyring.
+func New(h hold.Hold, kr contract.Keyring) (contract.Purser, error) {
+	if h == nil || kr == nil || kr.Active() == nil {
+		return nil, perrors.ErrInvalidNewArgs
+	}
+	return &purserImpl{h: h, kr: kr}, nil
 }
 
-// Locker seals and opens opaque ciphertext for one long-term keypair.
-type Locker interface {
-	// KeyID returns the key identifier embedded into row metadata.
-	KeyID() []byte
-
-	// Seal encrypts plaintext into wire ciphertext bound to namespace.
-	Seal(namespace string, plaintext []byte) (ciphertext []byte, err error)
-
-	// Open decrypts ciphertext and verifies namespace binding.
-	Open(namespace string, ciphertext []byte) (plaintext []byte, err error)
-
-	// ParseKeyID reads the key identifier from ciphertext metadata without full decrypt.
-	ParseKeyID(ciphertext []byte) (keyID []byte, err error)
+// purserImpl implements contract.Purser using a Hold and Keyring.
+type purserImpl struct {
+	h  hold.Hold
+	kr contract.Keyring
 }
 
-// Keyring tracks the active locker for writes and all registered lockers for decrypt routing.
-type Keyring interface {
-	// Active returns the locker used for all write operations.
-	Active() Locker
+// Ensure purserImpl implements contract.Purser.
+var _ contract.Purser = (*purserImpl)(nil)
 
-	// Lookup returns a locker by key identifier for decrypt routing.
-	Lookup(keyID []byte) (Locker, bool)
+//=============================================================================
+// Purser row operations
+//=============================================================================
 
-	// Register adds a locker to the decrypt routing set.
-	Register(Locker) error
+// Store encrypts plaintext with the active locker and persists a new row.
+func (p *purserImpl) Store(ctx context.Context, namespace string, plaintext []byte) (identifier string, err error) {
+	if p == nil {
+		return "", perrors.ErrNilPurser
+	}
 
-	// SetActive switches the write locker (and registers it if needed).
-	SetActive(Locker) error
+	var wire []byte
+	wire, err = p.kr.Active().Seal(namespace, plaintext)
+	if err != nil {
+		return "", err
+	}
 
-	// RouteKeyID extracts a key identifier from ciphertext and returns the matching locker.
-	// Implementations try each registered locker's ParseKeyID until one succeeds and the
-	// extracted key ID maps to a registered locker.
-	RouteKeyID(ciphertext []byte) (Locker, error)
+	if identifier, err = p.h.Create(ctx, namespace, wire); err != nil {
+		return "", errors.Join(perrors.ErrHold, err)
+	}
+
+	return identifier, nil
+}
+
+// Retrieve loads ciphertext for (namespace, identifier), routes by key id, and decrypts to plaintext.
+func (p *purserImpl) Retrieve(ctx context.Context, namespace, identifier string) (plaintext []byte, err error) {
+	if p == nil {
+		return nil, perrors.ErrNilPurser
+	}
+
+	var wire []byte
+	if wire, err = p.h.Get(ctx, namespace, identifier); err != nil {
+		return nil, errors.Join(perrors.ErrHold, err)
+	}
+
+	return p.openForNamespace(namespace, wire)
+}
+
+// Update replaces plaintext for an existing row using active-key re-encryption.
+func (p *purserImpl) Update(ctx context.Context, namespace, identifier string, plaintext []byte) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
+	var wire []byte
+	var err error
+
+	if wire, err = p.kr.Active().Seal(namespace, plaintext); err != nil {
+		return err
+	}
+
+	if err = p.h.Replace(ctx, namespace, identifier, wire); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+
+	return nil
+}
+
+// CompareAndSwap decrypts current ciphertext, checks currentPlain, then writes newPlain with the active locker.
+func (p *purserImpl) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
+	var oldWire []byte
+	var plain []byte
+	var newWire []byte
+	var err error
+
+	if oldWire, err = p.h.Get(ctx, namespace, identifier); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+
+	if plain, err = p.openForNamespace(namespace, oldWire); err != nil {
+		return err
+	}
+	defer memzero.Zero(plain)
+
+	if !bytes.Equal(plain, currentPlain) {
+		return perrors.ErrWrongCurrent
+	}
+
+	if newWire, err = p.kr.Active().Seal(namespace, newPlain); err != nil {
+		return err
+	}
+
+	if err = p.h.CompareAndSwap(ctx, namespace, identifier, oldWire, newWire); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+
+	return nil
+}
+
+// MoveNamespace decrypts under oldNamespace, re-seals under newNamespace, writes the new row, then deletes the old row.
+func (p *purserImpl) MoveNamespace(ctx context.Context, oldNamespace, newNamespace, identifier string) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
+	if oldNamespace == newNamespace {
+		return nil
+	}
+
+	var oldWire []byte
+	var plain []byte
+	var newWire []byte
+	var err error
+
+	if oldWire, err = p.h.Get(ctx, oldNamespace, identifier); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+
+	if plain, err = p.openForNamespace(oldNamespace, oldWire); err != nil {
+		return err
+	}
+	defer memzero.Zero(plain)
+
+	if newWire, err = p.kr.Active().Seal(newNamespace, plain); err != nil {
+		return err
+	}
+
+	if err = p.h.CreateWithIdentifier(ctx, newNamespace, identifier, newWire); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+
+	if err = p.h.Delete(ctx, oldNamespace, identifier); err != nil {
+		return errors.Join(perrors.ErrMoveNamespaceIncomplete, perrors.ErrHold, err)
+	}
+
+	return nil
+}
+
+// Delete removes a row for (namespace, identifier).
+func (p *purserImpl) Delete(ctx context.Context, namespace, identifier string) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
+	if err := p.h.Delete(ctx, namespace, identifier); err != nil {
+		return errors.Join(perrors.ErrHold, err)
+	}
+	return nil
+}
+
+//=============================================================================
+// Helpers
+//=============================================================================
+
+// openForNamespace routes to the correct locker via the keyring and opens ciphertext.
+func (p *purserImpl) openForNamespace(namespace string, wire []byte) (plain []byte, err error) {
+	var lck contract.Locker
+	if lck, err = p.kr.RouteKeyID(wire); err != nil {
+		return nil, err
+	}
+	return lck.Open(namespace, wire)
 }

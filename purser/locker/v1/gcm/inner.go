@@ -13,12 +13,12 @@ import (
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 )
 
-// hkdfDataKeyInfo is the HKDF context string for stretching an X25519 shared secret into the row data key.
-const hkdfDataKeyInfo = "purser/v1/x25519-hkdf-sha256-aes256gcm/data-key"
-
 // DeriveDataKey derives the AES-256 row data key from an ECDH shared secret using HKDF-SHA256.
-func DeriveDataKey(sharedSecret []byte) ([]byte, error) {
-	return hkdf.Key(sha256.New, sharedSecret, nil, hkdfDataKeyInfo, constants.DataKeyBytes)
+func DeriveDataKey(sharedSecret []byte, wireVersion uint8) ([]byte, error) {
+	if wireVersion != constants.Version {
+		return nil, perrors.ErrUnsupportedVersion
+	}
+	return hkdf.Key(sha256.New, sharedSecret, nil, constants.Context, constants.DataKeyBytes)
 }
 
 // NewInnerAEAD constructs inner payload AEAD (AES-256-GCM) for a 32-byte data key.

@@ -10,6 +10,7 @@ import (
 
 	"go.rtnl.ai/x/assert"
 	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	"go.rtnl.ai/x/purser/hold"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring/memring"
@@ -17,7 +18,7 @@ import (
 
 // NewTestPurser returns a Purser backed by a null locker and the given hold. It uses the
 // real purser.New orchestration so wrapper tests exercise the full code path.
-func NewTestPurser(tb testing.TB, h hold.Hold) purser.Purser {
+func NewTestPurser(tb testing.TB, h hold.Hold) contract.Purser {
 	tb.Helper()
 	p, _ := NewTestPurserWithLocker(tb, h)
 	return p
@@ -26,7 +27,7 @@ func NewTestPurser(tb testing.TB, h hold.Hold) purser.Purser {
 // NewTestPurserWithLocker returns a Purser and the underlying null Locker. The Locker is
 // useful for tests that need to seal synthetic or corrupt content into the hold so it
 // passes wire-format parsing on retrieve.
-func NewTestPurserWithLocker(tb testing.TB, h hold.Hold) (purser.Purser, purser.Locker) {
+func NewTestPurserWithLocker(tb testing.TB, h hold.Hold) (contract.Purser, contract.Locker) {
 	tb.Helper()
 
 	assert.NotNil(tb, h, "pursertest: hold required")

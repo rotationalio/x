@@ -1,34 +1,34 @@
 /*
-Package stringpurser wraps purser.Purser with a string-shaped API: plaintext is
+Package stringpurser wraps contract.Purser with a string-shaped API: plaintext is
 UTF-8 text (Store, Retrieve, Update, CompareAndSwap); bytes on the wire remain opaque.
 */
 package stringpurser
 
-// UTF-8 string payloads on top of purser.Purser; invalid UTF-8 returns errors.ErrInvalidUTF8.
+// UTF-8 string payloads on top of contract.Purser; invalid UTF-8 returns errors.ErrInvalidUTF8.
 
 import (
 	"context"
 	"unicode/utf8"
 
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// Purser embeds a purser.Purser and enforces UTF-8 on string plaintext at this API boundary.
+// Purser embeds a contract.Purser and enforces UTF-8 on string plaintext at this API boundary.
 // MoveNamespace and Delete are promoted from the embedded Purser.
 type Purser struct {
-	purser.Purser
+	contract.Purser
 }
 
-// New wraps a non-nil purser.Purser.
-func New(p purser.Purser) *Purser {
+// New wraps a non-nil contract.Purser.
+func New(p contract.Purser) *Purser {
 	if p == nil {
 		panic("purser/wrappers/string: New(nil)")
 	}
 	return &Purser{Purser: p}
 }
 
-// Store rejects non-UTF-8 strings, then delegates to the inner purser.Purser.Store.
+// Store rejects non-UTF-8 strings, then delegates to the inner contract.Purser.Store.
 func (w *Purser) Store(ctx context.Context, namespace string, plaintext string) (string, error) {
 	if !utf8.ValidString(plaintext) {
 		return "", perrors.ErrInvalidUTF8
@@ -36,7 +36,7 @@ func (w *Purser) Store(ctx context.Context, namespace string, plaintext string) 
 	return w.Purser.Store(ctx, namespace, []byte(plaintext))
 }
 
-// Retrieve delegates to the inner purser.Purser.Retrieve and returns UTF-8 text, or ErrInvalidUTF8
+// Retrieve delegates to the inner contract.Purser.Retrieve and returns UTF-8 text, or ErrInvalidUTF8
 // if the decrypted bytes are not valid UTF-8.
 func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string) (string, error) {
 	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
@@ -49,7 +49,7 @@ func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string) (st
 	return string(b), nil
 }
 
-// Update rejects non-UTF-8 strings, then delegates to the inner purser.Purser.Update.
+// Update rejects non-UTF-8 strings, then delegates to the inner contract.Purser.Update.
 func (w *Purser) Update(ctx context.Context, namespace, identifier string, plaintext string) error {
 	if !utf8.ValidString(plaintext) {
 		return perrors.ErrInvalidUTF8

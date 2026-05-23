@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/keyring/keyringtest"
@@ -20,7 +20,7 @@ import (
 
 // TestMemring_conformance runs the shared keyring conformance suite.
 func TestMemring_conformance(t *testing.T) {
-	keyringtest.KeyringConforms(t, func(active purser.Locker, others ...purser.Locker) (purser.Keyring, error) {
+	keyringtest.KeyringConforms(t, func(active contract.Locker, others ...contract.Locker) (contract.Keyring, error) {
 		return memring.New(active, others...)
 	})
 }
@@ -83,7 +83,7 @@ func TestConcurrentAccess(t *testing.T) {
 	// later attempts return ErrDuplicateKeyID — that's expected and ignored.
 	const goroutines = 16
 	const iters = 32
-	others := make([]purser.Locker, goroutines)
+	others := make([]contract.Locker, goroutines)
 	for i := range others {
 		others[i] = newTestLocker(t, nulllocker.VariantC, "concurrent-seed-"+string(rune('a'+i)))
 	}
@@ -111,7 +111,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 // newTestLocker returns a null locker; tests use it whenever they need "some locker"
 // rather than a specific cryptographic implementation.
-func newTestLocker(tb testing.TB, variant nulllocker.Variant, seed string) purser.Locker {
+func newTestLocker(tb testing.TB, variant nulllocker.Variant, seed string) contract.Locker {
 	tb.Helper()
 	lck, err := nulllocker.New(tb, variant, []byte(seed))
 	assert.Ok(tb, err)

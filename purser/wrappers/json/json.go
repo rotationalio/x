@@ -1,11 +1,11 @@
 /*
-Package jsonpurser wraps purser.Purser, exposing the same operation names with JSON instead of raw bytes:
+Package jsonpurser wraps contract.Purser, exposing the same operation names with JSON instead of raw bytes:
 Store and Update take any and marshal with encoding/json;
 Retrieve unmarshals into dst; CompareAndSwap takes expected current and new JSON as []byte.
 */
 package jsonpurser
 
-// JSON-encoded payloads on top of purser.Purser using encoding/json.
+// JSON-encoded payloads on top of contract.Purser using encoding/json.
 
 import (
 	"bytes"
@@ -13,26 +13,26 @@ import (
 	"encoding/json"
 	"errors"
 
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// Purser embeds a purser.Purser and exposes the same operation names, using JSON
+// Purser embeds a contract.Purser and exposes the same operation names, using JSON
 // (any for store/update; CompareAndSwap for compare-and-swap on JSON bytes) instead of opaque plaintext bytes.
 // MoveNamespace and Delete are promoted from the embedded purser.
 type Purser struct {
-	purser.Purser
+	contract.Purser
 }
 
-// New wraps a non-nil purser.Purser.
-func New(p purser.Purser) *Purser {
+// New wraps a non-nil contract.Purser.
+func New(p contract.Purser) *Purser {
 	if p == nil {
 		panic("purser/wrappers/json: New(nil)")
 	}
 	return &Purser{Purser: p}
 }
 
-// Store marshals value with json.Marshal and stores the result via the inner purser.Purser.Store.
+// Store marshals value with json.Marshal and stores the result via the inner contract.Purser.Store.
 func (w *Purser) Store(ctx context.Context, namespace string, value any) (string, error) {
 	b, err := json.Marshal(value)
 	if err != nil {
@@ -41,7 +41,7 @@ func (w *Purser) Store(ctx context.Context, namespace string, value any) (string
 	return w.Purser.Store(ctx, namespace, b)
 }
 
-// Update marshals newValue and updates the row via the inner purser.Purser.Update.
+// Update marshals newValue and updates the row via the inner contract.Purser.Update.
 func (w *Purser) Update(ctx context.Context, namespace, identifier string, newValue any) error {
 	b, err := json.Marshal(newValue)
 	if err != nil {

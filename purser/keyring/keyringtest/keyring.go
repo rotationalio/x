@@ -9,12 +9,19 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/internal/nulllocker"
 )
 
+// routeTestNS is the namespace used when sealing wire for RouteKeyID conformance checks.
+const routeTestNS = "keyringtest"
+
 // NewFunc constructs a keyring from an active locker and optional others.
-type NewFunc func(active purser.Locker, others ...purser.Locker) (purser.Keyring, error)
+type NewFunc func(active contract.Locker, others ...contract.Locker) (contract.Keyring, error)
+
+// checkFunc runs one keyring conformance invariant.
+type checkFunc func(*testing.T, NewFunc) error
 
 //=============================================================================
 // Public conformance suite
@@ -28,7 +35,7 @@ func KeyringConforms(t *testing.T, newKeyring NewFunc) {
 
 	checks := []struct {
 		name string
-		fn   func(NewFunc) error
+		fn   checkFunc
 	}{
 		{"new_rejects_nil_active", checkNewRejectsNilActive},
 		{"active_returns_write_locker", checkActiveReturnsWriteLocker},
@@ -42,9 +49,19 @@ func KeyringConforms(t *testing.T, newKeyring NewFunc) {
 	}
 	for _, c := range checks {
 		t.Run(c.name, func(t *testing.T) {
-			assert.Ok(t, c.fn(newKeyring))
+			assert.Ok(t, c.fn(t, newKeyring))
 		})
 	}
+}
+
+//=============================================================================
+// Null locker fixtures
+//=============================================================================
+
+// nullLocker builds a nulllocker with a deterministic key ID from seed bytes.
+func nullLocker(t *testing.T, variant nulllocker.Variant, seed []byte) (contract.Locker, error) {
+	t.Helper()
+	return nulllocker.New(t, variant, seed)
 }
 
 //=============================================================================
@@ -52,7 +69,7 @@ func KeyringConforms(t *testing.T, newKeyring NewFunc) {
 //=============================================================================
 
 // checkNewRejectsNilActive verifies New rejects a nil active locker.
-func checkNewRejectsNilActive(newKeyring NewFunc) error {
+func checkNewRejectsNilActive(t *testing.T, newKeyring NewFunc) error {
 	_, err := newKeyring(nil)
 	if !errors.Is(err, perrors.ErrInvalidNewArgs) {
 		return fmt.Errorf("new(nil): got %v want %v", err, perrors.ErrInvalidNewArgs)
@@ -61,8 +78,11 @@ func checkNewRejectsNilActive(newKeyring NewFunc) error {
 }
 
 // checkActiveReturnsWriteLocker verifies Active returns the locker passed to New.
-func checkActiveReturnsWriteLocker(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active")}
+func checkActiveReturnsWriteLocker(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
@@ -78,9 +98,15 @@ func checkActiveReturnsWriteLocker(newKeyring NewFunc) error {
 }
 
 // checkLookupRegisteredAndUnknown verifies Lookup returns registered lockers and misses unknown IDs.
-func checkLookupRegisteredAndUnknown(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active")}
-	other := parseLocker{keyID: []byte("other")}
+func checkLookupRegisteredAndUnknown(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
+	other, err := nullLocker(t, nulllocker.VariantB, []byte("other"))
+	if err != nil {
+		return fmt.Errorf("null locker(other): %w", err)
+	}
 
 	kr, err := newKeyring(active, other)
 	if err != nil {
@@ -106,8 +132,11 @@ func checkLookupRegisteredAndUnknown(newKeyring NewFunc) error {
 }
 
 // checkRegisterRejectsNil verifies Register rejects a nil locker.
-func checkRegisterRejectsNil(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active")}
+func checkRegisterRejectsNil(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
@@ -121,14 +150,21 @@ func checkRegisterRejectsNil(newKeyring NewFunc) error {
 }
 
 // checkRegisterRejectsDuplicateKeyID verifies Register rejects duplicate key identifiers.
-func checkRegisterRejectsDuplicateKeyID(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("dup")}
+func checkRegisterRejectsDuplicateKeyID(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("dup"))
+	if err != nil {
+		return fmt.Errorf("null locker(dup): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
 		return fmt.Errorf("new(active): %w", err)
 	}
-	err = kr.Register(parseLocker{keyID: []byte("dup")})
+	dup, err := nullLocker(t, nulllocker.VariantA, []byte("dup"))
+	if err != nil {
+		return fmt.Errorf("null locker(dup): %w", err)
+	}
+	err = kr.Register(dup)
 	if !errors.Is(err, perrors.ErrDuplicateKeyID) {
 		return fmt.Errorf("register(duplicate): got %v want %v", err, perrors.ErrDuplicateKeyID)
 	}
@@ -136,8 +172,11 @@ func checkRegisterRejectsDuplicateKeyID(newKeyring NewFunc) error {
 }
 
 // checkSetActiveRejectsNil verifies SetActive rejects nil input.
-func checkSetActiveRejectsNil(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active")}
+func checkSetActiveRejectsNil(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
@@ -151,9 +190,15 @@ func checkSetActiveRejectsNil(newKeyring NewFunc) error {
 }
 
 // checkSetActiveRegistersAndSwitches verifies SetActive updates Active and ensures lookup registration.
-func checkSetActiveRegistersAndSwitches(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active")}
-	next := parseLocker{keyID: []byte("next")}
+func checkSetActiveRegistersAndSwitches(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
+	next, err := nullLocker(t, nulllocker.VariantB, []byte("next"))
+	if err != nil {
+		return fmt.Errorf("null locker(next): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
@@ -184,74 +229,53 @@ func checkSetActiveRegistersAndSwitches(newKeyring NewFunc) error {
 }
 
 // checkRouteKeyIDCrossLockerParseFallback verifies routing does not depend on active locker parsing all formats.
-func checkRouteKeyIDCrossLockerParseFallback(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active"), tag: "active"}
-	other := parseLocker{keyID: []byte("other"), tag: "other"}
+func checkRouteKeyIDCrossLockerParseFallback(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
+	other, err := nullLocker(t, nulllocker.VariantB, []byte("other"))
+	if err != nil {
+		return fmt.Errorf("null locker(other): %w", err)
+	}
 
 	kr, err := newKeyring(active, other)
 	if err != nil {
 		return fmt.Errorf("new(active, other): %w", err)
 	}
 
-	found, err := kr.RouteKeyID([]byte("wire:other"))
+	wire, err := other.Seal(routeTestNS, []byte("route"))
 	if err != nil {
-		return fmt.Errorf("route_key_id(wire:other): %w", err)
+		return fmt.Errorf("seal(other): %w", err)
+	}
+	found, err := kr.RouteKeyID(wire)
+	if err != nil {
+		return fmt.Errorf("route_key_id(other wire): %w", err)
 	}
 	if found == nil {
-		return fmt.Errorf("route_key_id(wire:other): got nil locker")
+		return fmt.Errorf("route_key_id(other wire): got nil locker")
 	}
 	if string(found.KeyID()) != string(other.KeyID()) {
-		return fmt.Errorf("route_key_id(wire:other) key id mismatch: got %q want %q", found.KeyID(), other.KeyID())
+		return fmt.Errorf("route_key_id(other wire) key id mismatch: got %q want %q", found.KeyID(), other.KeyID())
 	}
 	return nil
 }
 
 // checkRouteKeyIDNoMatchReturnsErrNoLocker verifies unknown ciphertext returns ErrNoLocker.
-func checkRouteKeyIDNoMatchReturnsErrNoLocker(newKeyring NewFunc) error {
-	active := parseLocker{keyID: []byte("active"), tag: "active"}
+func checkRouteKeyIDNoMatchReturnsErrNoLocker(t *testing.T, newKeyring NewFunc) error {
+	active, err := nullLocker(t, nulllocker.VariantA, []byte("active"))
+	if err != nil {
+		return fmt.Errorf("null locker(active): %w", err)
+	}
 
 	kr, err := newKeyring(active)
 	if err != nil {
 		return fmt.Errorf("new(active): %w", err)
 	}
 
-	_, err = kr.RouteKeyID([]byte("wire:unknown"))
+	_, err = kr.RouteKeyID([]byte("not-null-locker-wire"))
 	if !errors.Is(err, perrors.ErrNoLocker) {
-		return fmt.Errorf("route_key_id(wire:unknown): got %v want %v", err, perrors.ErrNoLocker)
+		return fmt.Errorf("route_key_id(garbage): got %v want %v", err, perrors.ErrNoLocker)
 	}
 	return nil
-}
-
-//=============================================================================
-// Test stub locker
-//
-// parseLocker is a tag-driven stub: it lets each check assign a synthetic KeyID
-// and a string tag so RouteKeyID conformance can be exercised without depending on
-// any real wire format. The null locker can't replace it because parseLocker's
-// ParseKeyID matches a custom "wire:<tag>" prefix the tests inject; null locker's
-// wire format is fixed.
-//=============================================================================
-
-// parseLocker is a minimal locker used by conformance tests.
-type parseLocker struct {
-	keyID []byte
-	tag   string
-}
-
-// KeyID returns the configured key identifier.
-func (l parseLocker) KeyID() []byte { return append([]byte(nil), l.keyID...) }
-
-// Seal is not used by these conformance helpers.
-func (l parseLocker) Seal(string, []byte) ([]byte, error) { return nil, fmt.Errorf("not implemented") }
-
-// Open is not used by these conformance helpers.
-func (l parseLocker) Open(string, []byte) ([]byte, error) { return nil, fmt.Errorf("not implemented") }
-
-// ParseKeyID recognizes ciphertext with prefix "wire:<tag>" and returns the configured key ID.
-func (l parseLocker) ParseKeyID(ciphertext []byte) ([]byte, error) {
-	want := "wire:" + l.tag
-	if string(ciphertext) != want {
-		return nil, fmt.Errorf("parse failed")
-	}
-	return l.KeyID(), nil
 }

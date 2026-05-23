@@ -77,6 +77,12 @@ var (
 
 	// ErrWrongCurrent means CompareAndSwap failed because stored plaintext did not equal expected currentPlain.
 	ErrWrongCurrent = stderrors.New("purser: stored secret does not match expected plaintext")
+
+	// ErrUnsupportedLockerVersion means the requested locker edition string is not implemented.
+	ErrUnsupportedLockerVersion = stderrors.New("purser: unsupported locker version")
+
+	// ErrUnrecognizedCiphertext means no supported locker version could parse the wire blob.
+	ErrUnrecognizedCiphertext = stderrors.New("purser: unrecognized ciphertext format")
 )
 
 //=============================================================================
@@ -156,30 +162,7 @@ var (
 	// ErrVersionMismatch means the outer format version disagrees with the decoded metadata version.
 	ErrVersionMismatch = stderrors.New("purser/locker/v1: unsupported format version")
 
-	// ErrUnknownSuite means the metadata suite id is not a known v1 suite.
-	ErrUnknownSuite = stderrors.New("purser/locker/v1: unknown suite")
-
 	// ErrNamespaceMismatch means the row was opened under a namespace that does not match the row metadata.
 	ErrNamespaceMismatch = stderrors.New("purser/locker/v1: namespace mismatch")
 )
 
-//=============================================================================
-// locker/v1 suite ID parse and marshal ([locker/v1/suite])
-//=============================================================================
-
-var (
-	// ErrNilSuiteID means [*suite.ID.UnmarshalBinary] was called with a nil receiver.
-	ErrNilSuiteID = stderrors.New("purser/locker/v1/suite: nil ID receiver")
-
-	// ErrInvalidSuiteWire means decoded suite bytes are not the expected length.
-	ErrInvalidSuiteWire = stderrors.New("purser/locker/v1/suite: invalid wire encoding")
-
-	// ErrInvalidSuiteValue means a numeric suite id is not usable.
-	ErrInvalidSuiteValue = stderrors.New("purser/locker/v1/suite: invalid suite value")
-
-	// ErrUnknownSuiteName means the string does not name a known suite.
-	ErrUnknownSuiteName = stderrors.New("purser/locker/v1/suite: unknown suite name")
-
-	// ErrInvalidSuiteInput means the argument type is not supported for suite.Parse.
-	ErrInvalidSuiteInput = stderrors.New("purser/locker/v1/suite: invalid input type")
-)

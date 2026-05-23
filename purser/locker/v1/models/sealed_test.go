@@ -11,7 +11,6 @@ import (
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 	"go.rtnl.ai/x/purser/locker/v1/gcm"
 	"go.rtnl.ai/x/purser/locker/v1/models"
-	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 // sealedPreambleBytes mirrors models.sealedPreambleBytes for offset math in tests.
@@ -28,8 +27,7 @@ func TestSealed_roundtrip(t *testing.T) {
 		kid = kid[:constants.MaxKeyIDBytes]
 	}
 	meta := models.Meta{
-		PackageVersion: constants.PackageVersion,
-		SuiteID:        suite.X25519HKDFSHA256AES256GCM,
+		Version: constants.Version,
 		KeyID:          kid,
 		Namespace:      "app",
 	}
@@ -41,7 +39,7 @@ func TestSealed_roundtrip(t *testing.T) {
 	assert.Ok(t, err)
 	shared, err := eph.ECDH(priv.PublicKey())
 	assert.Ok(t, err)
-	dataKey, err := gcm.DeriveDataKey(shared)
+	dataKey, err := gcm.DeriveDataKey(shared, constants.Version)
 	assert.Ok(t, err)
 	innerAEAD, err := gcm.NewInnerAEAD(dataKey)
 	assert.Ok(t, err)
@@ -54,7 +52,7 @@ func TestSealed_roundtrip(t *testing.T) {
 	copy(ephPub[:], eph.PublicKey().Bytes())
 
 	s := models.Sealed{
-		FormatVersion: constants.PackageVersion,
+		FormatVersion: constants.Version,
 		Meta:          meta,
 		Eph:           ephPub,
 		Body:          body,
@@ -102,7 +100,7 @@ func TestSealed_unmarshalMalformedWire(t *testing.T) {
 	})
 
 	t.Run("meta_length_too_small", func(t *testing.T) {
-		// Minimum valid meta length is 4 (version + suite + keyIDLen + nsLen).
+		// Minimum valid meta length is 3 (version + keyIDLen + nsLen).
 		// Anything smaller must be rejected before the parser touches Meta bytes.
 		bad := append([]byte(nil), good...)
 		binary.BigEndian.PutUint16(bad[5:7], 3)
@@ -138,7 +136,7 @@ func TestSealed_unmarshalMalformedWire(t *testing.T) {
 }
 
 // TestSealed_unmarshalVersionMismatch confirms the outer format version and the
-// embedded [models.Meta.PackageVersion] are cross-checked, and that an unsupported
+// embedded [models.Meta.Version] are cross-checked, and that an unsupported
 // version flips them both to is surfaced as [verrors.ErrUnsupportedVersion].
 func TestSealed_unmarshalVersionMismatch(t *testing.T) {
 	good := newValidSealedWire(t)
@@ -147,7 +145,7 @@ func TestSealed_unmarshalVersionMismatch(t *testing.T) {
 		// Flip ONLY the outer FormatVersion. The embedded meta still reports v1
 		// so meta unmarshal succeeds; the Sealed-layer cross-check rejects the row.
 		bad := append([]byte(nil), good...)
-		bad[4] = constants.PackageVersion + 1
+		bad[4] = constants.Version + 1
 
 		var got models.Sealed
 		err := got.UnmarshalBinary(bad)
@@ -160,7 +158,7 @@ func TestSealed_unmarshalVersionMismatch(t *testing.T) {
 		// same sentinel as the Sealed-layer defensive check.
 		bad := append([]byte(nil), good...)
 		bad[4] = 99                   // outer FormatVersion
-		bad[sealedPreambleBytes] = 99 // meta PackageVersion is the first byte after preamble
+		bad[sealedPreambleBytes] = 99 // meta Version is the first byte after preamble
 
 		var got models.Sealed
 		err := got.UnmarshalBinary(bad)
@@ -185,8 +183,7 @@ func newValidSealedWire(tb testing.TB) []byte {
 		kid = kid[:constants.MaxKeyIDBytes]
 	}
 	meta := models.Meta{
-		PackageVersion: constants.PackageVersion,
-		SuiteID:        suite.X25519HKDFSHA256AES256GCM,
+		Version: constants.Version,
 		KeyID:          kid,
 		Namespace:      "ns",
 	}
@@ -198,7 +195,7 @@ func newValidSealedWire(tb testing.TB) []byte {
 	assert.Ok(tb, err)
 	shared, err := eph.ECDH(priv.PublicKey())
 	assert.Ok(tb, err)
-	dataKey, err := gcm.DeriveDataKey(shared)
+	dataKey, err := gcm.DeriveDataKey(shared, constants.Version)
 	assert.Ok(tb, err)
 	innerAEAD, err := gcm.NewInnerAEAD(dataKey)
 	assert.Ok(tb, err)
@@ -210,7 +207,7 @@ func newValidSealedWire(tb testing.TB) []byte {
 	copy(ephPub[:], eph.PublicKey().Bytes())
 
 	s := models.Sealed{
-		FormatVersion: constants.PackageVersion,
+		FormatVersion: constants.Version,
 		Meta:          meta,
 		Eph:           ephPub,
 		Body:          models.Inner{Nonce: nonce, Payload: payload},

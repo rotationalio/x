@@ -212,11 +212,18 @@ func TestGCM_NewInnerAEAD_rejectsBadKeyLength(t *testing.T) {
 // TestDeriveDataKey_deterministic asserts HKDF output is stable for the same X25519 shared secret.
 func TestDeriveDataKey_deterministic(t *testing.T) {
 	secret := bytes.Repeat([]byte{0xab}, 32)
-	k1, err := gcm.DeriveDataKey(secret)
+	k1, err := gcm.DeriveDataKey(secret, constants.Version)
 	assert.Ok(t, err)
-	k2, err := gcm.DeriveDataKey(secret)
+	k2, err := gcm.DeriveDataKey(secret, constants.Version)
 	assert.Ok(t, err)
 	assert.Equal(t, k1, k2)
+}
+
+// TestDeriveDataKey_badVersion rejects derivation when the wire version does not match v1.
+func TestDeriveDataKey_badVersion(t *testing.T) {
+	secret := bytes.Repeat([]byte{0xab}, 32)
+	_, err := gcm.DeriveDataKey(secret, constants.Version+1)
+	assert.ErrorIs(t, err, verrors.ErrUnsupportedVersion)
 }
 
 // TestGCM_inner_wrongKey_failsAuth opens with a different inner key than was used to seal.

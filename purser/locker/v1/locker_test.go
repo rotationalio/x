@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/keyring"
 	"go.rtnl.ai/x/purser/locker/lockertest"
@@ -24,7 +24,7 @@ import (
 
 // TestLocker_conforms runs the shared locker conformance suite against locker.
 func TestLocker_conforms(t *testing.T) {
-	err := lockertest.LockerConforms(func() (purser.Locker, error) {
+	err := lockertest.LockerConforms(func() (contract.Locker, error) {
 		priv, err := ecdh.X25519().GenerateKey(crand.Reader)
 		if err != nil {
 			return nil, err
@@ -56,6 +56,17 @@ func TestNew_nonX25519Key(t *testing.T) {
 func TestNew_ok(t *testing.T) {
 	_, lck := freshLocker(t)
 	assert.NotNil(t, lck)
+}
+
+// TestLocker_edition verifies Version, Edition, Recipe, and Context match v1 constants.
+func TestLocker_edition(t *testing.T) {
+	_, lck := freshLocker(t)
+	l, ok := lck.(contract.Locker)
+	assert.True(t, ok)
+	assert.Equal(t, int(constants.Version), l.Version())
+	assert.Equal(t, constants.Edition, l.Edition())
+	assert.Equal(t, constants.Recipe, l.Recipe())
+	assert.Equal(t, constants.Context, l.Context())
 }
 
 //=============================================================================
@@ -455,7 +466,7 @@ func TestFromPassword_badSalt(t *testing.T) {
 // Fuzz: ParseKeyID
 //=============================================================================
 
-// FuzzParseKeyID exercises [purser.Locker.ParseKeyID] on the v1 envelope locker
+// FuzzParseKeyID exercises [contract.Locker.ParseKeyID] on the v1 envelope locker
 // against semi-random ciphertext blobs. Invariants:
 //
 //   - The parser must not panic on any input.
@@ -487,7 +498,7 @@ func FuzzParseKeyID(f *testing.F) {
 // Helpers
 //=============================================================================
 
-// freshLocker returns a purser.Locker and the associated private key.
+// freshLocker returns a contract.Locker and the associated private key.
 func freshLocker(tb testing.TB) (*ecdh.PrivateKey, interface {
 	KeyID() []byte
 	Seal(string, []byte) ([]byte, error)

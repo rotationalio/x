@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
+	"go.rtnl.ai/x/purser/contract"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
 	"go.rtnl.ai/x/purser/locker/lockertest"
@@ -31,7 +31,7 @@ func TestLocker_conforms_allVariants(t *testing.T) {
 	}
 	for _, tc := range variants {
 		t.Run(tc.name, func(t *testing.T) {
-			err := lockertest.LockerConforms(func() (purser.Locker, error) {
+			err := lockertest.LockerConforms(func() (contract.Locker, error) {
 				return nulllocker.New(t, tc.v, []byte("conformance-seed"))
 			})
 			assert.Ok(t, err)
@@ -111,7 +111,7 @@ func TestNilReceiver(t *testing.T) {
 	// unexported. Instead, exercise the nil-receiver guards via the public Locker
 	// interface using a typed nil; nulllocker exposes a zero-cost test bridge for
 	// this in nulllocker_test.go (see NewNilLocker below).
-	var nl purser.Locker = nulllocker.NewNilLocker()
+	var nl contract.Locker = nulllocker.NewNilLocker()
 	_, err = nl.Seal("ns", []byte("x"))
 	assert.ErrorIs(t, err, perrors.ErrSealFailed)
 	_, err = nl.Open("ns", []byte("x"))

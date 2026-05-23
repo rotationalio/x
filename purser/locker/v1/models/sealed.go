@@ -135,10 +135,10 @@ func (s *Sealed) UnmarshalBinary(data []byte) error {
 	}
 
 	// Require all version sentinels to agree: row preamble, encoded meta, and package constant.
-	if s.FormatVersion != s.Meta.PackageVersion {
+	if s.FormatVersion != s.Meta.Version {
 		return perrors.ErrVersionMismatch
 	}
-	if s.FormatVersion != constants.PackageVersion {
+	if s.FormatVersion != constants.Version {
 		return perrors.ErrUnsupportedVersion
 	}
 	if err := s.Eph.UnmarshalBinary(data[off : off+constants.EphPubBytes]); err != nil {
