@@ -22,30 +22,40 @@ type Purser struct {
 }
 
 // New wraps a non-nil [purser.Purser].
-func New(p *purser.Purser) *Purser {
+func New(p *purser.Purser) (*Purser, error) {
 	if p == nil {
-		panic("purser/wrappers/json: New(nil)")
+		return nil, perrors.ErrInvalidNewArgs
 	}
-	return &Purser{Purser: p}
+	return &Purser{Purser: p}, nil
 }
 
 // Store marshals value and stores the result via the inner [Purser.Store].
 func (w *Purser) Store(ctx context.Context, namespace string, value any) (string, error) {
+	p, err := w.inner()
+	if err != nil {
+		return "", err
+	}
+
 	b, err := json.Marshal(value)
 	if err != nil {
 		return "", errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	res, err := w.Purser.Store(ctx, namespace, b)
+	res, err := p.Store(ctx, namespace, b)
 	return res.ID, err
 }
 
 // Update marshals newValue and updates the row via the inner [Purser.Update].
 func (w *Purser) Update(ctx context.Context, namespace, identifier string, newValue any) error {
+	p, err := w.inner()
+	if err != nil {
+		return err
+	}
+
 	b, err := json.Marshal(newValue)
 	if err != nil {
 		return errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	_, err = w.Purser.Update(ctx, namespace, identifier, b)
+	_, err = p.Update(ctx, namespace, identifier, b)
 	return err
 }
 
@@ -57,7 +67,12 @@ func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier strin
 	if len(newPlain) > 0 && !json.Valid(newPlain) {
 		return purser.Result{}, errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
-	return w.Purser.CompareAndSwap(ctx, namespace, identifier, currentPlain, newPlain)
+
+	p, err := w.inner()
+	if err != nil {
+		return purser.Result{}, err
+	}
+	return p.CompareAndSwap(ctx, namespace, identifier, currentPlain, newPlain)
 }
 
 // Retrieve decrypts the row and unmarshals JSON into dst.
@@ -65,7 +80,13 @@ func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string, dst
 	if dst == nil {
 		return perrors.ErrNilRetrieveDst
 	}
-	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
+
+	p, err := w.inner()
+	if err != nil {
+		return err
+	}
+
+	b, err := p.Retrieve(ctx, namespace, identifier)
 	if err != nil {
 		return err
 	}
@@ -89,4 +110,12 @@ func EqualJSON(a, b any) (bool, error) {
 		return false, errors.Join(perrors.ErrJSONMarshal, err)
 	}
 	return bytes.Equal(ab, bb), nil
+}
+
+// inner returns the embedded purser or an error when the wrapper or inner pointer is nil.
+func (w *Purser) inner() (*purser.Purser, error) {
+	if w == nil || w.Purser == nil {
+		return nil, perrors.ErrNilPurser
+	}
+	return w.Purser, nil
 }

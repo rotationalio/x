@@ -71,6 +71,12 @@ func TestNew_nilSeed(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrInvalidSeed)
 }
 
+// TestNew_nilTB rejects a nil testing.TB (production-use guard).
+func TestNew_nilTB(t *testing.T) {
+	_, err := nulllocker.New(nil, nulllocker.VariantA, []byte("seed"))
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
 // TestSeal_tamperedChecksum verifies Open rejects a wire whose trailing 32-byte
 // checksum has been mutated (covers the deferred-tamper detection path that golden
 // fixture testing relies on).

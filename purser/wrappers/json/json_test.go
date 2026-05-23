@@ -61,6 +61,23 @@ func TestJSONPurser_roundtrip(t *testing.T) {
 }
 
 //=============================================================================
+// Tests: constructor and nil receiver
+//=============================================================================
+
+// TestJSONPurser_newNil rejects a nil inner purser.
+func TestJSONPurser_newNil(t *testing.T) {
+	_, err := jsonpurser.New(nil)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
+// TestJSONPurser_nilReceiver_store verifies Store on a nil wrapper returns ErrNilPurser.
+func TestJSONPurser_nilReceiver_store(t *testing.T) {
+	var w *jsonpurser.Purser
+	_, err := w.Store(context.Background(), "ns", 1)
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+//=============================================================================
 // Tests: marshal / unmarshal failure paths
 //=============================================================================
 
@@ -91,7 +108,8 @@ func TestJSONPurser_retrieveUnmarshalFailure(t *testing.T) {
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
 	p, lck := pursertest.NewTestPurserWithLocker(t, h)
-	w := jsonpurser.New(p)
+	w, err := jsonpurser.New(p)
+	assert.Ok(t, err)
 	ctx := context.Background()
 
 	id, err := w.Store(ctx, "ns", payload{A: 1})
@@ -241,5 +259,7 @@ func newWrappedPurser(tb testing.TB) (*jsonpurser.Purser, *hold.MemHold) {
 	tb.Helper()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(tb, err)
-	return jsonpurser.New(pursertest.NewTestPurser(tb, h)), h
+	w, err := jsonpurser.New(pursertest.NewTestPurser(tb, h))
+	assert.Ok(tb, err)
+	return w, h
 }

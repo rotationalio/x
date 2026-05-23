@@ -82,7 +82,7 @@ var _ locker.Locker = (*nullLocker)(nil)
 // size. A non-nil testing.TB is required to prevent production use.
 func New(tb testing.TB, variant Variant, seed []byte) (locker.Locker, error) {
 	if tb == nil {
-		panic("nulllocker: testing.TB required — this locker must not be used in production")
+		return nil, perrors.ErrInvalidNewArgs
 	}
 	tb.Helper()
 

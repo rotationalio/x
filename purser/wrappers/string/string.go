@@ -20,11 +20,11 @@ type Purser struct {
 }
 
 // New wraps a non-nil [purser.Purser].
-func New(p *purser.Purser) *Purser {
+func New(p *purser.Purser) (*Purser, error) {
 	if p == nil {
-		panic("purser/wrappers/string: New(nil)")
+		return nil, perrors.ErrInvalidNewArgs
 	}
-	return &Purser{Purser: p}
+	return &Purser{Purser: p}, nil
 }
 
 // Store rejects non-UTF-8 strings, then delegates to the inner [Purser.Store].
@@ -32,13 +32,24 @@ func (w *Purser) Store(ctx context.Context, namespace string, plaintext string) 
 	if !utf8.ValidString(plaintext) {
 		return "", perrors.ErrInvalidUTF8
 	}
-	res, err := w.Purser.Store(ctx, namespace, []byte(plaintext))
+
+	p, err := w.inner()
+	if err != nil {
+		return "", err
+	}
+
+	res, err := p.Store(ctx, namespace, []byte(plaintext))
 	return res.ID, err
 }
 
 // Retrieve returns decrypted plaintext as a UTF-8 string.
 func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string) (string, error) {
-	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
+	p, err := w.inner()
+	if err != nil {
+		return "", err
+	}
+
+	b, err := p.Retrieve(ctx, namespace, identifier)
 	if err != nil {
 		return "", err
 	}
@@ -53,7 +64,13 @@ func (w *Purser) Update(ctx context.Context, namespace, identifier string, plain
 	if !utf8.ValidString(plaintext) {
 		return perrors.ErrInvalidUTF8
 	}
-	_, err := w.Purser.Update(ctx, namespace, identifier, []byte(plaintext))
+
+	p, err := w.inner()
+	if err != nil {
+		return err
+	}
+
+	_, err = p.Update(ctx, namespace, identifier, []byte(plaintext))
 	return err
 }
 
@@ -65,5 +82,18 @@ func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier strin
 	if !utf8.ValidString(newPlain) {
 		return purser.Result{}, perrors.ErrInvalidUTF8
 	}
-	return w.Purser.CompareAndSwap(ctx, namespace, identifier, []byte(currentPlain), []byte(newPlain))
+
+	p, err := w.inner()
+	if err != nil {
+		return purser.Result{}, err
+	}
+	return p.CompareAndSwap(ctx, namespace, identifier, []byte(currentPlain), []byte(newPlain))
+}
+
+// inner returns the embedded purser or an error when the wrapper or inner pointer is nil.
+func (w *Purser) inner() (*purser.Purser, error) {
+	if w == nil || w.Purser == nil {
+		return nil, perrors.ErrNilPurser
+	}
+	return w.Purser, nil
 }

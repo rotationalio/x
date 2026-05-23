@@ -672,6 +672,52 @@ func TestMultiVersion_moveNamespaceAcrossLockerVersions(t *testing.T) {
 }
 
 //=============================================================================
+// Nil receiver
+//=============================================================================
+
+// TestPurser_nilReceiver_store verifies Store on a nil Purser returns ErrNilPurser.
+func TestPurser_nilReceiver_store(t *testing.T) {
+	var p *purser.Purser
+	_, err := p.Store(context.Background(), "ns", []byte("x"))
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+// TestPurser_nilReceiver_retrieve verifies Retrieve on a nil Purser returns ErrNilPurser.
+func TestPurser_nilReceiver_retrieve(t *testing.T) {
+	var p *purser.Purser
+	_, err := p.Retrieve(context.Background(), "ns", "id")
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+// TestPurser_nilReceiver_compareAndSwap verifies CompareAndSwap on a nil Purser returns ErrNilPurser.
+func TestPurser_nilReceiver_compareAndSwap(t *testing.T) {
+	var p *purser.Purser
+	res, err := p.CompareAndSwap(context.Background(), "ns", "id", []byte("a"), []byte("b"))
+	assert.Equal(t, purser.Result{}, res)
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+// TestPurser_nilReceiver_moveNamespace verifies MoveNamespace on a nil Purser returns ErrNilPurser.
+func TestPurser_nilReceiver_moveNamespace(t *testing.T) {
+	var p *purser.Purser
+	err := p.MoveNamespace(context.Background(), "old", "new", "id")
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+// TestPurser_nilReceiver_delete verifies Delete on a nil Purser returns ErrNilPurser.
+func TestPurser_nilReceiver_delete(t *testing.T) {
+	var p *purser.Purser
+	err := p.Delete(context.Background(), "ns", "id")
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+// TestPurser_nilReceiver_keyring verifies Keyring on a nil Purser returns nil.
+func TestPurser_nilReceiver_keyring(t *testing.T) {
+	var p *purser.Purser
+	assert.Equal(t, nil, p.Keyring())
+}
+
+//=============================================================================
 // Helpers
 //=============================================================================
 

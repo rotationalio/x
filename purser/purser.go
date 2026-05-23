@@ -35,11 +35,18 @@ func New(h hold.Hold, kr keyring.Keyring) (*Purser, error) {
 
 // Keyring returns the keyring passed to New (mutable).
 func (p *Purser) Keyring() keyring.Keyring {
+	if p == nil {
+		return nil
+	}
 	return p.kr
 }
 
 // Store seals plaintext and persists a new secret.
 func (p *Purser) Store(ctx context.Context, namespace string, plaintext []byte) (Result, error) {
+	if p == nil {
+		return Result{}, perrors.ErrNilPurser
+	}
+
 	lck, wire, err := p.seal(namespace, plaintext)
 	if err != nil {
 		return Result{}, err
@@ -54,6 +61,10 @@ func (p *Purser) Store(ctx context.Context, namespace string, plaintext []byte) 
 
 // Retrieve loads and opens a secret.
 func (p *Purser) Retrieve(ctx context.Context, namespace, identifier string) ([]byte, error) {
+	if p == nil {
+		return nil, perrors.ErrNilPurser
+	}
+
 	wire, err := p.h.Get(ctx, namespace, identifier)
 	if err != nil {
 		return nil, errors.Join(perrors.ErrHold, err)
@@ -63,6 +74,10 @@ func (p *Purser) Retrieve(ctx context.Context, namespace, identifier string) ([]
 
 // Update replaces the secret with new plaintext.
 func (p *Purser) Update(ctx context.Context, namespace, identifier string, plaintext []byte) (Result, error) {
+	if p == nil {
+		return Result{}, perrors.ErrNilPurser
+	}
+
 	lck, wire, err := p.seal(namespace, plaintext)
 	if err != nil {
 		return Result{}, err
@@ -75,6 +90,10 @@ func (p *Purser) Update(ctx context.Context, namespace, identifier string, plain
 
 // CompareAndSwap replaces the secret atomically when the current plaintext matches.
 func (p *Purser) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) (Result, error) {
+	if p == nil {
+		return Result{}, perrors.ErrNilPurser
+	}
+
 	oldWire, err := p.h.Get(ctx, namespace, identifier)
 	if err != nil {
 		return Result{}, errors.Join(perrors.ErrHold, err)
@@ -102,6 +121,10 @@ func (p *Purser) CompareAndSwap(ctx context.Context, namespace, identifier strin
 
 // MoveNamespace re-seals under newNamespace and deletes the old secret.
 func (p *Purser) MoveNamespace(ctx context.Context, oldNamespace, newNamespace, identifier string) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
 	if oldNamespace == newNamespace {
 		return nil
 	}
@@ -133,6 +156,10 @@ func (p *Purser) MoveNamespace(ctx context.Context, oldNamespace, newNamespace, 
 
 // Delete removes a secret. Is idempotent.
 func (p *Purser) Delete(ctx context.Context, namespace, identifier string) error {
+	if p == nil {
+		return perrors.ErrNilPurser
+	}
+
 	if err := p.h.Delete(ctx, namespace, identifier); err != nil {
 		return errors.Join(perrors.ErrHold, err)
 	}

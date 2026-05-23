@@ -46,6 +46,23 @@ func TestStringPurser_roundtrip(t *testing.T) {
 }
 
 //=============================================================================
+// Tests: constructor and nil receiver
+//=============================================================================
+
+// TestStringPurser_newNil rejects a nil inner purser.
+func TestStringPurser_newNil(t *testing.T) {
+	_, err := stringpurser.New(nil)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
+// TestStringPurser_nilReceiver_store verifies Store on a nil wrapper returns ErrNilPurser.
+func TestStringPurser_nilReceiver_store(t *testing.T) {
+	var w *stringpurser.Purser
+	_, err := w.Store(context.Background(), "ns", "hello")
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+//=============================================================================
 // Tests: invalid UTF-8 contracts
 //=============================================================================
 
@@ -69,7 +86,8 @@ func TestStringPurser_invalidUTF8CorruptRow(t *testing.T) {
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
 	p, lck := pursertest.NewTestPurserWithLocker(t, h)
-	w := stringpurser.New(p)
+	w, err := stringpurser.New(p)
+	assert.Ok(t, err)
 	ctx := context.Background()
 
 	id, err := w.Store(ctx, "ns", "good")
@@ -201,5 +219,7 @@ func newWrappedPurser(tb testing.TB) (*stringpurser.Purser, *hold.MemHold) {
 	tb.Helper()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(tb, err)
-	return stringpurser.New(pursertest.NewTestPurser(tb, h)), h
+	w, err := stringpurser.New(pursertest.NewTestPurser(tb, h))
+	assert.Ok(tb, err)
+	return w, h
 }
