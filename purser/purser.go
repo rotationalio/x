@@ -87,11 +87,7 @@ func (p *Purser) CompareAndSwap(ctx context.Context, namespace, identifier strin
 	defer memzero.Zero(plain)
 
 	if !bytes.Equal(plain, currentPlain) {
-		res, resErr := p.resultFromWire(namespace, identifier, oldWire)
-		if resErr != nil {
-			return Result{}, resErr
-		}
-		return res, perrors.ErrWrongCurrent
+		return Result{}, perrors.ErrWrongCurrent
 	}
 
 	lck, newWire, err := p.seal(namespace, newPlain)
@@ -174,7 +170,7 @@ func (p *Purser) open(namespace string, wire []byte) ([]byte, error) {
 //=============================================================================
 
 // Result carries non-secret metadata from [Purser.Store], [Purser.Update],
-// and [Purser.CompareAndSwap].
+// and [Purser.CompareAndSwap] on success. Failed CompareAndSwap calls return a zero Result.
 type Result struct {
 	ID        string
 	Namespace string
@@ -190,13 +186,4 @@ func newResult(namespace, id string, lck locker.Locker) Result {
 		KeyID:     append([]byte(nil), lck.KeyID()...),
 		Edition:   lck.Edition(),
 	}
-}
-
-// resultFromWire builds Result metadata from persisted wire without decrypting plaintext.
-func (p *Purser) resultFromWire(namespace, id string, wire []byte) (Result, error) {
-	lck, err := p.kr.Route(wire)
-	if err != nil {
-		return Result{}, err
-	}
-	return newResult(namespace, id, lck), nil
 }

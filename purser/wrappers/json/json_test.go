@@ -166,10 +166,7 @@ func TestJSONPurser_compareAndSwap(t *testing.T) {
 
 	// Wrong current — refuses to swap and leaves the row at A=1.
 	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":99}`), []byte(`{"a":2}`))
-	assert.Equal(t, "ns", casRes.Namespace)
-	assert.Equal(t, res.KeyID, casRes.KeyID)
-	assert.Equal(t, res.Edition, casRes.Edition)
-	assert.Equal(t, res.ID, casRes.ID)
+	assert.Equal(t, purser.Result{}, casRes)
 	assert.ErrorIs(t, err, perrors.ErrWrongCurrent)
 	var got payload
 	assert.Ok(t, w.Retrieve(ctx, "ns", res.ID, &got))

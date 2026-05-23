@@ -99,7 +99,7 @@ func loadPKCS8() []byte { /* ... */ return nil }
 |--------|---------|--------|
 | [`Store`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Store) | [`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result), `error` | New row; `Result.ID` is the new identifier |
 | [`Update`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Update) | `Result`, `error` | Re-seals in place |
-| [`CompareAndSwap`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.CompareAndSwap) | `Result`, `error` | Swaps only when decrypted plaintext equals `currentPlain`; on [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent) the row is unchanged and `Result` still carries row metadata |
+| [`CompareAndSwap`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.CompareAndSwap) | `Result`, `error` | Swaps only when decrypted plaintext equals `currentPlain`; on error (including [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent)) the row is unchanged and `Result` is zero |
 | [`Retrieve`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Retrieve) | `[]byte`, `error` | Decrypted plaintext |
 | [`Delete`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.Delete) | `error` | Idempotent |
 | [`MoveNamespace`](https://pkg.go.dev/go.rtnl.ai/x/purser#Purser.MoveNamespace) | `error` | Re-seals under a new namespace |
@@ -144,7 +144,7 @@ Subpackages also cover conformance tests, wire layout, edition-specific crypto, 
 - **Metadata-only routing**: `registry.ParseKeyID(wire)` extracts the sealing key id without a keyring; decrypt still requires `Route` and a registered locker.
 - **Default vs bind**: `LockerFor(namespace)` returns the bound locker, else the default; `ErrNoLocker` from `purser/errors` if neither is set.
 - **Namespace binding**: ciphertext is namespace-bound; decrypting under the wrong namespace fails.
-- **Compare-and-swap**: wrong plaintext returns [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent) with a populated [`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result); hold-level CAS races surface [`ErrCASFailed`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrCASFailed).
+- **Compare-and-swap**: wrong plaintext returns [`ErrWrongCurrent`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrWrongCurrent) and a zero [`Result`](https://pkg.go.dev/go.rtnl.ai/x/purser#Result); hold-level CAS races surface [`ErrCASFailed`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors#ErrCASFailed).
 - **Error checks**: classify with `errors.Is` using sentinels from [`purser/errors`](https://pkg.go.dev/go.rtnl.ai/x/purser/errors).
 - **Memory hygiene**: use `memzero.Zero` on sensitive buffers you own; clear returned slices when done.
 
@@ -189,7 +189,7 @@ purser/
 Conformance suites (import the `*test` packages from `package foo_test`):
 
 - `holdtest.HoldConforms(t, factory)` — nulllocker-shaped wire with extractable key id
-- `holdtest.Ciphertext(tb, namespace, plaintext)` — same fixture for integration tests
+- `holdtest.Ciphertext(tb, namespace, plaintext)` — seals `plaintext` with the same deterministic nulllocker fixture as `HoldConforms` (fixed seed, `VariantA`) and returns hold-ready wire bound to `namespace`; use when tests need pre-sealed blobs (seed a custom `Hold`, negative routing cases) without building a full Keyring/Purser stack. This is test-only wire: it is not v1 locker format, so [`registry.ParseKeyID`](https://pkg.go.dev/go.rtnl.ai/x/purser/keyring/registry#ParseKeyID) rejects it.
 - `identifiertest.IdentifierConforms(t, idGen)`
 - `keyringtest.KeyringConforms(t, newKeyring)`
 - `lockertest.LockerConforms(factory)` — version-neutral `locker.Locker` invariants; returns `error`, use `assert` in tests
@@ -230,17 +230,17 @@ go test -run=^$ -bench=. -benchmem ./purser/benchmark
 go test -run=^$ -bench=Locker/Seal -benchmem ./purser/benchmark
 ```
 
-Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.25` — other platforms will differ:
+Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.26` — other platforms will differ:
 
 | Benchmark | ns/op | allocs/op |
 |-----------|------:|----------:|
-| `Locker/Seal` | ~79k | 31 |
-| `Locker/Open` | ~36k | 29 |
-| `Keyring/Route` | ~190 | 6 |
-| `Registry/ParseKeyID` | ~163 | 6 |
-| `Purser/Store` | ~71k | 38 |
-| `Purser/Retrieve` | ~36k | 37 |
-| `Purser/Orchestration/Nulllocker/Store` | ~900 | 8 |
+| `Locker/Seal/size=256` | ~71k | 31 |
+| `Locker/Open/size=256` | ~36k | 29 |
+| `Keyring/Route/1Locker/size=256` | ~201 | 4 |
+| `Registry/ParseKeyID/size=256` | ~189 | 4 |
+| `Purser/Store/size=256` | ~75k | 40 |
+| `Purser/Retrieve/size=256` | ~37k | 35 |
+| `Purser/Orchestration/Nulllocker/Store/size=256` | ~1.1k | 10 |
 
 ## Development
 

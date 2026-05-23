@@ -299,10 +299,7 @@ func TestPurser_compareAndSwap(t *testing.T) {
 	assert.Ok(t, err)
 
 	casRes, err := p.CompareAndSwap(ctx, "ns", res.ID, []byte("wrong"), []byte("v2"))
-	assert.Equal(t, "ns", casRes.Namespace)
-	assert.Equal(t, res.KeyID, casRes.KeyID)
-	assert.Equal(t, res.Edition, casRes.Edition)
-	assert.Equal(t, res.ID, casRes.ID)
+	assert.Equal(t, purser.Result{}, casRes)
 	assert.ErrorIs(t, err, perrors.ErrWrongCurrent)
 
 	got, err := p.Retrieve(ctx, "ns", res.ID)

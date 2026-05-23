@@ -135,10 +135,7 @@ func TestStringPurser_compareAndSwap(t *testing.T) {
 
 	// Wrong current — refuses to swap and leaves the row at "v1".
 	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, "wrong", "v2")
-	assert.Equal(t, "ns", casRes.Namespace)
-	assert.Equal(t, res.KeyID, casRes.KeyID)
-	assert.Equal(t, res.Edition, casRes.Edition)
-	assert.Equal(t, res.ID, casRes.ID)
+	assert.Equal(t, purser.Result{}, casRes)
 	assert.ErrorIs(t, err, perrors.ErrWrongCurrent)
 	got, err := w.Retrieve(ctx, "ns", res.ID)
 	assert.Ok(t, err)
