@@ -322,6 +322,199 @@ func TestPurser_compareAndSwap(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
+// TestPurser_compareAndSwap_holdCASFailed ensures a hold CAS race returns ErrCASFailed and zero Result.
+func TestPurser_compareAndSwap_holdCASFailed(t *testing.T) {
+	ctx := context.Background()
+	mem, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+	p, err := purser.New(&casFailingHold{Hold: mem}, newTestKeyring(t, mustNulllocker(t, nulllocker.VariantA, "seed")))
+	assert.Ok(t, err)
+
+	res, err := p.Store(ctx, "ns", []byte("v1"))
+	assert.Ok(t, err)
+
+	casRes, err := p.CompareAndSwap(ctx, "ns", res.ID, []byte("v1"), []byte("v2"))
+	assert.Equal(t, purser.Result{}, casRes)
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrCASFailed)
+
+	got, err := p.Retrieve(ctx, "ns", res.ID)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("v1"), got)
+}
+
+// TestPurser_compareAndSwap_decryptFailure surfaces decrypt errors before ErrWrongCurrent.
+func TestPurser_compareAndSwap_decryptFailure(t *testing.T) {
+	ctx := context.Background()
+	p, h := newCryptoPurser(t)
+
+	res, err := p.Store(ctx, "ns", []byte("secret"))
+	assert.Ok(t, err)
+
+	wire, err := h.Get(ctx, "ns", res.ID)
+	assert.Ok(t, err)
+	corrupt := append([]byte(nil), wire...)
+	corrupt[len(corrupt)-1] ^= 0xff
+	h.BypassSemanticsSetBlobForTest(t, "ns", res.ID, corrupt)
+
+	casRes, err := p.CompareAndSwap(ctx, "ns", res.ID, []byte("secret"), []byte("new"))
+	assert.Equal(t, purser.Result{}, casRes)
+	assert.ErrorIs(t, err, perrors.ErrDecrypt)
+	assert.False(t, errors.Is(err, perrors.ErrWrongCurrent))
+}
+
+// TestPurser_compareAndSwap_entropyFailure maps crand.Reader failure during re-seal to ErrSealFailed.
+func TestPurser_compareAndSwap_entropyFailure(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newCryptoPurser(t)
+
+	res, err := p.Store(ctx, "ns", []byte("v1"))
+	assert.Ok(t, err)
+
+	withFailingEntropy(t)
+
+	casRes, err := p.CompareAndSwap(ctx, "ns", res.ID, []byte("v1"), []byte("v2"))
+	assert.Equal(t, purser.Result{}, casRes)
+	assert.ErrorIs(t, err, perrors.ErrSealFailed)
+}
+
+// TestPurser_storeUsesBoundNamespaceLocker verifies LockerFor bind overrides default on Store.
+func TestPurser_storeUsesBoundNamespaceLocker(t *testing.T) {
+	ctx := context.Background()
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+
+	lckDefault, err := nulllocker.New(t, nulllocker.VariantA, []byte("default"))
+	assert.Ok(t, err)
+	lckBound, err := nulllocker.New(t, nulllocker.VariantB, []byte("bound"))
+	assert.Ok(t, err)
+
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckDefault))
+	assert.Ok(t, kr.Bind("tenant-a", lckBound))
+	p, err := purser.New(h, kr)
+	assert.Ok(t, err)
+
+	resBound, err := p.Store(ctx, "tenant-a", []byte("bound-row"))
+	assert.Ok(t, err)
+	assert.Equal(t, lckBound.KeyID(), resBound.KeyID)
+	assert.Equal(t, "null", resBound.Edition)
+
+	resDefault, err := p.Store(ctx, "other-ns", []byte("default-row"))
+	assert.Ok(t, err)
+	assert.Equal(t, lckDefault.KeyID(), resDefault.KeyID)
+	assert.Equal(t, "null", resDefault.Edition)
+}
+
+// TestPurser_retrieve_namespaceMismatch rejects decrypt when the namespace label does not match.
+func TestPurser_retrieve_namespaceMismatch(t *testing.T) {
+	ctx := context.Background()
+	p, h := newCryptoPurser(t)
+
+	res, err := p.Store(ctx, "ns-a", []byte("secret"))
+	assert.Ok(t, err)
+
+	wire, err := h.Get(ctx, "ns-a", res.ID)
+	assert.Ok(t, err)
+	h.BypassSemanticsSetBlobForTest(t, "ns-b", res.ID, wire)
+
+	_, err = p.Retrieve(ctx, "ns-b", res.ID)
+	assert.ErrorIs(t, err, perrors.ErrNamespaceMismatch)
+}
+
+// TestPurser_moveNamespace_duplicateTargetID leaves the source row when the destination id exists.
+func TestPurser_moveNamespace_duplicateTargetID(t *testing.T) {
+	ctx := context.Background()
+	p, h := newPurser(t)
+
+	res, err := p.Store(ctx, "old-ns", []byte("payload"))
+	assert.Ok(t, err)
+
+	otherWire, err := h.Get(ctx, "old-ns", res.ID)
+	assert.Ok(t, err)
+	err = h.CreateWithIdentifier(ctx, "new-ns", res.ID, otherWire)
+	assert.Ok(t, err)
+
+	err = p.MoveNamespace(ctx, "old-ns", "new-ns", res.ID)
+	assert.ErrorIs(t, err, perrors.ErrHold)
+	assert.ErrorIs(t, err, perrors.ErrDuplicateKey)
+
+	got, err := p.Retrieve(ctx, "old-ns", res.ID)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("payload"), got)
+}
+
+// TestPurser_resultKeyIDDefensiveCopy ensures mutating Result.KeyID does not break routing.
+func TestPurser_resultKeyIDDefensiveCopy(t *testing.T) {
+	ctx := context.Background()
+	p, _ := newPurser(t)
+
+	res, err := p.Store(ctx, "ns", []byte("plain"))
+	assert.Ok(t, err)
+	if len(res.KeyID) > 0 {
+		res.KeyID[0] ^= 0xff
+	}
+
+	got, err := p.Retrieve(ctx, "ns", res.ID)
+	assert.Ok(t, err)
+	assert.Equal(t, []byte("plain"), got)
+}
+
+// TestPurser_compareAndSwap_boundNamespaceLocker re-seals with the namespace-bound locker.
+func TestPurser_compareAndSwap_boundNamespaceLocker(t *testing.T) {
+	ctx := context.Background()
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+
+	lckDefault, err := nulllocker.New(t, nulllocker.VariantA, []byte("default"))
+	assert.Ok(t, err)
+	lckBound, err := nulllocker.New(t, nulllocker.VariantB, []byte("bound"))
+	assert.Ok(t, err)
+
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckDefault))
+	assert.Ok(t, kr.Bind("tenant-a", lckBound))
+	p, err := purser.New(h, kr)
+	assert.Ok(t, err)
+
+	res, err := p.Store(ctx, "tenant-a", []byte("v1"))
+	assert.Ok(t, err)
+
+	casRes, err := p.CompareAndSwap(ctx, "tenant-a", res.ID, []byte("v1"), []byte("v2"))
+	assert.Ok(t, err)
+	assert.Equal(t, lckBound.KeyID(), casRes.KeyID)
+	assert.Equal(t, "null", casRes.Edition)
+}
+
+// TestPurser_compareAndSwap_usesDefaultAfterUnbind re-seals with the default locker once unbound.
+func TestPurser_compareAndSwap_usesDefaultAfterUnbind(t *testing.T) {
+	ctx := context.Background()
+	h, err := hold.NewMemHold(hexid.Identifier{})
+	assert.Ok(t, err)
+
+	lckDefault, err := nulllocker.New(t, nulllocker.VariantA, []byte("default"))
+	assert.Ok(t, err)
+	lckBound, err := nulllocker.New(t, nulllocker.VariantB, []byte("bound"))
+	assert.Ok(t, err)
+
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckDefault))
+	assert.Ok(t, kr.Bind("tenant-a", lckBound))
+	p, err := purser.New(h, kr)
+	assert.Ok(t, err)
+
+	res, err := p.Store(ctx, "tenant-a", []byte("v1"))
+	assert.Ok(t, err)
+	assert.Equal(t, lckBound.KeyID(), res.KeyID)
+
+	_, err = kr.Unbind("tenant-a")
+	assert.Ok(t, err)
+
+	casRes, err := p.CompareAndSwap(ctx, "tenant-a", res.ID, []byte("v1"), []byte("v2"))
+	assert.Ok(t, err)
+	assert.Equal(t, lckDefault.KeyID(), casRes.KeyID)
+}
+
 // TestPurser_moveNamespace covers happy path, same-namespace no-op, and missing-row.
 func TestPurser_moveNamespace(t *testing.T) {
 	ctx := context.Background()
@@ -506,8 +699,8 @@ func TestPurser_concurrent(t *testing.T) {
 // Multi-version keyring
 //=============================================================================
 
-// TestMultiVersion_sealWithActiveRetrieve seals with v1 (active) and verifies retrieval.
-func TestMultiVersion_sealWithActiveRetrieve(t *testing.T) {
+// TestMultiVersion_sealWithDefaultRetrieve seals with the default v1 locker and verifies retrieval.
+func TestMultiVersion_sealWithDefaultRetrieve(t *testing.T) {
 	ctx := context.Background()
 	p, _, _, _, _ := newMultiVersionPurser(t)
 
@@ -535,8 +728,9 @@ func TestMultiVersion_v0WireRoutedCorrectly(t *testing.T) {
 	assert.Equal(t, []byte("v0a-secret"), got)
 }
 
-// TestMultiVersion_switchActiveAndRetrieveOld verifies rows remain readable after SetActive.
-func TestMultiVersion_switchActiveAndRetrieveOld(t *testing.T) {
+// TestMultiVersion_defaultAndBoundRowsStayReadable stores via default and bound lockers, then
+// verifies both rows remain readable after the namespace binding is removed.
+func TestMultiVersion_defaultAndBoundRowsStayReadable(t *testing.T) {
 	ctx := context.Background()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
@@ -549,22 +743,28 @@ func TestMultiVersion_switchActiveAndRetrieveOld(t *testing.T) {
 	lckV0A, err := nulllocker.New(t, nulllocker.VariantA, []byte("seedA"))
 	assert.Ok(t, err)
 
-	kr := newTestKeyring(t, lckV1, lckV0A)
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckV1))
+	assert.Ok(t, kr.Bind("tenant-bound", lckV0A))
 	p, err := purser.New(h, kr)
 	assert.Ok(t, err)
 
-	resV1, err := p.Store(ctx, "ns", []byte("sealed-v1"))
+	resV1, err := p.Store(ctx, "app", []byte("sealed-v1"))
+	assert.Ok(t, err)
+	assert.Equal(t, constv1.Edition, resV1.Edition)
+
+	resV0A, err := p.Store(ctx, "tenant-bound", []byte("sealed-v0a"))
+	assert.Ok(t, err)
+	assert.Equal(t, "null", resV0A.Edition)
+
+	_, err = kr.Unbind("tenant-bound")
 	assert.Ok(t, err)
 
-	assert.Ok(t, kr.Bind("v0-write", lckV0A))
-	resV0A, err := p.Store(ctx, "ns", []byte("sealed-v0a"))
-	assert.Ok(t, err)
-
-	gotV1, err := p.Retrieve(ctx, "ns", resV1.ID)
+	gotV1, err := p.Retrieve(ctx, "app", resV1.ID)
 	assert.Ok(t, err)
 	assert.Equal(t, []byte("sealed-v1"), gotV1)
 
-	gotV0A, err := p.Retrieve(ctx, "ns", resV0A.ID)
+	gotV0A, err := p.Retrieve(ctx, "tenant-bound", resV0A.ID)
 	assert.Ok(t, err)
 	assert.Equal(t, []byte("sealed-v0a"), gotV0A)
 }
@@ -604,8 +804,9 @@ func TestMultiVersion_unregisteredLockerReturnsError(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrNoLocker)
 }
 
-// TestMultiVersion_updateReEncryptsWithActive switches active to v1 and re-seals on Update.
-func TestMultiVersion_updateReEncryptsWithActive(t *testing.T) {
+// TestMultiVersion_updateUsesDefaultAfterUnbind re-seals with the default locker once the
+// namespace binding that sealed the row is removed.
+func TestMultiVersion_updateUsesDefaultAfterUnbind(t *testing.T) {
 	ctx := context.Background()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
@@ -618,31 +819,37 @@ func TestMultiVersion_updateReEncryptsWithActive(t *testing.T) {
 	lckV1, err := lockerv1.New(priv)
 	assert.Ok(t, err)
 
-	kr := newTestKeyring(t, lckV1, lckV0A)
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckV1))
+	assert.Ok(t, kr.Bind("tenant", lckV0A))
 	p, err := purser.New(h, kr)
 	assert.Ok(t, err)
 
-	res, err := p.Store(ctx, "ns", []byte("original"))
+	res, err := p.Store(ctx, "tenant", []byte("original"))
+	assert.Ok(t, err)
+	assert.Equal(t, "null", res.Edition)
+
+	_, err = kr.Unbind("tenant")
 	assert.Ok(t, err)
 
-	assert.Ok(t, kr.SetDefault(lckV1))
-	upd, err := p.Update(ctx, "ns", res.ID, []byte("updated"))
+	upd, err := p.Update(ctx, "tenant", res.ID, []byte("updated"))
 	assert.Ok(t, err)
-	assert.Equal(t, "ns", upd.Namespace)
+	assert.Equal(t, "tenant", upd.Namespace)
 	assert.Equal(t, lckV1.KeyID(), upd.KeyID)
 	assert.Equal(t, constv1.Edition, upd.Edition)
 
-	got, err := p.Retrieve(ctx, "ns", res.ID)
+	got, err := p.Retrieve(ctx, "tenant", res.ID)
 	assert.Ok(t, err)
 	assert.Equal(t, []byte("updated"), got)
 
-	wire, err := h.Get(ctx, "ns", res.ID)
+	wire, err := h.Get(ctx, "tenant", res.ID)
 	assert.Ok(t, err)
 	assert.Equal(t, "PURS", string(wire[:4]))
 }
 
-// TestMultiVersion_moveNamespaceAcrossLockerVersions re-seals with active v1 on namespace move.
-func TestMultiVersion_moveNamespaceAcrossLockerVersions(t *testing.T) {
+// TestMultiVersion_moveNamespaceBoundToDefault opens with the bound old-namespace locker and
+// re-seals with the default locker for the destination namespace.
+func TestMultiVersion_moveNamespaceBoundToDefault(t *testing.T) {
 	ctx := context.Background()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
@@ -655,20 +862,26 @@ func TestMultiVersion_moveNamespaceAcrossLockerVersions(t *testing.T) {
 	lckV1, err := lockerv1.New(priv)
 	assert.Ok(t, err)
 
-	kr := newTestKeyring(t, lckV1, lckV0A)
+	kr := memring.New()
+	assert.Ok(t, kr.SetDefault(lckV1))
+	assert.Ok(t, kr.Bind("old-ns", lckV0A))
 	p, err := purser.New(h, kr)
 	assert.Ok(t, err)
 
 	res, err := p.Store(ctx, "old-ns", []byte("movedata"))
 	assert.Ok(t, err)
+	assert.Equal(t, "null", res.Edition)
 
-	assert.Ok(t, kr.SetDefault(lckV1))
 	err = p.MoveNamespace(ctx, "old-ns", "new-ns", res.ID)
 	assert.Ok(t, err)
 
 	got, err := p.Retrieve(ctx, "new-ns", res.ID)
 	assert.Ok(t, err)
 	assert.Equal(t, []byte("movedata"), got)
+
+	wire, err := h.Get(ctx, "new-ns", res.ID)
+	assert.Ok(t, err)
+	assert.Equal(t, "PURS", string(wire[:4]))
 }
 
 //=============================================================================
@@ -792,6 +1005,29 @@ type eofReader struct{}
 
 // Read implements io.Reader for eofReader.
 func (eofReader) Read([]byte) (int, error) { return 0, io.EOF }
+
+// casFailingHold delegates storage but always loses hold-level CompareAndSwap.
+type casFailingHold struct {
+	hold.Hold
+}
+
+// CompareAndSwap always returns ErrCASFailed.
+func (h *casFailingHold) CompareAndSwap(ctx context.Context, namespace, identifier string, oldCiphertext, newCiphertext []byte) error {
+	_ = ctx
+	_ = namespace
+	_ = identifier
+	_ = oldCiphertext
+	_ = newCiphertext
+	return perrors.ErrCASFailed
+}
+
+// mustNulllocker returns a nulllocker or fails the test.
+func mustNulllocker(tb testing.TB, variant nulllocker.Variant, seed string) locker.Locker {
+	tb.Helper()
+	lck, err := nulllocker.New(tb, variant, []byte(seed))
+	assert.Ok(tb, err)
+	return lck
+}
 
 // deleteFailingHold simulates hold delete failures for a configured namespace.
 type deleteFailingHold struct {

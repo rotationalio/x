@@ -56,6 +56,14 @@ func TestFromSeed_unsupportedEdition(t *testing.T) {
 	}
 }
 
+// TestFromPassword_unsupportedEdition rejects unknown edition strings.
+func TestFromPassword_unsupportedEdition(t *testing.T) {
+	salt, err := kdf.RandSalt()
+	assert.Ok(t, err)
+	_, err = registry.FromPassword("v0", []byte("pw"), salt, kdf.MemoryConstrainedParams)
+	assert.ErrorIs(t, err, perrors.ErrUnsupportedLockerVersion)
+}
+
 // TestFromPassword_v1_roundtrip verifies password-based v1 locker construction.
 func TestFromPassword_v1_roundtrip(t *testing.T) {
 	salt, err := kdf.RandSalt()
@@ -87,6 +95,34 @@ func TestParseKeyID_unrecognized(t *testing.T) {
 	wire := holdtest.Ciphertext(t, "ns", []byte("plain"))
 	_, err = registry.ParseKeyID(wire)
 	assert.ErrorIs(t, err, perrors.ErrUnrecognizedCiphertext)
+}
+
+// TestFromPKCS8_invalidDER rejects malformed input.
+func TestFromPKCS8_invalidDER(t *testing.T) {
+	_, err := registry.FromPKCS8([]byte{0x30, 0x01, 0x02})
+	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
+}
+
+// TestFromKey_rejectsWrongType rejects non-key input.
+func TestFromKey_rejectsWrongType(t *testing.T) {
+	_, err := registry.FromKey("not-a-key")
+	assert.ErrorIs(t, err, perrors.ErrInvalidWrappingKey)
+}
+
+// TestParseKeyID_unknownWireVersion rejects PURS wire with an unregistered version byte.
+func TestParseKeyID_unknownWireVersion(t *testing.T) {
+	wire := []byte("PURS")
+	wire = append(wire, 99, 0, 0) // unknown version + zero meta length
+	_, err := registry.ParseKeyID(wire)
+	assert.ErrorIs(t, err, perrors.ErrUnrecognizedCiphertext)
+}
+
+// TestParseKeyID_malformedV1Metadata rejects v1 version byte with truncated metadata.
+func TestParseKeyID_malformedV1Metadata(t *testing.T) {
+	wire := []byte("PURS")
+	wire = append(wire, constv1.Version, 0, 1) // meta length claims 1 byte but body missing
+	_, err := registry.ParseKeyID(wire)
+	assert.Error(t, err)
 }
 
 // TestFromPKCS8_roundtrip loads a locker from PKCS#8 DER via edition dispatch.

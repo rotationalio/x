@@ -134,6 +134,51 @@ func TestJSONPurser_equalJSONMarshalFailure(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrJSONMarshal)
 }
 
+// TestJSONPurser_equalJSON compares marshaled JSON for equality and inequality.
+func TestJSONPurser_equalJSON(t *testing.T) {
+	same, err := jsonpurser.EqualJSON(payload{A: 1}, payload{A: 1})
+	assert.Ok(t, err)
+	assert.True(t, same)
+
+	diff, err := jsonpurser.EqualJSON(payload{A: 1}, payload{A: 2})
+	assert.Ok(t, err)
+	assert.False(t, diff)
+}
+
+// TestJSONPurser_retrieveTypeMismatch returns ErrJSONUnmarshal when JSON does not fit dst.
+func TestJSONPurser_retrieveTypeMismatch(t *testing.T) {
+	w, h := newWrappedPurser(t)
+	ctx := context.Background()
+
+	id, err := w.Store(ctx, "ns", payload{A: 1})
+	assert.Ok(t, err)
+
+	var wrong int
+	err = w.Retrieve(ctx, "ns", id, &wrong)
+	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
+
+	stored, err := h.Get(ctx, "ns", id)
+	assert.Ok(t, err)
+	assert.True(t, len(stored) > 0)
+}
+
+// TestJSONPurser_compareAndSwap_emptyJSON treats empty current/new as valid JSON objects.
+func TestJSONPurser_compareAndSwap_emptyJSON(t *testing.T) {
+	w, _ := newWrappedPurser(t)
+	ctx := context.Background()
+
+	id, err := w.Store(ctx, "ns", struct{}{})
+	assert.Ok(t, err)
+
+	casRes, err := w.CompareAndSwap(ctx, "ns", id, []byte(`{}`), []byte(`{"a":1}`))
+	assert.Ok(t, err)
+	assert.Equal(t, id, casRes.ID)
+
+	var got payload
+	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
+	assert.Equal(t, payload{A: 1}, got)
+}
+
 //=============================================================================
 // Tests: Update / CompareAndSwap / MoveNamespace / Delete
 //=============================================================================

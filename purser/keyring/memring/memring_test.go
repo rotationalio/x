@@ -63,6 +63,24 @@ func TestLockerFor_emptyNamespaceUsesDefault(t *testing.T) {
 	assert.Equal(t, lck.KeyID(), got.KeyID())
 }
 
+// TestNamespaces_defensiveCopy ensures mutating a snapshot slice does not change keyring state.
+func TestNamespaces_defensiveCopy(t *testing.T) {
+	lck := newTestLocker(t, nulllocker.VariantA, "ns-copy")
+	mr := memring.New()
+	assert.Ok(t, mr.Bind("tenant", lck))
+
+	snap1 := mr.Namespaces()
+	kid, ok := snap1["tenant"]
+	assert.True(t, ok)
+	if len(kid) > 0 {
+		kid[0] ^= 0xff
+	}
+
+	snap2 := mr.Namespaces()
+	kid2 := snap2["tenant"]
+	assert.Equal(t, lck.KeyID(), kid2)
+}
+
 // TestRoute_multiVersion registers two null locker variants and verifies Route
 // dispatches each wire blob to the locker that produced it.
 func TestRoute_multiVersion(t *testing.T) {
