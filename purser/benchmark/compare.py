@@ -18,30 +18,29 @@ Verbose (-v / --verbose, printed after the compact table):
 File selection
 --------------
     python3 compare.py
-        Load all *.json in results/, sort by captured_at in each file, compare the
-        two newest captures (older → newer).
+        Compare the two newest snapshots in results/ (by captured_at).
 
-    python3 compare.py path/to/old.json
-        Treat the given file as the old snapshot; compare against the newest other
-        snapshot in results/ (by captured_at).
+    python3 compare.py -l
+        Print numbered snapshots (oldest first); use a number or filename per side.
 
-    python3 compare.py path/to/old.json path/to/new.json
-        Compare two explicit snapshot files.
+    Each old/new value is either a 1-based list index or a snapshot path/filename
+    (resolved under results/ when not an existing path). Mixing forms is allowed.
 
-    python3 compare.py --list
-        Print numbered snapshots in results/ (sorted by captured_at, oldest first).
+    python3 compare.py 2 4              # index 2 (old) → index 4 (new)
+    python3 compare.py 2                # index 2 (old) → newest other
+    python3 compare.py old.json new.json
+    python3 compare.py 2 new.json       # index 2 (old) → file (new)
 
-    python3 compare.py 2 4
-        Compare list entry 2 (old) to entry 4 (new); numbers come from --list.
+    python3 compare.py -o 2 -n 4        # same as positional order
+    python3 compare.py -o old.json      # file (old) → newest other
 
-    python3 compare.py 2
-        Compare list entry 2 (old) to the newest other snapshot (by captured_at).
-
-Flags -v and --verbose only affect diff output. --list exits after printing the index.
+    Flags -o/--old and -n/--new set one side explicitly; positionals fill any
+    missing side (first = old, second = new). -v/--verbose adds a detail table.
 """
 
 from __future__ import annotations
 
+import argparse
 import glob
 import json
 import os
@@ -167,56 +166,101 @@ def print_snapshot_list() -> None:
     _print_aligned(headers, rows)
 
 
-def cli_positionals(argv: list[str]) -> list[str]:
-    """Return non-flag arguments from argv (excluding program name)."""
-    flags = {"-v", "--verbose", "--list"}
-    return [a for a in argv[1:] if a not in flags]
+def resolve_snapshot_path(name: str) -> str:
+    """Resolve a filename or path to an existing snapshot file."""
+    if os.path.isfile(name):
+        return os.path.abspath(name)
+    under_results = os.path.join(RESULTS, os.path.basename(name))
+    if os.path.isfile(under_results):
+        return under_results
+    sys.exit(f"snapshot not found: {name!r}")
 
 
-def resolve_paths(args: list[str]) -> tuple[str, str]:
-    """Determine which two snapshot files to compare.
+def resolve_spec(spec: str, ranked: list[str]) -> str:
+    """Resolve a list index or filename/path to a snapshot file path."""
+    if is_list_index(spec):
+        return snapshot_at_index(ranked, int(spec))
+    return resolve_snapshot_path(spec)
 
-    Supports paths, 1-based list indices (see --list), or default discovery;
-    see module docstring.
 
-    Args:
-        args: Positional CLI tokens (flags already removed).
+def newest_other_than(excluded: str, ranked: list[str]) -> str:
+    """Return the newest snapshot in ranked that is not excluded."""
+    others = [f for f in ranked if os.path.abspath(f) != os.path.abspath(excluded)]
+    if not others:
+        sys.exit("no other snapshot in results/")
+    return max(others, key=parse_captured_at)
 
-    Returns:
-        (old_path, new_path).
 
-    Exits:
-        With a message if discovery cannot find two comparable snapshots.
-    """
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser."""
+    parser = argparse.ArgumentParser(
+        description="Diff two purser benchmark JSON snapshots.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="print per-metric old/new detail after the summary table",
+    )
+    parser.add_argument(
+        "-l",
+        "--list",
+        action="store_true",
+        dest="list_snapshots",
+        help="print numbered snapshots and exit",
+    )
+    parser.add_argument(
+        "-o",
+        "--old",
+        metavar="SPEC",
+        dest="old_spec",
+        help="baseline snapshot (list index or path/filename)",
+    )
+    parser.add_argument(
+        "-n",
+        "--new",
+        metavar="SPEC",
+        dest="new_spec",
+        help="current snapshot (list index or path/filename)",
+    )
+    parser.add_argument(
+        "positionals",
+        nargs="*",
+        metavar="SPEC",
+        help="old [new] when -o/-n not used (index or path/filename)",
+    )
+    return parser
+
+
+def resolve_paths(ns: argparse.Namespace) -> tuple[str, str]:
+    """Determine which two snapshot files to compare from parsed CLI args."""
+    old_spec = ns.old_spec
+    new_spec = ns.new_spec
+    pos = ns.positionals
+
+    if len(pos) > 2:
+        sys.exit("at most two positional arguments (old [new])")
+
+    if len(pos) >= 1 and old_spec is None:
+        old_spec = pos[0]
+    if len(pos) >= 2 and new_spec is None:
+        new_spec = pos[1]
+
     ranked = list_snapshots()
 
-    if len(args) >= 2:
-        if is_list_index(args[0]) and is_list_index(args[1]):
-            return (
-                snapshot_at_index(ranked, int(args[0])),
-                snapshot_at_index(ranked, int(args[1])),
-            )
-        if is_list_index(args[0]) or is_list_index(args[1]):
-            sys.exit("cannot mix list indices and file paths")
-        return args[0], args[1]
+    if old_spec is None and new_spec is None:
+        if len(ranked) < 2:
+            sys.exit("need at least two snapshots in results/ (by captured_at)")
+        return ranked[-2], ranked[-1]
 
-    if len(args) == 1:
-        if is_list_index(args[0]):
-            old_p = snapshot_at_index(ranked, int(args[0]))
-            others = [f for f in ranked if f != old_p]
-            if not others:
-                sys.exit("no other snapshot in results/")
-            return old_p, max(others, key=parse_captured_at)
-        old_p = args[0]
-        old_abs = os.path.abspath(old_p)
-        others = [f for f in ranked if os.path.abspath(f) != old_abs]
-        if not others:
-            sys.exit(f"no other snapshot in results/ besides {old_p}")
-        return old_p, max(others, key=parse_captured_at)
+    if old_spec is not None and new_spec is None:
+        old_p = resolve_spec(old_spec, ranked)
+        return old_p, newest_other_than(old_p, ranked)
 
-    if len(ranked) < 2:
-        sys.exit("need at least two snapshots in results/ (by captured_at)")
-    return ranked[-2], ranked[-1]
+    if old_spec is None and new_spec is not None:
+        sys.exit("specify -o/--old or a first positional for the baseline snapshot")
+
+    return resolve_spec(old_spec, ranked), resolve_spec(new_spec, ranked)
 
 
 # -----------------------------------------------------------------------------
@@ -446,27 +490,19 @@ def _print_aligned(headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> Non
 
 
 def main() -> None:
-    """Load snapshots, print compact summary, optionally print verbose detail.
-
-    Workflow:
-        1. Handle --list or parse -v / --verbose.
-        2. Resolve old/new JSON paths (see resolve_paths).
-        3. Load both files.
-        4. Print metadata line and compact delta table.
-        5. If verbose, print a blank line and the detail table.
-    """
-    if "--list" in sys.argv:
+    """Load snapshots, print compact summary, optionally print verbose detail."""
+    ns = build_parser().parse_args()
+    if ns.list_snapshots:
         print_snapshot_list()
         return
 
-    verbose = "--verbose" in sys.argv or "-v" in sys.argv
-    old_p, new_p = resolve_paths(cli_positionals(sys.argv))
+    old_p, new_p = resolve_paths(ns)
     old, old_meta = load_snapshot(old_p)
     new, new_meta = load_snapshot(new_p)
     print_meta(old_p, new_p, old_meta, new_meta)
     print()
     print_compact(old, new)
-    if verbose:
+    if ns.verbose:
         print()
         print("detail (old / new / change):")
         print_verbose(old, new)

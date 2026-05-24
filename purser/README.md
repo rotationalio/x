@@ -232,9 +232,9 @@ go test -run=^$ -bench=Locker/Seal -benchmem ./purser/benchmark
 # Store a benchmark snapshot; short runs
 PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/benchmark  # ~1s; writes results/go*_*.json
 # Compare the saved benchmarks; see compare.py docs header for more options
-python3 ./purser/benchmark/compare.py --list            # numbered snapshots (by captured_at)
-python3 ./purser/benchmark/compare.py                   # diff two newest; or `compare.py 2 4` / `compare.py 2`
-python3 ./purser/benchmark/compare.py old.json new.json # Compare by filename; or `compare.py old.json`
+python3 ./purser/benchmark/compare.py -l                   # numbered snapshots (by captured_at)
+python3 ./purser/benchmark/compare.py                      # two newest; or `2 4`, `2`, `-o 2 -n 4`, filenames
+python3 ./purser/benchmark/compare.py 2 go1.26.3_....json  # mix index and filename
 ```
 
 Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.26.3` — other platforms will differ; `ns/op` varies with CPU load:
