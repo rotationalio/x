@@ -182,6 +182,19 @@ func TestSeal_oversizedNamespace(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrMetaNamespaceTooLarge)
 }
 
+// TestSealOpen_maxNamespace verifies a namespace at MaxNamespaceBytes seals and opens.
+func TestSealOpen_maxNamespace(t *testing.T) {
+	_, lck := freshLocker(t)
+	ns := string(make([]byte, constants.MaxNamespaceBytes))
+	plain := []byte("data")
+
+	wire, err := lck.Seal(ns, plain)
+	assert.Ok(t, err)
+	got, err := lck.Open(ns, wire)
+	assert.Ok(t, err)
+	assert.Equal(t, plain, got)
+}
+
 //=============================================================================
 // Tests: Open negative cases
 //=============================================================================

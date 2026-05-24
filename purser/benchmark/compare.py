@@ -18,17 +18,26 @@ Verbose (-v / --verbose, printed after the compact table):
 File selection
 --------------
     python3 compare.py
-        Compare results/previous.json (rotated before each capture) against the
-        newest *.json in results/ (excluding previous.json).
+        Load all *.json in results/, sort by captured_at in each file, compare the
+        two newest captures (older → newer).
 
-    python3 compare.py path/to/new.json
-        Compare previous.json against the given new snapshot.
+    python3 compare.py path/to/old.json
+        Treat the given file as the old snapshot; compare against the newest other
+        snapshot in results/ (by captured_at).
 
     python3 compare.py path/to/old.json path/to/new.json
         Compare two explicit snapshot files.
 
-Flags -v and --verbose are ignored when resolving file paths (they do not start
-with a hyphen in a way that would be mistaken for a path; only "-v" is filtered).
+    python3 compare.py --list
+        Print numbered snapshots in results/ (sorted by captured_at, oldest first).
+
+    python3 compare.py 2 4
+        Compare list entry 2 (old) to entry 4 (new); numbers come from --list.
+
+    python3 compare.py 2
+        Compare list entry 2 (old) to the newest other snapshot (by captured_at).
+
+Flags -v and --verbose only affect diff output. --list exits after printing the index.
 """
 
 from __future__ import annotations
@@ -37,6 +46,7 @@ import glob
 import json
 import os
 import sys
+from datetime import datetime
 
 # -----------------------------------------------------------------------------
 # Paths and column labels
@@ -93,38 +103,120 @@ def load_snapshot(path: str) -> tuple[dict, dict]:
     return benches, meta
 
 
+def parse_captured_at(path: str) -> datetime:
+    """Return the RFC3339 captured_at timestamp from a snapshot file."""
+    with open(path) as f:
+        doc = json.load(f)
+    at = doc.get("captured_at")
+    if not at:
+        sys.exit(f"{path}: missing captured_at")
+    try:
+        return datetime.fromisoformat(at.replace("Z", "+00:00"))
+    except ValueError:
+        sys.exit(f"{path}: invalid captured_at {at!r}")
+
+
+def list_snapshots() -> list[str]:
+    """Return all snapshot paths in results/, sorted by captured_at ascending."""
+    files = glob.glob(os.path.join(RESULTS, "*.json"))
+    if not files:
+        sys.exit("no snapshot in results/")
+    return sorted(files, key=parse_captured_at)
+
+
+def snapshot_meta(path: str) -> dict:
+    """Return root metadata fields for a snapshot (no benchmark index)."""
+    with open(path) as f:
+        doc = json.load(f)
+    return {
+        k: doc.get(k, "")
+        for k in ("captured_at", "go_version", "goos", "goarch", "commit")
+    }
+
+
+def is_list_index(s: str) -> bool:
+    """Report whether s is a 1-based list index from --list."""
+    return s.isdigit() and int(s) >= 1
+
+
+def snapshot_at_index(ranked: list[str], index: int) -> str:
+    """Return the snapshot path for a 1-based index into ranked."""
+    if index < 1 or index > len(ranked):
+        sys.exit(f"index {index} out of range (1–{len(ranked)})")
+    return ranked[index - 1]
+
+
+def print_snapshot_list() -> None:
+    """Print numbered snapshots for use with numeric compare arguments."""
+    ranked = list_snapshots()
+    headers = ("#", "captured_at", "commit", "file")
+    rows: list[tuple[str, ...]] = []
+    for i, path in enumerate(ranked, start=1):
+        meta = snapshot_meta(path)
+        commit = meta.get("commit") or "?"
+        if len(commit) > 12:
+            commit = commit[:12]
+        rows.append(
+            (
+                str(i),
+                meta.get("captured_at", "?"),
+                commit,
+                os.path.basename(path),
+            )
+        )
+    _print_aligned(headers, rows)
+
+
+def cli_positionals(argv: list[str]) -> list[str]:
+    """Return non-flag arguments from argv (excluding program name)."""
+    flags = {"-v", "--verbose", "--list"}
+    return [a for a in argv[1:] if a not in flags]
+
+
 def resolve_paths(args: list[str]) -> tuple[str, str]:
     """Determine which two snapshot files to compare.
 
-    Strips flag-like tokens (arguments starting with "-") so -v does not become
-    a path. Supports zero, one, or two positional JSON paths; see module docstring.
+    Supports paths, 1-based list indices (see --list), or default discovery;
+    see module docstring.
 
     Args:
-        args: Typically sys.argv[1:] from main.
+        args: Positional CLI tokens (flags already removed).
 
     Returns:
-        (old_path, new_path) absolute or relative paths as provided.
+        (old_path, new_path).
 
     Exits:
-        With a message if no snapshot exists when using default discovery.
+        With a message if discovery cannot find two comparable snapshots.
     """
-    paths = [a for a in args if not a.startswith("-")]
-    if len(paths) >= 2:
-        # Explicit old and new files.
-        return paths[0], paths[1]
-    if len(paths) == 1:
-        # New file given; old is always the rotated backup from the last capture.
-        return os.path.join(RESULTS, "previous.json"), paths[0]
-    # Default: previous.json vs the most recently modified snapshot in results/.
-    old_p = os.path.join(RESULTS, "previous.json")
-    cur = [
-        f
-        for f in glob.glob(os.path.join(RESULTS, "*.json"))
-        if not f.endswith("previous.json")
-    ]
-    if not cur:
-        sys.exit("no snapshot in results/")
-    return old_p, max(cur, key=os.path.getmtime)
+    ranked = list_snapshots()
+
+    if len(args) >= 2:
+        if is_list_index(args[0]) and is_list_index(args[1]):
+            return (
+                snapshot_at_index(ranked, int(args[0])),
+                snapshot_at_index(ranked, int(args[1])),
+            )
+        if is_list_index(args[0]) or is_list_index(args[1]):
+            sys.exit("cannot mix list indices and file paths")
+        return args[0], args[1]
+
+    if len(args) == 1:
+        if is_list_index(args[0]):
+            old_p = snapshot_at_index(ranked, int(args[0]))
+            others = [f for f in ranked if f != old_p]
+            if not others:
+                sys.exit("no other snapshot in results/")
+            return old_p, max(others, key=parse_captured_at)
+        old_p = args[0]
+        old_abs = os.path.abspath(old_p)
+        others = [f for f in ranked if os.path.abspath(f) != old_abs]
+        if not others:
+            sys.exit(f"no other snapshot in results/ besides {old_p}")
+        return old_p, max(others, key=parse_captured_at)
+
+    if len(ranked) < 2:
+        sys.exit("need at least two snapshots in results/ (by captured_at)")
+    return ranked[-2], ranked[-1]
 
 
 # -----------------------------------------------------------------------------
@@ -357,14 +449,18 @@ def main() -> None:
     """Load snapshots, print compact summary, optionally print verbose detail.
 
     Workflow:
-        1. Parse -v / --verbose from sys.argv.
+        1. Handle --list or parse -v / --verbose.
         2. Resolve old/new JSON paths (see resolve_paths).
         3. Load both files.
         4. Print metadata line and compact delta table.
         5. If verbose, print a blank line and the detail table.
     """
+    if "--list" in sys.argv:
+        print_snapshot_list()
+        return
+
     verbose = "--verbose" in sys.argv or "-v" in sys.argv
-    old_p, new_p = resolve_paths(sys.argv[1:])
+    old_p, new_p = resolve_paths(cli_positionals(sys.argv))
     old, old_meta = load_snapshot(old_p)
     new, new_meta = load_snapshot(new_p)
     print_meta(old_p, new_p, old_meta, new_meta)

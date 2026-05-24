@@ -181,7 +181,7 @@ func ParseOpenWire(data []byte, requestedNS string) (
 		return 0, nil, nil, nonce, nil, perrors.ErrUnsupportedVersion
 	}
 
-	if err = metaNamespaceMatches(meta, formatVersion, requestedNS); err != nil {
+	if err = metaNamespaceMatches(meta, requestedNS); err != nil {
 		return 0, nil, nil, nonce, nil, err
 	}
 

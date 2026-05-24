@@ -84,9 +84,6 @@ func New(priv *ecdh.PrivateKey) (locker.Locker, error) {
 		KeyID:     append([]byte(nil), kid...),
 		Namespace: "",
 	}
-	if _, err := meta.MarshalBinary(); err != nil {
-		return nil, err
-	}
 
 	return &envLocker{priv: priv, template: meta}, nil
 }

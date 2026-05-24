@@ -5,7 +5,6 @@ package benchmark_test
 //	PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/benchmark
 //
 // Writes purser/benchmark/results/go<ver>_<goos>_<goarch>_<commit>.json (overwrites per key).
-// Copies the prior file to results/previous.json before overwrite.
 // Compare: python3 ./purser/benchmark/compare.py
 
 import (
@@ -91,7 +90,6 @@ func TestBenchmarkSnapshot(t *testing.T) {
 	assert.Ok(t, os.MkdirAll(dir, 0o755))
 
 	path := filepath.Join(dir, snapshotFilename(snap)+".json")
-	rotateSnapshot(path)
 
 	data, err := json.MarshalIndent(snap, "", "  ")
 	assert.Ok(t, err)
@@ -107,19 +105,6 @@ func snapshotFilename(s benchSnapshot) string {
 	}
 	goVer := strings.TrimPrefix(runtime.Version(), "go")
 	return fmt.Sprintf("go%s_%s_%s_%s", goVer, s.GOOS, s.GOARCH, commit)
-}
-
-// rotateSnapshot copies path to results/previous.json when path already exists.
-func rotateSnapshot(path string) {
-	prev := filepath.Join(filepath.Dir(path), "previous.json")
-	if _, err := os.Stat(path); err != nil {
-		return
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return
-	}
-	_ = os.WriteFile(prev, data, 0o644)
 }
 
 // vcsRevision returns a short commit id from build info, else from git rev-parse.

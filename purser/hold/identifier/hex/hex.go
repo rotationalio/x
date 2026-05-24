@@ -44,9 +44,7 @@ func (Identifier) MarshalBinary(id string) ([]byte, error) {
 	if len(id) != 32 || !isHex32(id) {
 		return nil, perrors.ErrInvalidHexIdentifier
 	}
-	if _, err := hex.Decode(b[:], []byte(id)); err != nil {
-		return nil, perrors.ErrInvalidHexIdentifier
-	}
+	hex.Decode(b[:], []byte(id))
 	return append([]byte(nil), b[:]...), nil
 }
 

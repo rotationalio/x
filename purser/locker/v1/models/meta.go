@@ -44,15 +44,11 @@ func MetaFromPrivKey(priv *ecdh.PrivateKey) (Meta, error) {
 		return Meta{}, perrors.ErrMetaKeyIDTooLarge
 	}
 
-	m := Meta{
+	return Meta{
 		Version:   constants.Version,
 		KeyID:     kid,
 		Namespace: "",
-	}
-	if _, err := m.MarshalBinary(); err != nil {
-		return Meta{}, err
-	}
-	return m, nil
+	}, nil
 }
 
 //=============================================================================
@@ -239,7 +235,7 @@ func keyIDFromMetaWire(meta []byte) ([]byte, error) {
 }
 
 // metaNamespaceMatches reports whether requestedNS equals the namespace in meta wire.
-func metaNamespaceMatches(meta []byte, formatVersion uint8, requestedNS string) error {
+func metaNamespaceMatches(meta []byte, requestedNS string) error {
 	var (
 		off int
 		ln  int
@@ -248,9 +244,6 @@ func metaNamespaceMatches(meta []byte, formatVersion uint8, requestedNS string) 
 
 	if err = validateMetaWireLayout(meta); err != nil {
 		return err
-	}
-	if meta[0] != formatVersion {
-		return perrors.ErrVersionMismatch
 	}
 
 	// Skip version(1), lk(1), key id; ln byte starts namespace length.

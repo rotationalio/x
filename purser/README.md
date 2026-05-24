@@ -226,10 +226,15 @@ Commit inputs under `testdata/fuzz/FuzzXxx/` when a target finds a crasher.
 Benchmarks are zero-cost under a normal `go test` run unless invoked with `-bench`. They live in [`benchmark/`](benchmark/) (`BenchmarkLocker`, `BenchmarkKeyring`, `BenchmarkRegistry`, `BenchmarkPurser`). You can take a snapshot JSON into `purser/benchmark/results` if you use `PURSER_BENCH_SNAPSHOT=1`; these will not be committed to the repo.
 
 ```bash
+# Run benchmarks or specific ones; long runs
 go test -run=^$ -bench=. -benchmem ./purser/benchmark
 go test -run=^$ -bench=Locker/Seal -benchmem ./purser/benchmark
+# Store a benchmark snapshot; short runs
 PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/benchmark  # ~1s; writes results/go*_*.json
-python3 ./purser/benchmark/compare.py   # diff previous.json vs latest snapshot
+# Compare the saved benchmarks; see compare.py docs header for more options
+python3 ./purser/benchmark/compare.py --list            # numbered snapshots (by captured_at)
+python3 ./purser/benchmark/compare.py                   # diff two newest; or `compare.py 2 4` / `compare.py 2`
+python3 ./purser/benchmark/compare.py old.json new.json # Compare by filename; or `compare.py old.json`
 ```
 
 Sample results at **256-byte** plaintext (`size=256`), **Apple M2**, `go 1.26.3` — other platforms will differ; `ns/op` varies with CPU load:

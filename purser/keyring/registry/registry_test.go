@@ -122,7 +122,7 @@ func TestParseKeyID_malformedV1Metadata(t *testing.T) {
 	wire := []byte("PURS")
 	wire = append(wire, constv1.Version, 0, 1) // meta length claims 1 byte but body missing
 	_, err := registry.ParseKeyID(wire)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, perrors.ErrUnrecognizedCiphertext)
 }
 
 // TestFromPKCS8_roundtrip loads a locker from PKCS#8 DER via edition dispatch.
