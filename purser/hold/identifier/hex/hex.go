@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"regexp"
 
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/hold/identifier"
@@ -58,10 +59,10 @@ func (Identifier) UnmarshalBinary(src []byte) (string, error) {
 	return hex.EncodeToString(src), nil
 }
 
-// isHex32 reports whether s is exactly 32 ASCII hex digits.
+// Matches exactly 32 ASCII hex digits.
+var hexre = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
 
-var hexre = regexp.Compile(`^[0-9a-fA-F]{32}$`)
-
+// Reports whether s is exactly 32 ASCII hex digits.
 func isHex32(s string) bool {
 	return hexre.MatchString(s)
 }
