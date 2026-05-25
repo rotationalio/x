@@ -74,6 +74,11 @@ func TestMeta_withNamespace(t *testing.T) {
 
 // TestMeta_marshalCaps asserts marshal rejects oversize fields and bad version.
 func TestMeta_marshalCaps(t *testing.T) {
+	t.Run("empty_keyid", func(t *testing.T) {
+		m := models.Meta{Version: constants.Version, KeyID: nil, Namespace: "ns"}
+		_, err := m.MarshalBinarySize()
+		assert.ErrorIs(t, err, verrors.ErrMalformedWire)
+	})
 	t.Run("oversized_keyid", func(t *testing.T) {
 		m := models.Meta{
 			Version:   constants.Version,

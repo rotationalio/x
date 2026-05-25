@@ -198,6 +198,13 @@ func TestParseKeyIDFromSealed_rejectsMalformedWire(t *testing.T) {
 		_, err := models.ParseKeyIDFromSealed(good[:sealedPreambleBytes])
 		assert.ErrorIs(t, err, verrors.ErrMalformedWire)
 	})
+
+	t.Run("empty_key_id_in_meta", func(t *testing.T) {
+		// FuzzParseKeyID corpus: valid framing but lk=0 (rejected for keyring routing).
+		wire := []byte("PURS\x01\x00#\x01\x00 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+		_, err := models.ParseKeyIDFromSealed(wire)
+		assert.ErrorIs(t, err, verrors.ErrMalformedWire)
+	})
 }
 
 // TestParseOpenWire_decrypt opens inner ciphertext using subslices from [models.ParseOpenWire].

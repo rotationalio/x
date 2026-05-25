@@ -131,6 +131,9 @@ func (m Meta) MarshalBinarySize() (int, error) {
 
 // validateMetaCaps checks KeyID and Namespace are within their byte-length caps.
 func validateMetaCaps(m Meta) error {
+	if len(m.KeyID) == 0 {
+		return perrors.ErrMalformedWire
+	}
 	if len(m.KeyID) > constants.MaxKeyIDBytes {
 		return perrors.ErrMetaKeyIDTooLarge
 	}
@@ -163,7 +166,7 @@ func validateMetaWireLayout(meta []byte) error {
 	off = 1
 	lk = int(meta[off])
 	off++
-	if lk > constants.MaxKeyIDBytes || off+lk > len(meta) {
+	if lk == 0 || lk > constants.MaxKeyIDBytes || off+lk > len(meta) {
 		return perrors.ErrMalformedWire
 	}
 	off += lk
