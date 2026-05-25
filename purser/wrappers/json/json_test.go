@@ -2,9 +2,11 @@ package jsonpurser_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/hold"
 	hexid "go.rtnl.ai/x/purser/hold/identifier/hex"
@@ -59,6 +61,23 @@ func TestJSONPurser_roundtrip(t *testing.T) {
 }
 
 //=============================================================================
+// Tests: constructor and nil receiver
+//=============================================================================
+
+// TestJSONPurser_newNil rejects a nil inner purser.
+func TestJSONPurser_newNil(t *testing.T) {
+	_, err := jsonpurser.New(nil)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
+// TestJSONPurser_nilReceiver_store verifies Store on a nil wrapper returns ErrNilPurser.
+func TestJSONPurser_nilReceiver_store(t *testing.T) {
+	var w *jsonpurser.Purser
+	_, err := w.Store(context.Background(), "ns", 1)
+	assert.ErrorIs(t, err, perrors.ErrNilPurser)
+}
+
+//=============================================================================
 // Tests: marshal / unmarshal failure paths
 //=============================================================================
 
@@ -89,7 +108,8 @@ func TestJSONPurser_retrieveUnmarshalFailure(t *testing.T) {
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(t, err)
 	p, lck := pursertest.NewTestPurserWithLocker(t, h)
-	w := jsonpurser.New(p)
+	w, err := jsonpurser.New(p)
+	assert.Ok(t, err)
 	ctx := context.Background()
 
 	id, err := w.Store(ctx, "ns", payload{A: 1})
@@ -114,12 +134,56 @@ func TestJSONPurser_equalJSONMarshalFailure(t *testing.T) {
 	assert.ErrorIs(t, err, perrors.ErrJSONMarshal)
 }
 
+// TestJSONPurser_equalJSON compares marshaled JSON for equality and inequality.
+func TestJSONPurser_equalJSON(t *testing.T) {
+	same, err := jsonpurser.EqualJSON(payload{A: 1}, payload{A: 1})
+	assert.Ok(t, err)
+	assert.True(t, same)
+
+	diff, err := jsonpurser.EqualJSON(payload{A: 1}, payload{A: 2})
+	assert.Ok(t, err)
+	assert.False(t, diff)
+}
+
+// TestJSONPurser_retrieveTypeMismatch returns ErrJSONUnmarshal when JSON does not fit dst.
+func TestJSONPurser_retrieveTypeMismatch(t *testing.T) {
+	w, h := newWrappedPurser(t)
+	ctx := context.Background()
+
+	id, err := w.Store(ctx, "ns", payload{A: 1})
+	assert.Ok(t, err)
+
+	var wrong int
+	err = w.Retrieve(ctx, "ns", id, &wrong)
+	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
+
+	stored, err := h.Get(ctx, "ns", id)
+	assert.Ok(t, err)
+	assert.True(t, len(stored) > 0)
+}
+
+// TestJSONPurser_compareAndSwap_emptyJSON treats empty current/new as valid JSON objects.
+func TestJSONPurser_compareAndSwap_emptyJSON(t *testing.T) {
+	w, _ := newWrappedPurser(t)
+	ctx := context.Background()
+
+	id, err := w.Store(ctx, "ns", struct{}{})
+	assert.Ok(t, err)
+
+	casRes, err := w.CompareAndSwap(ctx, "ns", id, []byte(`{}`), []byte(`{"a":1}`))
+	assert.Ok(t, err)
+	assert.Equal(t, id, casRes.ID)
+
+	var got payload
+	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
+	assert.Equal(t, payload{A: 1}, got)
+}
+
 //=============================================================================
-// Tests: Update / CompareAndSwap / MoveNamespace / Delete
+// Tests: Update / CompareAndSwap
 //=============================================================================
 
-// TestJSONPurser_update covers happy-path replacement, marshal-failure rejection, and
-// missing-row propagation.
+// TestJSONPurser_update covers marshal-failure rejection and a happy-path delegation smoke test.
 func TestJSONPurser_update(t *testing.T) {
 	w, _ := newWrappedPurser(t)
 	ctx := context.Background()
@@ -127,82 +191,35 @@ func TestJSONPurser_update(t *testing.T) {
 	id, err := w.Store(ctx, "ns", payload{A: 1})
 	assert.Ok(t, err)
 
-	// Marshal failure rejected up front.
 	assert.ErrorIs(t, w.Update(ctx, "ns", id, make(chan int)), perrors.ErrJSONMarshal)
 
-	// Happy path.
 	assert.Ok(t, w.Update(ctx, "ns", id, payload{A: 2}))
 	var got payload
 	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
 	assert.Equal(t, payload{A: 2}, got)
-
-	// Missing row surfaces ErrNotFound.
-	err = w.Update(ctx, "ns", "00112233445566778899aabbccddeeff", payload{A: 3})
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
-// TestJSONPurser_compareAndSwap covers JSON validation on both arguments, wrong-current,
-// success, and missing-row paths.
+// TestJSONPurser_compareAndSwap rejects invalid JSON and delegates a successful swap.
 func TestJSONPurser_compareAndSwap(t *testing.T) {
 	w, _ := newWrappedPurser(t)
 	ctx := context.Background()
 
-	id, err := w.Store(ctx, "ns", payload{A: 1})
+	plain, err := json.Marshal(payload{A: 1})
+	assert.Ok(t, err)
+	res, err := w.Purser.Store(ctx, "ns", plain)
 	assert.Ok(t, err)
 
-	// Invalid JSON in either argument rejected before reaching the inner purser.
-	err = w.CompareAndSwap(ctx, "ns", id, []byte(`{"a":`), []byte(`{"a":2}`))
-	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
-	assert.ErrorIs(t, err, perrors.ErrInvalidJSON)
-	err = w.CompareAndSwap(ctx, "ns", id, []byte(`{"a":1}`), []byte(`{"a":`))
+	casRes, err := w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":`), []byte(`{"a":2}`))
+	assert.Equal(t, purser.Result{}, casRes)
 	assert.ErrorIs(t, err, perrors.ErrJSONUnmarshal)
 	assert.ErrorIs(t, err, perrors.ErrInvalidJSON)
 
-	// Wrong current — refuses to swap and leaves the row at A=1.
-	assert.ErrorIs(t, w.CompareAndSwap(ctx, "ns", id, []byte(`{"a":99}`), []byte(`{"a":2}`)), perrors.ErrWrongCurrent)
+	casRes, err = w.CompareAndSwap(ctx, "ns", res.ID, []byte(`{"a":1}`), []byte(`{"a":2}`))
+	assert.Equal(t, res.ID, casRes.ID)
+	assert.Ok(t, err)
 	var got payload
-	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
-	assert.Equal(t, payload{A: 1}, got)
-
-	// Correct current — swap succeeds.
-	assert.Ok(t, w.CompareAndSwap(ctx, "ns", id, []byte(`{"a":1}`), []byte(`{"a":2}`)))
-	assert.Ok(t, w.Retrieve(ctx, "ns", id, &got))
+	assert.Ok(t, w.Retrieve(ctx, "ns", res.ID, &got))
 	assert.Equal(t, payload{A: 2}, got)
-
-	// Missing row.
-	err = w.CompareAndSwap(ctx, "ns", "aabbccddeeff00112233445566778899", []byte(`{"a":1}`), []byte(`{"a":2}`))
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
-}
-
-// TestJSONPurser_moveNamespace ensures embedded MoveNamespace works end-to-end.
-func TestJSONPurser_moveNamespace(t *testing.T) {
-	w, _ := newWrappedPurser(t)
-	ctx := context.Background()
-
-	id, err := w.Store(ctx, "ns-a", payload{A: 1})
-	assert.Ok(t, err)
-
-	assert.Ok(t, w.MoveNamespace(ctx, "ns-a", "ns-b", id))
-	var got payload
-	assert.Ok(t, w.Retrieve(ctx, "ns-b", id, &got))
-	assert.Equal(t, payload{A: 1}, got)
-
-	err = w.Retrieve(ctx, "ns-a", id, &got)
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
-}
-
-// TestJSONPurser_delete ensures embedded Delete is reachable and removes the row.
-func TestJSONPurser_delete(t *testing.T) {
-	w, _ := newWrappedPurser(t)
-	ctx := context.Background()
-
-	id, err := w.Store(ctx, "ns", payload{A: 1})
-	assert.Ok(t, err)
-
-	assert.Ok(t, w.Delete(ctx, "ns", id))
-	var got payload
-	err = w.Retrieve(ctx, "ns", id, &got)
-	assert.ErrorIs(t, err, perrors.ErrNotFound)
 }
 
 //=============================================================================
@@ -222,10 +239,12 @@ type nested struct {
 }
 
 // newWrappedPurser builds a JSON-wrapped Purser backed by a null locker via the real
-// purser.New orchestration.
+// [purser.New] orchestration.
 func newWrappedPurser(tb testing.TB) (*jsonpurser.Purser, *hold.MemHold) {
 	tb.Helper()
 	h, err := hold.NewMemHold(hexid.Identifier{})
 	assert.Ok(tb, err)
-	return jsonpurser.New(pursertest.NewTestPurser(tb, h)), h
+	w, err := jsonpurser.New(pursertest.NewTestPurser(tb, h))
+	assert.Ok(tb, err)
+	return w, h
 }

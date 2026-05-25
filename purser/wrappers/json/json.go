@@ -1,11 +1,10 @@
 /*
-Package jsonpurser wraps purser.Purser, exposing the same operation names with JSON instead of raw bytes:
-Store and Update take any and marshal with encoding/json;
-Retrieve unmarshals into dst; CompareAndSwap takes expected current and new JSON as []byte.
+Package jsonpurser wraps [purser.Purser] with JSON instead of raw bytes for Store and Update.
+
+Construct the inner purser with [purser.New], [purser.NewMemHold], [purser.NewMemring], and related
+root aliases; build keys with [purser.NewPassword] and [purser.Keyring.Register]. Classify errors with purser/errors.
 */
 package jsonpurser
-
-// JSON-encoded payloads on top of purser.Purser using encoding/json.
 
 import (
 	"bytes"
@@ -17,57 +16,77 @@ import (
 	perrors "go.rtnl.ai/x/purser/errors"
 )
 
-// Purser embeds a purser.Purser and exposes the same operation names, using JSON
-// (any for store/update; CompareAndSwap for compare-and-swap on JSON bytes) instead of opaque plaintext bytes.
-// MoveNamespace and Delete are promoted from the embedded purser.
+// Purser embeds a [purser.Purser] and exposes JSON-shaped Store, Update, and Retrieve.
 type Purser struct {
-	purser.Purser
+	*purser.Purser
 }
 
-// New wraps a non-nil purser.Purser.
-func New(p purser.Purser) *Purser {
+// New wraps a non-nil [purser.Purser].
+func New(p *purser.Purser) (*Purser, error) {
 	if p == nil {
-		panic("purser/wrappers/json: New(nil)")
+		return nil, perrors.ErrInvalidNewArgs
 	}
-	return &Purser{Purser: p}
+	return &Purser{Purser: p}, nil
 }
 
-// Store marshals value with json.Marshal and stores the result via the inner purser.Purser.Store.
+// Store marshals value and stores the result via the inner [Purser.Store].
 func (w *Purser) Store(ctx context.Context, namespace string, value any) (string, error) {
+	p, err := w.inner()
+	if err != nil {
+		return "", err
+	}
+
 	b, err := json.Marshal(value)
 	if err != nil {
 		return "", errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	return w.Purser.Store(ctx, namespace, b)
+	res, err := p.Store(ctx, namespace, b)
+	return res.ID, err
 }
 
-// Update marshals newValue and updates the row via the inner purser.Purser.Update.
+// Update marshals newValue and updates the row via the inner [Purser.Update].
 func (w *Purser) Update(ctx context.Context, namespace, identifier string, newValue any) error {
+	p, err := w.inner()
+	if err != nil {
+		return err
+	}
+
 	b, err := json.Marshal(newValue)
 	if err != nil {
 		return errors.Join(perrors.ErrJSONMarshal, err)
 	}
-	return w.Purser.Update(ctx, namespace, identifier, b)
+	_, err = p.Update(ctx, namespace, identifier, b)
+	return err
 }
 
-// CompareAndSwap replaces the row only if decrypted JSON plaintext matches currentPlain, then stores newPlain.
-// Non-empty currentPlain and newPlain must be valid JSON.
-func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) error {
+// CompareAndSwap replaces the row only if decrypted JSON plaintext matches currentPlain.
+func (w *Purser) CompareAndSwap(ctx context.Context, namespace, identifier string, currentPlain, newPlain []byte) (purser.Result, error) {
 	if len(currentPlain) > 0 && !json.Valid(currentPlain) {
-		return errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
+		return purser.Result{}, errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
 	if len(newPlain) > 0 && !json.Valid(newPlain) {
-		return errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
+		return purser.Result{}, errors.Join(perrors.ErrJSONUnmarshal, perrors.ErrInvalidJSON)
 	}
-	return w.Purser.CompareAndSwap(ctx, namespace, identifier, currentPlain, newPlain)
+
+	p, err := w.inner()
+	if err != nil {
+		return purser.Result{}, err
+	}
+	return p.CompareAndSwap(ctx, namespace, identifier, currentPlain, newPlain)
 }
 
-// Retrieve decrypts the row and unmarshals JSON into dst (dst must not be nil).
+// Retrieve decrypts the row and unmarshals JSON into dst.
 func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string, dst any) error {
 	if dst == nil {
 		return perrors.ErrNilRetrieveDst
 	}
-	b, err := w.Purser.Retrieve(ctx, namespace, identifier)
+
+	p, err := w.inner()
+	if err != nil {
+		return err
+	}
+
+	b, err := p.Retrieve(ctx, namespace, identifier)
 	if err != nil {
 		return err
 	}
@@ -80,7 +99,7 @@ func (w *Purser) Retrieve(ctx context.Context, namespace, identifier string, dst
 	return nil
 }
 
-// EqualJSON reports whether a and b marshal to identical JSON bytes (canonical equality for CAS helpers).
+// EqualJSON reports whether a and b marshal to identical JSON bytes.
 func EqualJSON(a, b any) (bool, error) {
 	ab, err := json.Marshal(a)
 	if err != nil {
@@ -91,4 +110,12 @@ func EqualJSON(a, b any) (bool, error) {
 		return false, errors.Join(perrors.ErrJSONMarshal, err)
 	}
 	return bytes.Equal(ab, bb), nil
+}
+
+// inner returns the embedded purser or an error when the wrapper or inner pointer is nil.
+func (w *Purser) inner() (*purser.Purser, error) {
+	if w == nil || w.Purser == nil {
+		return nil, perrors.ErrNilPurser
+	}
+	return w.Purser, nil
 }

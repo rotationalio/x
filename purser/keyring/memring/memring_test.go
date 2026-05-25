@@ -7,11 +7,12 @@ import (
 	"testing"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/internal/nulllocker"
+	"go.rtnl.ai/x/purser/keyring"
 	"go.rtnl.ai/x/purser/keyring/keyringtest"
 	"go.rtnl.ai/x/purser/keyring/memring"
+	"go.rtnl.ai/x/purser/locker"
 )
 
 //=============================================================================
@@ -20,8 +21,8 @@ import (
 
 // TestMemring_conformance runs the shared keyring conformance suite.
 func TestMemring_conformance(t *testing.T) {
-	keyringtest.KeyringConforms(t, func(active purser.Locker, others ...purser.Locker) (purser.Keyring, error) {
-		return memring.New(active, others...)
+	keyringtest.KeyringConforms(t, func() (keyring.Keyring, error) {
+		return memring.New(), nil
 	})
 }
 
@@ -29,35 +30,76 @@ func TestMemring_conformance(t *testing.T) {
 // Tests: memring-specific behavior
 //=============================================================================
 
-// TestNew_nilOther rejects a nil locker in the others list.
-func TestNew_nilOther(t *testing.T) {
-	lck := newTestLocker(t, nulllocker.VariantA, "seed-a")
-	_, err := memring.New(lck, nil)
+// TestBind_nilLocker rejects a nil locker.
+func TestBind_nilLocker(t *testing.T) {
+	mr := memring.New()
+	err := mr.Bind("tenant", nil)
 	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
 }
 
-// TestRouteKeyID_multiVersion registers two null locker variants with different KeyID
-// lengths and verifies RouteKeyID dispatches each wire blob to the locker that produced
-// it. Cross-magic-prefix routing (NULL vs ARR1) is exercised separately by purser's
-// multi-version tests; this test focuses on the keyring's per-locker ParseKeyID
-// fallback when the keyring contains multiple registered lockers.
-func TestRouteKeyID_multiVersion(t *testing.T) {
+// TestBind_emptyNamespace rejects an empty namespace string.
+func TestBind_emptyNamespace(t *testing.T) {
+	lck := newTestLocker(t, nulllocker.VariantA, "empty-ns")
+	mr := memring.New()
+	err := mr.Bind("", lck)
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
+// TestUnbind_emptyNamespace rejects an empty namespace string.
+func TestUnbind_emptyNamespace(t *testing.T) {
+	mr := memring.New()
+	_, err := mr.Unbind("")
+	assert.ErrorIs(t, err, perrors.ErrInvalidNewArgs)
+}
+
+// TestLockerFor_emptyNamespaceUsesDefault verifies an empty namespace uses SetDefault for sealing.
+func TestLockerFor_emptyNamespaceUsesDefault(t *testing.T) {
+	lck := newTestLocker(t, nulllocker.VariantA, "default-seed")
+	mr := memring.New()
+	assert.Ok(t, mr.SetDefault(lck))
+
+	got, err := mr.LockerFor("")
+	assert.Ok(t, err)
+	assert.Equal(t, lck.KeyID(), got.KeyID())
+}
+
+// TestNamespaces_defensiveCopy ensures mutating a snapshot slice does not change keyring state.
+func TestNamespaces_defensiveCopy(t *testing.T) {
+	lck := newTestLocker(t, nulllocker.VariantA, "ns-copy")
+	mr := memring.New()
+	assert.Ok(t, mr.Bind("tenant", lck))
+
+	snap1 := mr.Namespaces()
+	kid, ok := snap1["tenant"]
+	assert.True(t, ok)
+	if len(kid) > 0 {
+		kid[0] ^= 0xff
+	}
+
+	snap2 := mr.Namespaces()
+	kid2 := snap2["tenant"]
+	assert.Equal(t, lck.KeyID(), kid2)
+}
+
+// TestRoute_multiVersion registers two null locker variants and verifies Route
+// dispatches each wire blob to the locker that produced it.
+func TestRoute_multiVersion(t *testing.T) {
 	lckA := newTestLocker(t, nulllocker.VariantA, "seed-a")
 	lckB := newTestLocker(t, nulllocker.VariantB, "seed-b")
-	mr, err := memring.New(lckA, lckB)
-	assert.Ok(t, err)
+	mr := memring.New()
+	assert.Ok(t, mr.SetDefault(lckA))
+	assert.Ok(t, mr.Bind("b-ns", lckB))
 
 	wireA, err := lckA.Seal("ns", []byte("aaaa"))
 	assert.Ok(t, err)
 	wireB, err := lckB.Seal("ns", []byte("bbbb"))
 	assert.Ok(t, err)
 
-	// Each wire blob routes back to the locker that produced it.
-	foundA, err := mr.RouteKeyID(wireA)
+	foundA, err := mr.Route(wireA)
 	assert.Ok(t, err)
 	assert.Equal(t, lckA.KeyID(), foundA.KeyID())
 
-	foundB, err := mr.RouteKeyID(wireB)
+	foundB, err := mr.Route(wireB)
 	assert.Ok(t, err)
 	assert.Equal(t, lckB.KeyID(), foundB.KeyID())
 }
@@ -66,24 +108,18 @@ func TestRouteKeyID_multiVersion(t *testing.T) {
 // Tests: concurrency
 //=============================================================================
 
-// TestConcurrentAccess exercises Register, Lookup, Active, SetActive, and RouteKeyID
-// under concurrent goroutine pressure. Primarily a race-detector probe; success
-// criterion is "no race, no deadlock, no panic." We include Register with fresh
-// lockers per iteration so the structure-mutating path (not just active-pointer swap)
-// is contended.
+// TestConcurrentAccess exercises Bind, LockerFor, SetDefault, and Route under
+// concurrent goroutine pressure (race-detector probe).
 func TestConcurrentAccess(t *testing.T) {
-	lckActive := newTestLocker(t, nulllocker.VariantA, "active")
-	mr, err := memring.New(lckActive)
-	assert.Ok(t, err)
-	wire, err := lckActive.Seal("ns", []byte("hello"))
+	lckDefault := newTestLocker(t, nulllocker.VariantA, "default-seed")
+	mr := memring.New()
+	assert.Ok(t, mr.SetDefault(lckDefault))
+	wire, err := lckDefault.Seal("ns", []byte("hello"))
 	assert.Ok(t, err)
 
-	// Pre-build a small pool of additional lockers each goroutine can attempt to
-	// Register; only the first goroutine to register a given key id will succeed,
-	// later attempts return ErrDuplicateKeyID — that's expected and ignored.
 	const goroutines = 16
 	const iters = 32
-	others := make([]purser.Locker, goroutines)
+	others := make([]locker.Locker, goroutines)
 	for i := range others {
 		others[i] = newTestLocker(t, nulllocker.VariantC, "concurrent-seed-"+string(rune('a'+i)))
 	}
@@ -93,12 +129,12 @@ func TestConcurrentAccess(t *testing.T) {
 	for i := range goroutines {
 		go func(i int) {
 			defer wg.Done()
+			ns := "concurrent-" + string(rune('a'+i))
 			for range iters {
-				_ = mr.Active()
-				_, _ = mr.Lookup(lckActive.KeyID())
-				_, _ = mr.RouteKeyID(wire)
-				_ = mr.SetActive(lckActive)
-				_ = mr.Register(others[i])
+				_, _ = mr.LockerFor("default-ns")
+				_, _ = mr.Route(wire)
+				_ = mr.SetDefault(lckDefault)
+				_ = mr.Bind(ns, others[i])
 			}
 		}(i)
 	}
@@ -109,9 +145,8 @@ func TestConcurrentAccess(t *testing.T) {
 // Helpers
 //=============================================================================
 
-// newTestLocker returns a null locker; tests use it whenever they need "some locker"
-// rather than a specific cryptographic implementation.
-func newTestLocker(tb testing.TB, variant nulllocker.Variant, seed string) purser.Locker {
+// newTestLocker returns a null locker for tests.
+func newTestLocker(tb testing.TB, variant nulllocker.Variant, seed string) locker.Locker {
 	tb.Helper()
 	lck, err := nulllocker.New(tb, variant, []byte(seed))
 	assert.Ok(tb, err)

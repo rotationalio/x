@@ -1,5 +1,5 @@
 /*
-Package nulllocker provides a null-encryption purser.Locker for testing multi-version
+Package nulllocker provides a null-encryption locker.Locker for testing multi-version
 keyring dispatch, golden-test fixture generation, and wire-format parsing without real
 cryptographic overhead.
 
@@ -29,8 +29,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/locker"
 )
 
 // checksumBytes is the trailing SHA-256 checksum length for tamper detection.
@@ -68,21 +68,21 @@ func (v Variant) keyIDSize() int {
 	}
 }
 
-// nullLocker implements purser.Locker with null encryption.
+// nullLocker implements locker.Locker with null encryption.
 type nullLocker struct {
 	variant Variant
 	keyID   []byte
 }
 
-// Ensure nullLocker satisfies purser.Locker at compile time.
-var _ purser.Locker = (*nullLocker)(nil)
+// Ensure nullLocker satisfies locker.Locker at compile time.
+var _ locker.Locker = (*nullLocker)(nil)
 
 // New constructs a null-encryption locker for the given variant with a deterministic key ID
 // derived from seed bytes. The seed is truncated or repeated to fill the variant's key-id
 // size. A non-nil testing.TB is required to prevent production use.
-func New(tb testing.TB, variant Variant, seed []byte) (purser.Locker, error) {
+func New(tb testing.TB, variant Variant, seed []byte) (locker.Locker, error) {
 	if tb == nil {
-		panic("nulllocker: testing.TB required — this locker must not be used in production")
+		return nil, perrors.ErrInvalidNewArgs
 	}
 	tb.Helper()
 
@@ -101,9 +101,21 @@ func New(tb testing.TB, variant Variant, seed []byte) (purser.Locker, error) {
 
 // FromSeed maps arbitrary seed bytes to a null locker key ID for the given variant.
 // It truncates or repeats the seed to match the variant's key-id size.
-func FromSeed(tb testing.TB, variant Variant, seed []byte) (purser.Locker, error) {
+func FromSeed(tb testing.TB, variant Variant, seed []byte) (locker.Locker, error) {
 	return New(tb, variant, seed)
 }
+
+// Version returns 0 (null locker is not a purser wire edition).
+func (l *nullLocker) Version() uint8 { return 0 }
+
+// Edition returns "null".
+func (l *nullLocker) Edition() string { return "null" }
+
+// Recipe returns "null".
+func (l *nullLocker) Recipe() string { return "null" }
+
+// Context returns empty (null locker does not derive keys).
+func (l *nullLocker) Context() string { return "" }
 
 // KeyID returns a defensive copy of the locker's key identifier.
 func (l *nullLocker) KeyID() []byte {

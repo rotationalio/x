@@ -1,41 +1,72 @@
 /*
-Package v1 implements purser.Locker for the v1 envelope format: per-row metadata,
-an ephemeral X25519 exchange, HKDF-derived keys, a wrapped per-row data key, and an
-inner AES-256-GCM payload.
-*/
-package v1
+Package locker implements locker.Locker for the v1 row format.
 
-// This file defines New and the envelope seal/open helpers for locker/v1.
+Role
+
+  - Long-term X25519 private key identifies the locker ([envLocker.KeyID] is the public key bytes).
+  - Each [envLocker.Seal] generates a fresh ephemeral X25519 keypair for that row only.
+
+Seal and Open
+
+  - A shared secret is computed using ECDH (ephemeral private with long-term public key on seal,
+    long-term private with ephemeral public key from the wire on open).
+  - The shared secret is expanded with HKDF-SHA256 (info purser/v1/x25519_hkdf_sha256_aes256_gcm, 32 bytes).
+  - Plaintext is encrypted with AES-256-GCM; additional authenticated data is the marshaled per-row
+    [models.Meta] (namespace, suite, key id, format version).
+  - [envLocker.Open] validates the requested namespace from metadata before decrypting.
+
+Wire layout
+
+  - magic (4) || format version (1) || meta length u16 BE (2) || Meta (variable)
+  - || ephemeral X25519 public key (32, fixed) || inner nonce (12) || ciphertext+tag (variable)
+
+The ephemeral public key is the only envelope field besides Meta and the encrypted inner ciphertext.
+
+Key construction
+
+  - [New] from an X25519 [*ecdh.PrivateKey]
+  - [FromSeed], [FromPassword], [FromPKCS8], and [FromKey] in keys.go (X25519 only for [FromKey])
+  - Prefer [purser.KeySpec] and [purser.Keyring.Register]; edition string [purser.EditionV1]
+
+Subpackages
+
+  - models: wire framing (Sealed, Meta, EphPub, Inner)
+  - gcm: HKDF data-key derivation and AES-GCM seal/open
+  - constants: sizes, magic, format version
+  - constants: edition, version, recipe, and KDF context strings
+*/
+package locker
+
+// New, Seal, Open, and ParseKeyID for the v1 envelope locker.
 
 import (
 	"crypto/ecdh"
 	"crypto/rand"
-	"errors"
 	"io"
 
-	"go.rtnl.ai/x/purser"
 	perrors "go.rtnl.ai/x/purser/errors"
+	"go.rtnl.ai/x/purser/internal/memzero"
+	"go.rtnl.ai/x/purser/locker"
 	"go.rtnl.ai/x/purser/locker/v1/constants"
 	pgcm "go.rtnl.ai/x/purser/locker/v1/gcm"
 	"go.rtnl.ai/x/purser/locker/v1/models"
-	"go.rtnl.ai/x/purser/locker/v1/suite"
 )
 
 //=============================================================================
 // Locker
 //=============================================================================
 
-// envLocker implements purser.Locker using an X25519 private key and envelope encryption.
+// envLocker implements [locker.Locker] using an X25519 private key and envelope encryption.
 type envLocker struct {
 	priv     *ecdh.PrivateKey
 	template models.Meta // namespace is set on each Seal call
 }
 
-// Ensure locker implements purser.Locker.
-var _ purser.Locker = (*envLocker)(nil)
+// Ensure envLocker implements [locker.Locker].
+var _ locker.Locker = (*envLocker)(nil)
 
-// New constructs a purser.Locker for the v1 envelope suite from an X25519 private key.
-func New(priv *ecdh.PrivateKey) (purser.Locker, error) {
+// New constructs a [locker.Locker] for the v1 envelope suite from an X25519 private key.
+func New(priv *ecdh.PrivateKey) (locker.Locker, error) {
 	if priv == nil {
 		return nil, perrors.ErrNilPrivateKey
 	}
@@ -49,16 +80,32 @@ func New(priv *ecdh.PrivateKey) (purser.Locker, error) {
 	}
 
 	meta := models.Meta{
-		PackageVersion: constants.PackageVersion,
-		SuiteID:        suite.X25519HKDFSHA256AES256GCM,
-		KeyID:          append([]byte(nil), kid...),
-		Namespace:      "",
-	}
-	if _, err := meta.MarshalBinary(); err != nil {
-		return nil, err
+		Version:   constants.Version,
+		KeyID:     append([]byte(nil), kid...),
+		Namespace: "",
 	}
 
 	return &envLocker{priv: priv, template: meta}, nil
+}
+
+// Version returns the v1 wire format byte.
+func (l *envLocker) Version() uint8 {
+	return constants.Version
+}
+
+// Edition returns the locker edition id ("v1").
+func (l *envLocker) Edition() string {
+	return constants.Edition
+}
+
+// Recipe returns the short crypto recipe name for v1.
+func (l *envLocker) Recipe() string {
+	return constants.Recipe
+}
+
+// Context returns the KDF context string for v1 row key derivation.
+func (l *envLocker) Context() string {
+	return constants.Context
 }
 
 // KeyID returns a defensive copy of the locker key id.
@@ -71,211 +118,119 @@ func (l *envLocker) KeyID() []byte {
 
 // Seal encrypts plaintext under namespace and returns the v1 ciphertext wire blob.
 func (l *envLocker) Seal(namespace string, plaintext []byte) ([]byte, error) {
-	// Generate a fresh, random Data Encryption Key (DEK) for this row.
-	dek := make([]byte, constants.DEKBytes)
-	if _, err := io.ReadFull(rand.Reader, dek); err != nil {
-		return nil, perrors.ErrSealFailed
-	}
-	defer purser.Zero(dek)
-
-	// Generate a unique nonce for the inner AEAD encryption.
+	// Generate a fresh nonce for the payload.
 	var innerNonce [constants.InnerNonceBytes]byte
 	if _, err := io.ReadFull(rand.Reader, innerNonce[:]); err != nil {
 		return nil, perrors.ErrSealFailed
 	}
 
-	// Generate ephemeral X25519 key for envelope wrapping.
+	// Generate a fresh ephemeral key pair for the payload.
 	ephPriv, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, perrors.ErrSealFailed
 	}
 
-	// Generate a nonce for the envelope (wrapping) AEAD.
-	var wrapNonce [constants.WrapNonceBytes]byte
-	if _, err := io.ReadFull(rand.Reader, wrapNonce[:]); err != nil {
-		return nil, perrors.ErrSealFailed
-	}
-
-	// Seal the plaintext and return the complete envelope using fresh keys/nonces.
-	return l.sealWith(namespace, plaintext, dek, innerNonce, ephPriv, wrapNonce)
-}
-
-// Open parses wire, unwraps keys, verifies plaintext, and checks namespace matches requestedNS.
-func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
-	// Unmarshal the sealed wire into the Sealed structure.
-	var msg models.Sealed
-	if err := msg.UnmarshalBinary(wire); err != nil {
+	// Compute the shared secret between the ephemeral key and the long-term private key.
+	shared, err := ephPriv.ECDH(l.priv.PublicKey())
+	if err != nil {
 		return nil, err
 	}
+	defer memzero.Zero(shared)
 
-	// Ensure that the namespace matches the one requested.
-	if msg.Meta.Namespace != requestedNS {
-		return nil, perrors.ErrNamespaceMismatch
+	// Derive the data key from the shared secret.
+	dataKey, err := pgcm.DeriveDataKey(shared, l.template.Version)
+	if err != nil {
+		return nil, err
 	}
+	defer memzero.Zero(dataKey)
 
-	// wrapAAD is prefix||metaRaw and metaRaw aliases the trailing bytes of wrapAAD.
-	wrapAAD, metaRaw, err := buildWrapAADAndMeta(msg.Meta)
+	// Construct the AEAD to seal the plaintext with the data key.
+	innerAEAD, err := pgcm.NewInnerAEAD(dataKey)
 	if err != nil {
 		return nil, err
 	}
 
-	// Reconstruct the ephemeral public key for ECDH.
-	epub, err := ecdh.X25519().NewPublicKey(msg.Dek.Pub[:])
-	if err != nil {
-		return nil, perrors.ErrDecrypt
-	}
-
-	// Perform ECDH with our private key and the ephemeral public key.
-	shared, err := l.priv.ECDH(epub)
-	if err != nil {
-		return nil, perrors.ErrDecrypt
-	}
-	defer purser.Zero(shared)
-
-	// Derive the wrapping key from the shared secret.
-	wrapKey, err := pgcm.DeriveWrapKey(shared)
-	if err != nil {
-		return nil, err
-	}
-	defer purser.Zero(wrapKey)
-
-	// Build AEAD for unwrapping the DEK.
-	wrapAEAD, err := pgcm.NewWrapAEAD(wrapKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// Unwrap and authenticate the DEK using the AEAD and metadata.
-	wrapped := pgcm.WrappedDEK{Pub: msg.Dek.Pub, Nonce: msg.Dek.Nonce, Payload: msg.Dek.Payload}
-	dek, err := pgcm.OpenWrappedDEK(wrapAEAD, wrapAAD, wrapped)
-	if err != nil {
-		return nil, err
-	}
-	defer purser.Zero(dek)
-
-	// Build AEAD for decrypting the inner ciphertext.
-	innerAEAD, err := pgcm.NewInnerAEAD(dek)
-	if err != nil {
-		return nil, err
-	}
-
-	// Open and verify the inner ciphertext with the decrypted DEK and metadata.
-	plain, err := pgcm.OpenInner(innerAEAD, metaRaw, msg.Body.Nonce, msg.Body.Payload)
-	if err != nil {
-		return nil, err
-	}
-
-	return plain, nil
-}
-
-// ParseKeyID parses ciphertext metadata and returns the key identifier without decrypting.
-func (l *envLocker) ParseKeyID(ciphertext []byte) (keyID []byte, err error) {
-	var msg models.Sealed
-	if err = msg.UnmarshalBinary(ciphertext); err != nil {
-		return nil, err
-	}
-	return append([]byte(nil), msg.Meta.KeyID...), nil
-}
-
-//=============================================================================
-// Envelope seal
-//=============================================================================
-
-// sealWith seals plaintext using fixed DEK, nonces, and ephemeral key.
-func (l *envLocker) sealWith(namespace string, plaintext, dek []byte, innerNonce [constants.InnerNonceBytes]byte, ephPriv *ecdh.PrivateKey, wrapNonce [constants.WrapNonceBytes]byte) ([]byte, error) {
-	defer purser.Zero(dek)
-
-	// Prepare per-row metadata, copying the template and injecting this operation's namespace.
+	// Construct the metadata for the row with the namespace.
 	row, err := l.template.WithNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	// wrapAAD is prefix||metaRaw and metaRaw aliases the trailing bytes of wrapAAD.
-	wrapAAD, metaRaw, err := buildWrapAADAndMeta(row)
+	// Marshal the metadata for the row.
+	metaRaw, err := row.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 
-	// Build the AEAD used to encrypt the user's data (inner payload).
-	innerAEAD, err := pgcm.NewInnerAEAD(dek)
-	if err != nil {
-		return nil, err
-	}
-
-	// Encrypt the plaintext (sealing the data and binding metadata as AAD).
+	// Seal the plaintext with the AEAD and the nonce.
 	nonce, payload, err := pgcm.SealInnerWithNonce(innerAEAD, metaRaw, plaintext, innerNonce)
 	if err != nil {
 		return nil, err
 	}
-	body := models.Inner{Nonce: nonce, Payload: payload}
 
-	// ECDH: derive a shared secret from ephemeral private and long-term public key.
-	shared, err := ephPriv.ECDH(l.priv.PublicKey())
-	if err != nil {
-		return nil, err
-	}
-	defer purser.Zero(shared)
-
-	// Stretch the shared secret into an envelope wrapping key.
-	wrapKey, err := pgcm.DeriveWrapKey(shared)
-	if err != nil {
-		return nil, err
-	}
-	defer purser.Zero(wrapKey)
-
-	// Build AEAD for the envelope (to wrap the DEK).
-	wrapAEAD, err := pgcm.NewWrapAEAD(wrapKey)
-	if err != nil {
-		return nil, err
-	}
-
-	// Prepare the ephemeral public key to include in the wire format.
-	var ephPub [constants.X25519PubBytes]byte
+	// Construct the sealed row with the metadata, ephemeral public key, and nonce/payload.
+	var ephPub models.EphPub
 	copy(ephPub[:], ephPriv.PublicKey().Bytes())
-
-	// Encrypt (wrap) the DEK for transport, sealing it with envelope AEAD and AAD (metadata).
-	dekWire, err := pgcm.SealWrappedDEKWithNonce(ephPub, wrapAEAD, wrapAAD, dek, wrapNonce)
-	if err != nil {
-		return nil, err
-	}
-	dekEnv := models.DekEnvelope{Pub: dekWire.Pub, Nonce: dekWire.Nonce, Payload: dekWire.Payload}
-
-	// Assemble the complete sealed wire, including all envelope components.
 	sealed := models.Sealed{
-		FormatVersion: constants.PackageVersion,
+		FormatVersion: constants.Version,
 		Meta:          row,
-		Dek:           dekEnv,
-		Body:          body,
+		Eph:           ephPub,
+		Body:          models.Inner{Nonce: nonce, Payload: payload},
 	}
 
-	// Marshal the final sealed row as a single wire blob.
+	// Marshal the sealed row to the wire (metaRaw is GCM AAD; copied verbatim into the row).
+	sealed.BindMetaWire(metaRaw)
 	return sealed.MarshalBinary()
 }
 
-// ExportTestBuildSealedRow builds deterministic wire bytes for golden tests.
-func ExportTestBuildSealedRow(l purser.Locker, namespace string, plaintext, dek []byte, innerNonce [constants.InnerNonceBytes]byte, ephPriv *ecdh.PrivateKey, wrapNonce [constants.WrapNonceBytes]byte) ([]byte, error) {
-	impl, ok := l.(*envLocker)
-	if !ok {
-		return nil, errors.New("locker/v1: invalid locker implementation")
+// Open parses wire, derives the row key, verifies plaintext, and checks namespace matches requestedNS.
+func (l *envLocker) Open(requestedNS string, wire []byte) ([]byte, error) {
+	var (
+		formatVersion uint8
+		metaAAD       []byte
+		eph           []byte
+		nonce         [constants.InnerNonceBytes]byte
+		payload       []byte
+		err           error
+	)
+
+	// Parse subslices from the wire; namespace is checked before decrypt.
+	formatVersion, metaAAD, eph, nonce, payload, err = models.ParseOpenWire(wire, requestedNS)
+	if err != nil {
+		return nil, err
 	}
-	return impl.sealWith(namespace, plaintext, dek, innerNonce, ephPriv, wrapNonce)
+
+	// Construct the ephemeral public key from the wire.
+	epub, err := ecdh.X25519().NewPublicKey(eph)
+	if err != nil {
+		return nil, perrors.ErrDecrypt
+	}
+
+	// Compute the shared secret between the long-term private key and the ephemeral public key.
+	shared, err := l.priv.ECDH(epub)
+	if err != nil {
+		return nil, perrors.ErrDecrypt
+	}
+	defer memzero.Zero(shared)
+
+	// Derive the data key from the shared secret using the suite id from the wire.
+	dataKey, err := pgcm.DeriveDataKey(shared, formatVersion)
+	if err != nil {
+		return nil, err
+	}
+	defer memzero.Zero(dataKey)
+
+	// Construct the AEAD to open the ciphertext with the data key.
+	innerAEAD, err := pgcm.NewInnerAEAD(dataKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Open the ciphertext with the AEAD and the nonce (meta AAD is the on-wire meta slice).
+	return pgcm.OpenInner(innerAEAD, metaAAD, nonce, payload)
 }
 
-// buildWrapAADAndMeta marshals meta into a single buffer laid out as
-// [pgcm.WrapAADPrefix][meta]. wrapAAD is the full buffer (AAD for DEK
-// wrapping); metaRaw aliases the trailing meta bytes (AAD for the inner AEAD).
-func buildWrapAADAndMeta(meta models.Meta) (wrapAAD, metaRaw []byte, err error) {
-	metaSize, err := meta.MarshalBinarySize()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	prefixLen := len(pgcm.WrapAADPrefix)
-	buf := make([]byte, prefixLen+metaSize)
-	copy(buf, pgcm.WrapAADPrefix)
-	if _, err := meta.MarshalBinaryTo(buf[prefixLen:]); err != nil {
-		return nil, nil, err
-	}
-	return buf, buf[prefixLen:], nil
+// ParseKeyID parses ciphertext metadata and returns the key identifier without decrypting.
+func (l *envLocker) ParseKeyID(ciphertext []byte) ([]byte, error) {
+	return models.ParseKeyIDFromSealed(ciphertext)
 }

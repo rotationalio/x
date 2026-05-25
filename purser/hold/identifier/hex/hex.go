@@ -1,17 +1,18 @@
+// Package hex implements 16-byte random identifiers as 32-character lowercase hex strings.
 package hex
-
-// 16-byte random identifiers encoded as 32-character lowercase hex strings.
 
 import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
+	"regexp"
 
 	perrors "go.rtnl.ai/x/purser/errors"
 	"go.rtnl.ai/x/purser/hold/identifier"
 )
 
 // Identifier implements [identifier.Identifier] using 16-byte random ids encoded as hex (32 chars).
+// Single-import clients use [purser.HexIdentifier].
 type Identifier struct{}
 
 // Identifier implements [identifier.Identifier].
@@ -19,17 +20,20 @@ var _ identifier.Identifier = Identifier{}
 
 // New mints a random 16-byte value encoded as 32 hex characters.
 func (Identifier) New() (string, error) {
-	b := make([]byte, 16)
-	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+	var (
+		b   [16]byte
+		out [32]byte
+	)
+	if _, err := io.ReadFull(rand.Reader, b[:]); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+	hex.Encode(out[:], b[:])
+	return string(out[:]), nil
 }
 
 // Parse accepts exactly 32 hex characters decoding to 16 bytes.
 func (Identifier) Parse(id string) error {
-	b, err := hex.DecodeString(id)
-	if err != nil || len(b) != 16 {
+	if len(id) != 32 || !isHex32(id) {
 		return perrors.ErrInvalidHexIdentifier
 	}
 	return nil
@@ -37,14 +41,28 @@ func (Identifier) Parse(id string) error {
 
 // MarshalBinary decodes a hex id string to raw bytes (inverse of [Identifier.New] encoding).
 func (Identifier) MarshalBinary(id string) ([]byte, error) {
-	b, err := hex.DecodeString(id)
-	if err != nil || len(b) != 16 {
+	var b [16]byte
+	if len(id) != 32 || !isHex32(id) {
 		return nil, perrors.ErrInvalidHexIdentifier
 	}
-	return b, nil
+	hex.Decode(b[:], []byte(id))
+	return append([]byte(nil), b[:]...), nil
 }
 
 // UnmarshalBinary hex-encodes arbitrary bytes (caller should pass 16-byte ids for stable keys).
 func (Identifier) UnmarshalBinary(src []byte) (string, error) {
+	if len(src) == 16 {
+		var out [32]byte
+		hex.Encode(out[:], src)
+		return string(out[:]), nil
+	}
 	return hex.EncodeToString(src), nil
+}
+
+// Matches exactly 32 ASCII hex digits.
+var hexre = regexp.MustCompile(`^[0-9a-fA-F]{32}$`)
+
+// Reports whether s is exactly 32 ASCII hex digits.
+func isHex32(s string) bool {
+	return hexre.MatchString(s)
 }

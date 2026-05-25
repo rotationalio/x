@@ -28,58 +28,59 @@ import (
 // hold implementation with a conformance check that should detect the defect.
 func TestHoldConformance_negative(t *testing.T) {
 	ctx := context.Background()
+	lck := newFixtureLocker(t)
 
 	t.Run("get_returns_wrong_data", func(t *testing.T) {
 		// A hold that returns "wrong" for every Get must fail the round-trip check.
-		err := checkHoldCreateGetRoundtrip(ctx, newGetWrongHold())
+		err := checkHoldCreateGetRoundtrip(ctx, newGetWrongHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail")
 	})
 
 	t.Run("create_duplicate_no_error", func(t *testing.T) {
 		// A hold that silently overwrites on duplicate create must fail the duplicate check.
-		err := checkHoldCreateDuplicate(ctx, newDuplicatePermissiveHold())
+		err := checkHoldCreateDuplicate(ctx, newDuplicatePermissiveHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for permissive duplicate")
 	})
 
 	t.Run("cas_wrong_old_no_error", func(t *testing.T) {
 		// A hold whose CAS always succeeds even with wrong old value must fail the CAS check.
-		err := checkHoldCompareAndSwap(ctx, newCASAlwaysSucceedHold())
+		err := checkHoldCompareAndSwap(ctx, newCASAlwaysSucceedHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for permissive CAS")
 	})
 
 	t.Run("replace_missing_no_error", func(t *testing.T) {
 		// A hold that doesn't return ErrNotFound on replace of missing row must fail.
-		err := checkHoldReplaceMissing(ctx, newReplacePermissiveHold())
+		err := checkHoldReplaceMissing(ctx, newReplacePermissiveHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for permissive Replace")
 	})
 
 	t.Run("get_missing_no_error", func(t *testing.T) {
 		// A hold that returns nil,nil for missing rows must fail.
-		err := checkHoldGetMissing(ctx, newGetMissingPermissiveHold())
+		err := checkHoldGetMissing(ctx, newGetMissingPermissiveHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for permissive Get")
 	})
 
 	t.Run("delete_idempotent_fails", func(t *testing.T) {
 		// A hold that returns an error on double-delete must fail the delete idempotency check.
-		err := checkHoldDeleteIdempotent(ctx, newDeleteNonIdempotentHold())
+		err := checkHoldDeleteIdempotent(ctx, newDeleteNonIdempotentHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for non-idempotent Delete")
 	})
 
 	t.Run("cas_missing_no_error", func(t *testing.T) {
 		// A hold whose CAS on a missing key returns nil must fail.
-		err := checkHoldCASMissing(ctx, newCASMissingPermissiveHold())
+		err := checkHoldCASMissing(ctx, newCASMissingPermissiveHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for permissive CAS on missing")
 	})
 
 	t.Run("namespace_isolation", func(t *testing.T) {
 		// A hold that ignores namespaces (keys by ID only) must fail the isolation check.
-		err := checkHoldNamespaceIsolation(ctx, newNamespaceBlindHold())
+		err := checkHoldNamespaceIsolation(ctx, newNamespaceBlindHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for namespace-blind hold")
 	})
 
 	t.Run("replace_updates_data", func(t *testing.T) {
 		// A hold that ignores Replace (always returns old data) must fail.
-		err := checkHoldReplaceUpdatesData(ctx, newReplaceNoopHold())
+		err := checkHoldReplaceUpdatesData(ctx, newReplaceNoopHold(), lck)
 		assert.Error(t, err, "expected conformance check to fail for no-op Replace")
 	})
 }

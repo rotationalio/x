@@ -1,12 +1,19 @@
-// Package constants holds normative wire sizes, magic, and version bytes for purser locker v1 rows.
+// Package constants holds normative wire sizes, magic, and edition metadata for locker v1.
 package constants
 
 const (
-	// PackageVersion is the supported v1 package and wire format version.
-	PackageVersion uint8 = 1
+	// Edition is the app-facing locker id passed to registry.FromSeed and FromPassword.
+	// Single-import clients use [purser.EditionV1] as the edition argument.
+	Edition = "v1"
 
-	// Magic is the four-byte preamble for sealed rows (wire normative).
-	Magic = "ARR1"
+	// Version is the wire format byte (sealed preamble and meta).
+	Version uint8 = 1
+
+	// Recipe is the short crypto recipe name for this edition.
+	Recipe = "x25519_hkdf_sha256_aes256_gcm"
+
+	// Context is the KDF/context string for row key derivation (HKDF info in v1).
+	Context = "purser/v1/x25519_hkdf_sha256_aes256_gcm"
 
 	// MaxNamespaceBytes is the maximum number of bytes allowed for a namespace identifier on the wire.
 	MaxNamespaceBytes = 255
@@ -17,24 +24,18 @@ const (
 	// InnerNonceBytes is the inner AES-GCM nonce size in bytes.
 	InnerNonceBytes = 12
 
-	// WrapNonceBytes is the DEK-wrap AES-GCM nonce size in bytes.
-	WrapNonceBytes = 12
-
 	// X25519PubBytes is the length in bytes of an X25519 public key on the wire.
 	X25519PubBytes = 32
 
-	// DEKBytes is the per-row data encryption key length in bytes.
-	DEKBytes = 32
+	// EphPubBytes is the fixed on-wire size of the per-row ephemeral X25519 public key.
+	EphPubBytes = X25519PubBytes
 
-	// WrapKeyBytes is the HKDF-derived AES-256 wrap key length in bytes.
-	WrapKeyBytes = 32
+	// DataKeyBytes is the derived AES-256 data key length in bytes.
+	DataKeyBytes = 32
 
 	// GCMTagBytes is the AES-GCM authentication tag size in bytes.
 	GCMTagBytes = 16
 
-	// DekEnvelopeBytes is the fixed on-wire size for the initial v1 suite (32+12+32+16).
-	DekEnvelopeBytes = X25519PubBytes + WrapNonceBytes + DEKBytes + GCMTagBytes
-
 	// MaxMetaWireBytes is the largest possible v1 Meta encoding (bounded decode).
-	MaxMetaWireBytes = 1 + 1 + 1 + MaxKeyIDBytes + 1 + MaxNamespaceBytes
+	MaxMetaWireBytes = 1 + 1 + MaxKeyIDBytes + 1 + MaxNamespaceBytes
 )

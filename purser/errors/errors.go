@@ -77,6 +77,24 @@ var (
 
 	// ErrWrongCurrent means CompareAndSwap failed because stored plaintext did not equal expected currentPlain.
 	ErrWrongCurrent = stderrors.New("purser: stored secret does not match expected plaintext")
+
+	// ErrUnsupportedLockerVersion means the requested locker edition string is not implemented.
+	ErrUnsupportedLockerVersion = stderrors.New("purser: unsupported locker version")
+
+	// ErrUnrecognizedCiphertext means no supported locker version could parse the wire blob.
+	ErrUnrecognizedCiphertext = stderrors.New("purser: unrecognized ciphertext format")
+
+	// ErrAlreadyBound means Bind was called for a namespace that already has a locker.
+	ErrAlreadyBound = stderrors.New("purser: namespace already bound")
+
+	// ErrNotBound means Unbind was called for a namespace with no binding.
+	ErrNotBound = stderrors.New("purser: namespace not bound")
+
+	// ErrInvalidKeySpec means a KeySpec was missing required material or was reused after Locker.
+	ErrInvalidKeySpec = stderrors.New("purser: invalid key spec")
+
+	// ErrInvalidEdition means a KeySpec constructor was given an empty locker edition string.
+	ErrInvalidEdition = stderrors.New("purser: locker edition is required")
 )
 
 //=============================================================================
@@ -90,14 +108,14 @@ var (
 	// ErrInvalidSeed means the seed length is not valid for the target locker's FromSeed.
 	ErrInvalidSeed = stderrors.New("purser/keyring: invalid seed")
 
-	// ErrInvalidSalt means the salt length is not valid for [keyring.Derive].
-	ErrInvalidSalt = stderrors.New("purser/keyring: invalid salt")
+	// ErrInvalidSalt means the salt length is not valid for [kdf.Derive].
+	ErrInvalidSalt = stderrors.New("purser/keyring/kdf: invalid salt")
 
-	// ErrNilPassword means [keyring.Derive] received a nil password slice.
-	ErrNilPassword = stderrors.New("purser/keyring: nil password")
+	// ErrNilPassword means password material was missing for a KeySpec or Derive call.
+	ErrNilPassword = stderrors.New("purser/keyring/kdf: nil password")
 
 	// ErrRandSalt means reading random bytes for a new salt failed.
-	ErrRandSalt = stderrors.New("purser/keyring: failed to read random salt")
+	ErrRandSalt = stderrors.New("purser/keyring/kdf: failed to read random salt")
 )
 
 //=============================================================================
@@ -129,8 +147,8 @@ var (
 	// ErrNilInnerPointer means [*models.Inner.UnmarshalBinary] was called with a nil receiver.
 	ErrNilInnerPointer = stderrors.New("purser/locker/v1: nil Inner receiver")
 
-	// ErrNilDekEnvelopePointer means [*models.DekEnvelope.UnmarshalBinary] was called with a nil receiver.
-	ErrNilDekEnvelopePointer = stderrors.New("purser/locker/v1: nil DekEnvelope receiver")
+	// ErrNilEphPubPointer means [*models.EphPub.UnmarshalBinary] was called with a nil receiver.
+	ErrNilEphPubPointer = stderrors.New("purser/locker: nil EphPub receiver")
 
 	// ErrMalformedWire means bytes are corrupt, truncated, or not a valid v1 wire layout for the operation.
 	ErrMalformedWire = stderrors.New("purser/locker/v1: malformed wire encoding")
@@ -147,8 +165,8 @@ var (
 	// ErrNilSealedPointer means [*models.Sealed.UnmarshalBinary] was called with a nil receiver.
 	ErrNilSealedPointer = stderrors.New("purser/locker/v1: nil Sealed receiver")
 
-	// ErrBadMagic means the wire blob does not begin with the expected v1 magic bytes.
-	ErrBadMagic = stderrors.New("purser/locker/v1: bad magic")
+	// ErrBadMagic means the wire blob does not begin with wire.Magic ("PURS").
+	ErrBadMagic = stderrors.New("purser: bad wire magic")
 
 	// ErrUnsupportedVersion means the row format version byte is not supported by this module.
 	ErrUnsupportedVersion = stderrors.New("purser/locker/v1: unsupported version")
@@ -156,30 +174,6 @@ var (
 	// ErrVersionMismatch means the outer format version disagrees with the decoded metadata version.
 	ErrVersionMismatch = stderrors.New("purser/locker/v1: unsupported format version")
 
-	// ErrUnknownSuite means the metadata suite id is not a known v1 suite.
-	ErrUnknownSuite = stderrors.New("purser/locker/v1: unknown suite")
-
 	// ErrNamespaceMismatch means the row was opened under a namespace that does not match the row metadata.
 	ErrNamespaceMismatch = stderrors.New("purser/locker/v1: namespace mismatch")
-)
-
-//=============================================================================
-// locker/v1 suite ID parse and marshal ([locker/v1/suite])
-//=============================================================================
-
-var (
-	// ErrNilSuiteID means [*suite.ID.UnmarshalBinary] was called with a nil receiver.
-	ErrNilSuiteID = stderrors.New("purser/locker/v1/suite: nil ID receiver")
-
-	// ErrInvalidSuiteWire means decoded suite bytes are not the expected length.
-	ErrInvalidSuiteWire = stderrors.New("purser/locker/v1/suite: invalid wire encoding")
-
-	// ErrInvalidSuiteValue means a numeric suite id is not usable.
-	ErrInvalidSuiteValue = stderrors.New("purser/locker/v1/suite: invalid suite value")
-
-	// ErrUnknownSuiteName means the string does not name a known suite.
-	ErrUnknownSuiteName = stderrors.New("purser/locker/v1/suite: unknown suite name")
-
-	// ErrInvalidSuiteInput means the argument type is not supported for suite.Parse.
-	ErrInvalidSuiteInput = stderrors.New("purser/locker/v1/suite: invalid input type")
 )

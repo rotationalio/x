@@ -2,9 +2,15 @@
 Package hold defines the Hold interface for opaque sealed rows and reusable implementations
 for tests and small programs (notably MemHold).
 
-Hold abstracts persistence keyed by (namespace, identifier). Ciphertext values are opaque blobs produced by lockers;
-implementations should map driver-specific failures to the stable sentinels in package
-go.rtnl.ai/x/purser/errors (not found, duplicate key, CAS failed, hold) where practical.
+Hold abstracts persistence keyed by (namespace, identifier). Ciphertext values are opaque blobs;
+when composed with Purser they must be locker wire with an extractable key id. The holdtest
+package seals conformance blobs via nulllocker by default.
+
+Single-import clients use [purser.Hold], [purser.MemHold], [purser.Identifier], [purser.HexIdentifier],
+and [purser.NewMemHold] (see purser aliases.go). Classify errors with sentinels from
+go.rtnl.ai/x/purser/errors.
+
+Implementations should map driver-specific failures to those sentinels where practical.
 */
 package hold
 
