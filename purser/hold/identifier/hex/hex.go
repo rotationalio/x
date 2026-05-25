@@ -59,13 +59,9 @@ func (Identifier) UnmarshalBinary(src []byte) (string, error) {
 }
 
 // isHex32 reports whether s is exactly 32 ASCII hex digits.
+
+var hexre = regexp.Compile(`^[0-9a-fA-F]{32}$`)
+
 func isHex32(s string) bool {
-	for i := range 32 {
-		c := s[i]
-		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') {
-			continue
-		}
-		return false
-	}
-	return true
+	return hexre.MatchString(s)
 }
