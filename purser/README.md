@@ -205,21 +205,19 @@ go test -race -count=1 ./purser/...
 
 ### Fuzz targets
 
-Fuzz tests are zero-cost under a normal `go test` run unless invoked with `-fuzz`.
+Fuzz tests live in [`fuzz/`](fuzz/). Package docs, invariants, edition seed registration, and how to add a new edition are documented in [`fuzz/seeds.go`](fuzz/seeds.go). A normal `go test` only replays committed corpus entries unless you pass `-fuzz`.
 
-Available targets:
-
-- `FuzzMeta_unmarshal` (`./purser/locker/v1/models`) — `models.Meta.UnmarshalBinary`
-- `FuzzSealed_unmarshal` (`./purser/locker/v1/models`) — `models.Sealed.UnmarshalBinary`
-- `FuzzParseKeyID` (`./purser/locker/v1`) — v1 `ParseKeyID` on envelope wire
+From the repo root, [`fuzz/fuzzpurser.sh`](fuzz/fuzzpurser.sh) runs every target (default 30s each, 2m test timeout):
 
 ```bash
-go test -run '^$' -fuzz FuzzMeta_unmarshal -fuzztime 30s ./purser/locker/v1/models
-go test -run '^$' -fuzz FuzzSealed_unmarshal -fuzztime 30s ./purser/locker/v1/models
-go test -run '^$' -fuzz FuzzParseKeyID -fuzztime 30s ./purser/locker/v1
+./purser/fuzz/fuzzpurser.sh        # full run
+./purser/fuzz/fuzzpurser.sh 3s     # smoke
+./purser/fuzz/fuzzpurser.sh FuzzParseKeyID #
 ```
 
-Commit inputs under `testdata/fuzz/FuzzXxx/` when a target finds a crasher.
+Override with `FUZZTIME` / `TIMEOUT`. Manual runs still need `-fuzz=Target$` (exact match) and `-timeout` above `-fuzztime`; see [`fuzz/seeds.go`](fuzz/seeds.go).
+
+Commit crashers under `purser/fuzz/testdata/fuzz/{FuzzTargetName}/`.
 
 ### Benchmarks
 
@@ -229,8 +227,10 @@ Benchmarks are zero-cost under a normal `go test` run unless invoked with `-benc
 # Run benchmarks or specific ones; long runs
 go test -run=^$ -bench=. -benchmem ./purser/benchmark
 go test -run=^$ -bench=Locker/Seal -benchmem ./purser/benchmark
+
 # Store a benchmark snapshot; short runs
 PURSER_BENCH_SNAPSHOT=1 go test -run=TestBenchmarkSnapshot -count=1 ./purser/benchmark  # ~1s; writes results/go*_*.json
+
 # Compare the saved benchmarks; see compare.py docs header for more options
 python3 ./purser/benchmark/compare.py -l                   # numbered snapshots (by captured_at)
 python3 ./purser/benchmark/compare.py                      # two newest; or `2 4`, `2`, `-o 2 -n 4`, filenames

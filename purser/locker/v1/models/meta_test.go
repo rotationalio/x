@@ -157,27 +157,3 @@ func TestMeta_unmarshalBinaryRejects(t *testing.T) {
 		assert.ErrorIs(t, m.UnmarshalBinary(bad), verrors.ErrMalformedWire)
 	})
 }
-
-// FuzzMeta_unmarshal exercises Meta.UnmarshalBinary on random inputs.
-func FuzzMeta_unmarshal(f *testing.F) {
-	good, err := (models.Meta{
-		Version:   constants.Version,
-		KeyID:     []byte{1, 2, 3},
-		Namespace: "ns",
-	}).MarshalBinary()
-	assert.Ok(f, err, "seed marshal")
-	f.Add(good)
-	f.Add([]byte{})
-	f.Add([]byte{constants.Version, 0, 0})
-	f.Add(append([]byte(nil), good[:len(good)-1]...))
-
-	f.Fuzz(func(t *testing.T, data []byte) {
-		var m models.Meta
-		if err := m.UnmarshalBinary(data); err != nil {
-			return
-		}
-		out, err := m.MarshalBinary()
-		assert.Ok(t, err, "unmarshal succeeded but re-marshal failed")
-		assert.Equal(t, string(data), string(out), "round-trip mismatch")
-	})
-}

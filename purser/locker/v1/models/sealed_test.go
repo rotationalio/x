@@ -349,31 +349,3 @@ func newSealedWireFixture(tb testing.TB) sealedWireFixture {
 	assert.Ok(tb, err)
 	return sealedWireFixture{wire: wire, sealKey: priv}
 }
-
-//=============================================================================
-// Fuzz: Sealed.UnmarshalBinary
-//=============================================================================
-
-// FuzzSealed_unmarshal exercises [models.Sealed.UnmarshalBinary] across many
-// mutated wire blobs. Invariants:
-//
-//   - The parser must not panic on any input.
-//   - A successful unmarshal must re-marshal to identical bytes — the v1 wire
-//     framing is canonical, so any deviation indicates a parser/encoder skew.
-func FuzzSealed_unmarshal(f *testing.F) {
-	good := newValidSealedWire(f)
-	f.Add(good)
-	f.Add([]byte{})
-	f.Add(good[:sealedPreambleBytes])
-	f.Add(append([]byte(nil), good[:len(good)-1]...))
-
-	f.Fuzz(func(t *testing.T, data []byte) {
-		var s models.Sealed
-		if err := s.UnmarshalBinary(data); err != nil {
-			return
-		}
-		out, err := s.MarshalBinary()
-		assert.Ok(t, err, "unmarshal succeeded but re-marshal failed")
-		assert.Equal(t, string(data), string(out), "round-trip mismatch")
-	})
-}

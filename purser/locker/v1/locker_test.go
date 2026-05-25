@@ -476,38 +476,6 @@ func TestFromPassword_badSalt(t *testing.T) {
 }
 
 //=============================================================================
-// Fuzz: ParseKeyID
-//=============================================================================
-
-// FuzzParseKeyID exercises [locker.Locker.ParseKeyID] on the v1 envelope locker
-// against semi-random ciphertext blobs. Invariants:
-//
-//   - The parser must not panic on any input.
-//   - A nil-error result must yield a non-empty key id (the keyring relies on
-//     this to route ciphertext; an empty id would collide on every lookup).
-func FuzzParseKeyID(f *testing.F) {
-	priv, err := ecdh.X25519().GenerateKey(crand.Reader)
-	assert.Ok(f, err, "seed key")
-	lck, err := lockerv1.New(priv)
-	assert.Ok(f, err, "seed locker")
-	wire, err := lck.Seal("ns", []byte("plain"))
-	assert.Ok(f, err, "seed seal")
-
-	f.Add(wire)
-	f.Add([]byte{})
-	f.Add([]byte("PURS"))
-	f.Add(append([]byte(nil), wire[:len(wire)-1]...))
-
-	f.Fuzz(func(t *testing.T, data []byte) {
-		kid, err := lck.ParseKeyID(data)
-		if err != nil {
-			return
-		}
-		assert.True(t, len(kid) > 0, "ParseKeyID returned nil error with empty key id")
-	})
-}
-
-//=============================================================================
 // Helpers
 //=============================================================================
 
