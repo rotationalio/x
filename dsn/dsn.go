@@ -39,9 +39,6 @@ type UserInfo struct {
 	Password string
 }
 
-// Additional options for establishing a database connection.
-type Options map[string]string
-
 func Parse(dsn string) (_ *DSN, err error) {
 	var uri *url.URL
 	if uri, err = url.Parse(dsn); err != nil {
