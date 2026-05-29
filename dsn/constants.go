@@ -2,6 +2,7 @@ package dsn
 
 // Common provider and driver names for ease of checking.
 const (
+	Honu        = "honu"
 	Postgres    = "postgres"
 	Psycopg2    = "psycopg2"
 	Psycopg     = "psycopg"
@@ -12,4 +13,5 @@ const (
 	MongoDB     = "mongodb"
 	Redis       = "redis"
 	Memcached   = "memcached"
+	Mock        = "mock"
 )
