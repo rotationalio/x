@@ -14,6 +14,7 @@
 package semver
 
 import (
+	"database/sql/driver"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -347,11 +348,11 @@ func (v *Version) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (v Version) MarshalYAML() (interface{}, error) {
+func (v Version) MarshalYAML() (any, error) {
 	return v.String(), nil
 }
 
-func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (v *Version) UnmarshalYAML(unmarshal func(any) error) error {
 	var vers string
 	if err := unmarshal(&vers); err != nil {
 		return err
@@ -370,7 +371,7 @@ func (v *Version) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // SQL Interfaces
 //===========================================================================
 
-func (v *Version) Scan(src interface{}) error {
+func (v *Version) Scan(src any) error {
 	switch src := src.(type) {
 	case nil:
 		return nil
@@ -383,6 +384,6 @@ func (v *Version) Scan(src interface{}) error {
 	}
 }
 
-func (v Version) Value() (interface{}, error) {
+func (v Version) Value() (driver.Value, error) {
 	return v.String(), nil
 }

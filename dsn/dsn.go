@@ -73,11 +73,11 @@ func Parse(dsn string) (_ *DSN, err error) {
 	}
 
 	if port := uri.Port(); port != "" {
-		var pnum uint64
-		if pnum, err = strconv.ParseUint(port, 10, 16); err != nil {
+		var portNumber uint64
+		if portNumber, err = strconv.ParseUint(port, 10, 16); err != nil {
 			return nil, ErrCannotParsePort
 		}
-		d.Port = uint16(pnum)
+		d.Port = uint16(portNumber)
 	}
 
 	if params := uri.Query(); len(params) > 0 {

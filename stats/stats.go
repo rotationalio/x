@@ -299,7 +299,7 @@ func (s *Statistics[T]) Scan(src any) error {
 
 // Value implements the sql/driver.Valuer interface, returning the stats as a
 // slice of bytes, by invoking MarshalBinary.
-func (s *Statistics[T]) Value() (driver.Value, error) {
+func (s Statistics[T]) Value() (driver.Value, error) {
 	return s.MarshalBinary()
 }
 
