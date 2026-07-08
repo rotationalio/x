@@ -176,6 +176,11 @@ func (s *Statistics[T]) Append(o *Statistics[T]) {
 	s.squares += o.squares
 }
 
+// Returns True if the statistics object is zero-valued.
+func (s *Statistics[T]) IsZero() bool {
+	return s.samples == 0 && s.total == 0 && s.squares == 0 && s.maximum == 0 && s.minimum == 0
+}
+
 //===========================================================================
 // JSON Serialization
 //===========================================================================
