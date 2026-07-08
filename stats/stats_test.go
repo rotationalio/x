@@ -271,6 +271,29 @@ func TestAppend(t *testing.T) {
 
 }
 
+func TestIsZero(t *testing.T) {
+	t.Run("int64", func(t *testing.T) {
+		stats := new(stats.Statistics[int64])
+		assert.True(t, stats.IsZero())
+		stats.Update(1)
+		assert.False(t, stats.IsZero())
+	})
+
+	t.Run("uint64", func(t *testing.T) {
+		stats := new(stats.Statistics[uint64])
+		assert.True(t, stats.IsZero())
+		stats.Update(1)
+		assert.False(t, stats.IsZero())
+	})
+
+	t.Run("float64", func(t *testing.T) {
+		stats := new(stats.Statistics[float64])
+		assert.True(t, stats.IsZero())
+		stats.Update(1.0)
+		assert.False(t, stats.IsZero())
+	})
+}
+
 func TestJSON(t *testing.T) {
 	loadTestData()
 
@@ -292,6 +315,25 @@ func TestJSON(t *testing.T) {
 	assert.InDelta(t, float64(orig.Maximum()), float64(cmpt.Maximum()), delta)
 	assert.InDelta(t, float64(orig.Minimum()), float64(cmpt.Minimum()), delta)
 	assert.InDelta(t, float64(orig.Range()), float64(cmpt.Range()), delta)
+}
+
+func TestOmitZero(t *testing.T) {
+	// Test that the omitzero struct tag omits zero-valued statistics objects.
+	type Stats struct {
+		Measurements stats.Statistics[float64] `json:"stats,omitzero"`
+	}
+
+	stats := &Stats{
+		Measurements: stats.Statistics[float64]{},
+	}
+	data, err := json.Marshal(stats)
+	assert.Ok(t, err)
+	assert.Equal(t, `{}`, string(data))
+
+	stats.Measurements.Update(1.0)
+	data, err = json.Marshal(stats)
+	assert.Ok(t, err)
+	assert.Contains(t, string(data), "stats")
 }
 
 func TestBadJSON(t *testing.T) {
