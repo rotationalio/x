@@ -26,6 +26,27 @@ func (o Options) ReadOnly() bool {
 	return false
 }
 
+func (o Options) Set(key string, value any) {
+	switch v := value.(type) {
+	case string:
+		o[key] = v
+	case bool:
+		o[key] = strconv.FormatBool(v)
+	case int:
+		o[key] = strconv.Itoa(v)
+	case int64:
+		o[key] = strconv.FormatInt(v, 10)
+	case float64:
+		o[key] = strconv.FormatFloat(v, 'f', -1, 64)
+	case time.Duration:
+		o[key] = v.String()
+	case fmt.Stringer:
+		o[key] = v.String()
+	default:
+		o[key] = fmt.Sprintf("%v", v)
+	}
+}
+
 // Attempt to get the value of an option key using several forms of the key.
 // First the exact key is tried, then the key in lowercase and uppercase.
 func (o Options) Get(key string) (v string, ok bool) {

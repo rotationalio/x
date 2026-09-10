@@ -131,6 +131,40 @@ func (d *DSN) Clone() *DSN {
 	return clone
 }
 
+// Sets the given option on the DSN.
+func (d *DSN) Set(key string, value any) {
+	if d.Options == nil {
+		d.Options = make(Options)
+	}
+	d.Options.Set(key, value)
+}
+
+// Gets the given option from the DSN.
+func (d *DSN) Get(key string) (string, bool) {
+	if d.Options == nil {
+		return "", false
+	}
+	return d.Options.Get(key)
+}
+
+// File URI returns a URI string with the file:// scheme and path for embedded or local databases.
+// NOTE: the provider, driver, host, and userinfo are not included in the URI.
+func (d *DSN) FileURI() string {
+	u := &url.URL{
+		Scheme:   "file",
+		Path:     d.Path,
+		RawQuery: d.rawquery(),
+	}
+	return u.String()
+}
+
+func (d *DSN) ReadOnly() bool {
+	if d.Options == nil {
+		return false
+	}
+	return d.Options.ReadOnly()
+}
+
 func (d *DSN) scheme() string {
 	switch {
 	case d.Provider != "" && d.Driver != "":

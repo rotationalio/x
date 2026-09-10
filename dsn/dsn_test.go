@@ -178,3 +178,68 @@ func TestClone(t *testing.T) {
 		assert.Equal(t, clone.Options["readonly"], "")
 	})
 }
+
+func TestGetSet(t *testing.T) {
+	dsn := &dsn.DSN{
+		Provider: "sqlite3",
+		Path:     "path/to/test.db",
+	}
+
+	assert.False(t, dsn.ReadOnly(), "when options is nil, ReadOnly should return false")
+	tz, ok := dsn.Get("_timezone")
+	assert.False(t, ok, "when options is nil, Get should return false")
+	assert.Equal(t, tz, "", "when options is nil, Get should return empty string")
+
+	dsn.Set("_timezone", "UTC")
+	dsn.Set("readonly", true)
+
+	tz, ok = dsn.Get("_timezone")
+	assert.True(t, ok)
+	assert.Equal(t, tz, "UTC")
+
+	readonly, ok := dsn.Get("readonly")
+	assert.True(t, ok)
+	assert.Equal(t, readonly, "true")
+
+	assert.True(t, dsn.ReadOnly())
+}
+
+func TestFileURI(t *testing.T) {
+	tests := []struct {
+		uri      *dsn.DSN
+		expected string
+		name     string
+	}{
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite3",
+				Path:     "path/to/test.db",
+			},
+			expected: "file://path/to/test.db",
+			name:     "Relative",
+		},
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite",
+				Path:     "/data/db/test.db",
+			},
+			expected: "file:///data/db/test.db",
+			name:     "Absolute",
+		},
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite3",
+				Path:     "path/to/test.db",
+				Options:  dsn.Options{"readonly": "true", "_timezone": "UTC"},
+			},
+			expected: "file://path/to/test.db?_timezone=UTC&readonly=true",
+			name:     "Options",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.uri.FileURI())
+		})
+	}
+}
