@@ -1,6 +1,10 @@
 package api
 
-import "strings"
+import (
+	"strings"
+
+	"go.rtnl.ai/x/validation"
+)
 
 //===========================================================================
 // Top Level Requests and Responses
@@ -36,15 +40,15 @@ type SearchQuery struct {
 func (q *SearchQuery) Validate() (err error) {
 	q.Query = strings.TrimSpace(q.Query)
 	if q.Query == "" {
-		err = ValidationError(err, MissingField("query"))
+		err = validation.Error(err, validation.Missing("query"))
 	}
 
 	if q.Limit < 0 {
-		err = ValidationError(err, IncorrectField("limit", "limit cannot be less than zero"))
+		err = validation.Error(err, validation.Incorrect("limit", "limit cannot be less than zero"))
 	}
 
 	if q.Limit > 50 {
-		err = ValidationError(err, IncorrectField("limit", "maximum number of search results that can be returned is 50"))
+		err = validation.Error(err, validation.Incorrect("limit", "maximum number of search results that can be returned is 50"))
 	}
 
 	return err

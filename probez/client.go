@@ -206,7 +206,7 @@ func Do(req *http.Request) (rep *http.Response, err error) {
 			body = string(data)
 		}
 
-		err = &api.StatusError{
+		err = &api.ErrorReply{
 			StatusCode: rep.StatusCode,
 			Reply: api.Reply{
 				Error: body,

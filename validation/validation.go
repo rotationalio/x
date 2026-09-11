@@ -104,3 +104,24 @@ func (e Errors) Map() map[string]string {
 	}
 	return errs
 }
+
+// Returns true if and only if the two error chains contain all of the same errors.
+// Note that the order of errors does not matter but this function does assume there
+// are no duplicate errors in either chain.
+func (e Errors) Equal(other Errors) bool {
+	if len(e) != len(other) {
+		return false
+	}
+
+	matches := 0
+	for _, err := range e {
+		for _, otherErr := range other {
+			if err.Equal(otherErr) {
+				matches++
+				break
+			}
+		}
+	}
+
+	return matches == len(e)
+}
