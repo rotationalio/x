@@ -196,21 +196,19 @@ func Do(req *http.Request) (rep *http.Response, err error) {
 		return nil, err
 	}
 
-	if rep.StatusCode < 200 || rep.StatusCode >= 300 {
+	if rep.StatusCode < 200 || rep.StatusCode >= 400 {
 		defer rep.Body.Close()
 
 		var body string
-		if data, err := io.ReadAll(rep.Body); err == nil {
+		if data, err := io.ReadAll(rep.Body); err != nil || len(data) == 0 {
 			body = http.StatusText(rep.StatusCode)
 		} else {
 			body = string(data)
 		}
 
-		err = &api.ErrorReply{
-			StatusCode: rep.StatusCode,
-			Reply: api.Reply{
-				Error: body,
-			},
+		err = &api.StatusError{
+			Code: rep.StatusCode,
+			Err:  errors.New(body),
 		}
 	}
 
