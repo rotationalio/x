@@ -5,6 +5,7 @@ import (
 
 	"go.rtnl.ai/x/api"
 	"go.rtnl.ai/x/assert"
+	"go.rtnl.ai/x/validation"
 )
 
 func TestSearchQuery(t *testing.T) {
@@ -23,15 +24,15 @@ func TestSearchQuery(t *testing.T) {
 		}{
 			{
 				&api.SearchQuery{Limit: 12},
-				api.MissingField("query"),
+				validation.Missing("query"),
 			},
 			{
 				&api.SearchQuery{Query: "coinbase", Limit: -14},
-				api.IncorrectField("limit", "limit cannot be less than zero"),
+				validation.Incorrect("limit", "limit cannot be less than zero"),
 			},
 			{
 				&api.SearchQuery{Query: "coinbase", Limit: 100},
-				api.IncorrectField("limit", "maximum number of search results that can be returned is 50"),
+				validation.Incorrect("limit", "maximum number of search results that can be returned is 50"),
 			},
 		}
 
