@@ -32,7 +32,7 @@ const (
 // This handler implements the http.Handler interface, but in common practice, users
 // should add the Healthz, Livez, and Readyz http.HandlerFuncs to their own muxer or
 // router. If you're using an http.ServeMux you can use the Handler.Mux function to
-// automatically addd the routes.
+// automatically add the routes.
 type Handler struct {
 	healthy *atomic.Value
 	ready   *atomic.Value
