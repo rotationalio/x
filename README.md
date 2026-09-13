@@ -14,7 +14,7 @@ Where `[pkg]` is the name of the package you want to use in your project. Note t
 
 This is single repository that stores many, independent small subpackages. This list changes often as common code gets moved from specific projects into this repository.
 
-- [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run.
+- [api](https://go.rtnl.ai/x/api): common utilities and responses for our JSON/REST APIs that our services run
 - [assert](https://go.rtnl.ai/x/assert): simple test assertions for no-dependency testing
 - [backoff](https://go.rtnl.ai/x/backoff): an exponential backoff algorithm
 - [base58](https://go.rtnl.ai/x/base58): base58 encoding package as used by Bitcoin and travel addresses
@@ -26,19 +26,20 @@ This is single repository that stores many, independent small subpackages. This 
 - [locks](https://go.rtnl.ai/x/locks): key-based lock mechanism to distribute keys across a fixed number of locks
 - [lorem](https://go.rtnl.ai/x/lorem): lorem ipsum text generator
 - [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
+- [password](https://go.rtnl.ai/x/password): password strength measurement and policy based password generation
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
-- [purser](https://go.rtnl.ai/x/purser): encrypted secret storage with pluggable persistence and multi-version locker support.
+- [purser](https://go.rtnl.ai/x/purser): encrypted secret storage with pluggable persistence and multi-version locker support
 - [query](https://go.rtnl.ai/x/query): encode struct values as a url query string
 - [radish](https://go.rtnl.ai/x/radish): run asynchronous tasks
 - [randstr](https://go.rtnl.ai/x/randstr): generate random strings using the crypto/rand package as efficiently as possible
 - [region](https://go.rtnl.ai/x/region): enumerates the clouds and regions that Rotational services can be deployed to
 - [rlog](https://go.rtnl.ai/x/rlog): extends the `log/slog` logger with additional custom levels and features (the 'r' is for "Rotational"!)
-- [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers.
+- [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
-- [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module.
-- [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case.
-- [validation](https://go.rtnl.ai/x/validation): error helpers for validation of structs particularly for API errors.
-- [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration.
+- [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module
+- [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case
+- [validation](https://go.rtnl.ai/x/validation): error helpers for validation of structs particularly for API errors
+- [vero](https://go.rtnl.ai/x/vero): create verification tokens against a record identifier, with an expiration
 
 ## Development
 
