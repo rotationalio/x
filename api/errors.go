@@ -27,17 +27,21 @@ func Error(err interface{}) Reply {
 	rep := Reply{Success: false}
 	switch err := err.(type) {
 	case validation.Errors:
-		if len(err) == 1 {
-			rep.Error = err.Error()
-		} else {
-			rep.Error = fmt.Sprintf("%d validation errors occurred", len(err))
-			rep.ErrorDetail = make(ErrorDetail, 0, len(err))
-			for _, verr := range err {
-				rep.ErrorDetail = append(rep.ErrorDetail, &DetailError{
-					Field: verr.Field(),
-					Error: verr.Error(),
-				})
-			}
+		rep.Error = fmt.Sprintf("%d validation errors occurred", len(err))
+		rep.ErrorDetail = make(ErrorDetail, 0, len(err))
+		for _, verr := range err {
+			rep.ErrorDetail = append(rep.ErrorDetail, &DetailError{
+				Field: verr.Field(),
+				Error: verr.Error(),
+			})
+		}
+	case *validation.FieldError:
+		rep.Error = err.Error()
+		rep.ErrorDetail = ErrorDetail{
+			&DetailError{
+				Field: err.Field(),
+				Error: err.Error(),
+			},
 		}
 	case error:
 		rep.Error = err.Error()
@@ -62,26 +66,34 @@ func Error(err interface{}) Reply {
 // Status Errors
 //===========================================================================
 
-// ErrorReply decodes an error response from the API call.
-type ErrorReply struct {
-	StatusCode int
-	Reply      Reply
+// Wraps an error with an HTTP status code.
+type StatusError struct {
+	Code int
+	Err  error
 }
 
-func (e *ErrorReply) Error() string {
-	return fmt.Sprintf("[%d] %s", e.StatusCode, e.Reply.Error)
+func (e *StatusError) Error() string {
+	return fmt.Sprintf("[%d] %s", e.Code, e.Err.Error())
 }
 
-// ErrorStatus returns the HTTP status code from an error or 500 if the error is not a StatusError.
-func ErrorStatus(err error) int {
+func (e *StatusError) Unwrap() error {
+	return e.Err
+}
+
+func (e *StatusError) Reply() Reply {
+	return Error(e.Err)
+}
+
+// StatusCode returns the HTTP status code from an error or 500 if the error is not a StatusError.
+func StatusCode(err error) int {
 	if err == nil {
 		return http.StatusOK
 	}
 
-	if e, ok := err.(*ErrorReply); !ok || e.StatusCode < 100 || e.StatusCode >= 600 {
+	if e, ok := err.(*StatusError); !ok || e.Code < 100 || e.Code >= 600 {
 		return http.StatusInternalServerError
 	} else {
-		return e.StatusCode
+		return e.Code
 	}
 }
 
