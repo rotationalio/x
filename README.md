@@ -25,6 +25,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
 - [locks](https://go.rtnl.ai/x/locks): key-based lock mechanism to distribute keys across a fixed number of locks
 - [lorem](https://go.rtnl.ai/x/lorem): lorem ipsum text generator
+- [mime](https://go.rtnl.ai/x/mime): mime type definitions and parsing
 - [noplog](https://go.rtnl.ai/x/noplog): no operation logger to capture internal logging with no output
 - [probez](https://go.rtnl.ai/x/probez): http handlers for kubernetes probes (livez, healthz, and readyz)
 - [purser](https://go.rtnl.ai/x/purser): encrypted secret storage with pluggable persistence and multi-version locker support.
