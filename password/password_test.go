@@ -58,7 +58,9 @@ func TestAnalyze(t *testing.T) {
 	}
 
 	for i, tc := range tests {
-		assert.Equal(t, Analyze(tc), Check(tc), "test %d: analyze output must match check output", i)
+		t.Run(fmt.Sprintf("Password %d", i), func(t *testing.T) {
+			assert.Equal(t, Analyze(tc), Check(tc), "test %d: analyze output must match check output", i)
+		})
 	}
 }
 

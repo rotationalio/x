@@ -23,7 +23,7 @@ The `mkpasswd` command should now be available in your `$PATH`. You can set a de
 {
     "default:" {
         "length": 14,
-        "charset": [
+        "charsets": [
             "differentiable",
             "numbers",
             "symbols",
