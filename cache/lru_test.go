@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/cache/cache"
+	"go.rtnl.ai/x/cache"
 )
 
 // 16 keys used to test the LRU cache

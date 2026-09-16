@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"go.rtnl.ai/x/cache/cache/internal"
+	"go.rtnl.ai/x/cache/internal"
 )
 
 var (

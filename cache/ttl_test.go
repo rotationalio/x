@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"go.rtnl.ai/x/assert"
-	"go.rtnl.ai/x/cache/cache"
+	"go.rtnl.ai/x/cache"
 )
 
 type mayfly struct {
