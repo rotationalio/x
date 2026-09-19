@@ -31,36 +31,43 @@ func TestCheck(t *testing.T) {
 
 	for i, tc := range tests {
 		t.Run(fmt.Sprintf("Password %d", i), func(t *testing.T) {
-			s := Check(tc.password)
-			if s != tc.strength {
-				// Print the analysis of how the strength was calculated.
-				a := Analyze(tc.password)
-				assert.Equal(t, a, s, "test %d: analyze output must match check output", i)
-			}
+			s := Check(tc.password, WithWriter(t.Output()))
 			assert.Equal(t, s, tc.strength, "test %d: want %s, got %s", i, tc.strength.String(), s.String())
 		})
 	}
 }
 
-func TestAnalyze(t *testing.T) {
-	tests := []string{
-		"1f2!Ga5",
-		"password",
-		"theeaglefliesatmidnight",
-		"apple cookie banker mediocre follows grease format plaster",
-		"Franklin1234",
-		"Franklin1234!",
-		"Appl3 Cook1e B4nker Med1ocr3 FoLlows GreaSe F0rm4t Pl4st3r",
-		"cMZr2lHA-LeE~J8wpy.c",
-		"KcGPZ2f9.nXN1Q7b9EzA36NaQKR+D~v4",
-		"KcGPZ2f9.nXNIQ7b9EzA36NaQKR+D~v4",
-		"KcGPZ2f9.nXNIQ7b9EzA36NaQKR+++D~v4",
+func TestContains(t *testing.T) {
+	tests := []struct {
+		password string
+		charset  string
+		assert   assert.BoolAssertion
+	}{
+		{
+			password: "lower$123",
+			charset:  "uppercase",
+			assert:   assert.False,
+		},
+		{
+			password: "lower$123",
+			charset:  "lowercase",
+			assert:   assert.True,
+		},
+		{
+			password: "lower$123",
+			charset:  "digits",
+			assert:   assert.True,
+		},
+		{
+			password: "lower$123",
+			charset:  "symbols",
+			assert:   assert.True,
+		},
 	}
 
 	for i, tc := range tests {
-		t.Run(fmt.Sprintf("Password %d", i), func(t *testing.T) {
-			assert.Equal(t, Analyze(tc), Check(tc), "test %d: analyze output must match check output", i)
-		})
+		ok := Contains(tc.password, Charset(tc.charset))
+		tc.assert(t, ok, "test %d: checking %q contains char from %s", i, tc.password, tc.charset)
 	}
 }
 

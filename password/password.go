@@ -3,6 +3,8 @@ package password
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 )
 
@@ -31,80 +33,20 @@ var charsets = map[string]string{
 }
 
 // Returns the strength of the password as computed by the strength scoring algorithm.
-func Check(password string) Strength {
-	// Disqualify passwords that are too short or are dictionary words.
-	if len(password) < 8 || IsDictionaryWord(password) {
-		return Insecure
-	}
+func Check(password string, options ...CheckOption) Strength {
+	// Create the check options
+	opts := newCheckOptions(options...)
 
-	// Start with a base strength of 0
-	var strength Strength
-	switch {
-	case len(password) >= 32:
-		strength = strength.Add(3)
-	case len(password) >= 16:
-		strength = strength.Add(2)
-	case len(password) > 8:
-		strength = strength.Incr()
-	}
-
-	charsets := [4]string{
-		charsets["uppercase"],
-		charsets["lowercase"],
-		charsets["numbers"],
-		charsets["symbols"],
-	}
-	containsset := [4]bool{false, false, false, false}
-	setsequence := []int{-1, -1, -1, -1}
-
-	// Loop over the password only a single time for charset checks and duplication.
-	for i, char := range password {
-		for j, set := range charsets {
-			if hasset := strings.ContainsRune(set, char); hasset {
-				// Mark the charset as present in the password
-				containsset[j] = hasset
-
-				// Update the sequence of the charset.
-				setsequence = append(setsequence[1:4], j)
-
-				// No need to check the other charsets.
-				break
-			}
-		}
-
-		// Check for the duplication of the charset 4 times in a row.
-		if i > 3 {
-			if setsequence[0] == setsequence[1] && setsequence[0] == setsequence[2] && setsequence[0] == setsequence[3] {
-				strength = strength.Decr()
-			}
-		}
-
-		// Decrement the strength for duplication of the previous character.
-		if i > 1 && password[i] == password[i-1] && password[i] == password[i-2] {
-			strength = strength.Decr()
-		}
-	}
-
-	// Increment the strength for each charset that is present.
-	for _, found := range containsset {
-		if found {
-			strength = strength.Incr()
-		}
-	}
-	return strength
-}
-
-func Analyze(password string) Strength {
-	// Disqualify passwords that are too short or are dictionary words.
+	// Disqualify passwords that are too short.
 	if len(password) < 8 {
-		fmt.Printf("%q is less than 8 characters\n", password)
+		opts.write("%q is less than 8 characters", password)
 		return Insecure
 	}
 
 	// Disqualify passwords that are dictionary words.
 	// NOTE: this doesn't check if it contains a dictionary word as a substring.
 	if IsDictionaryWord(password) {
-		fmt.Printf("%q is a dictionary word\n", password)
+		opts.write("%q is a dictionary word", password)
 		return Insecure
 	}
 
@@ -113,13 +55,13 @@ func Analyze(password string) Strength {
 	switch {
 	case len(password) >= 32:
 		strength = strength.Add(3)
-		fmt.Printf("more than 32 characters strength is now %s\n", strength.String())
+		opts.write("more than 32 characters strength is now %s", strength)
 	case len(password) >= 16:
 		strength = strength.Add(2)
-		fmt.Printf("more than 16 characters strength is now %s\n", strength.String())
+		opts.write("more than 16 characters strength is now %s", strength)
 	case len(password) > 8:
 		strength = strength.Incr()
-		fmt.Printf("more than 8 characters strength is now %s\n", strength.String())
+		opts.write("more than 8 characters strength is now %s", strength)
 	}
 
 	charsets := [4]string{
@@ -150,15 +92,17 @@ func Analyze(password string) Strength {
 		if i > 3 {
 			if setsequence[0] == setsequence[1] && setsequence[0] == setsequence[2] && setsequence[0] == setsequence[3] {
 				strength = strength.Decr()
-				switch setsequence[0] {
-				case 0:
-					fmt.Printf("uppercase charset is duplicated 4 times in a row (%v), strength is now %s\n", setsequence, strength.String())
-				case 1:
-					fmt.Printf("lowercase charset is duplicated 4 times in a row (%v), strength is now %s\n", setsequence, strength.String())
-				case 2:
-					fmt.Printf("numbers charset is duplicated 4 times in a row (%v), strength is now %s\n", setsequence, strength.String())
-				case 3:
-					fmt.Printf("symbols charset is duplicated 4 times in a row (%v), strength is now %s\n", setsequence, strength.String())
+				if opts.analyze {
+					switch setsequence[0] {
+					case 0:
+						opts.write("uppercase charset is duplicated 4 times in a row (%v), strength is now %s", setsequence, strength)
+					case 1:
+						opts.write("lowercase charset is duplicated 4 times in a row (%v), strength is now %s", setsequence, strength)
+					case 2:
+						opts.write("numbers charset is duplicated 4 times in a row (%v), strength is now %s", setsequence, strength)
+					case 3:
+						opts.write("symbols charset is duplicated 4 times in a row (%v), strength is now %s", setsequence, strength)
+					}
 				}
 			}
 		}
@@ -166,7 +110,7 @@ func Analyze(password string) Strength {
 		// Decrement the strength for duplication of the previous character.
 		if i > 1 && password[i] == password[i-1] && password[i] == password[i-2] {
 			strength = strength.Decr()
-			fmt.Printf("character duplication %q, strength is now %s\n", string(password[i-2:i+1]), strength.String())
+			opts.write("character duplication %q, strength is now %s", string(password[i-2:i+1]), strength)
 		}
 	}
 
@@ -174,20 +118,42 @@ func Analyze(password string) Strength {
 	for i, found := range containsset {
 		if found {
 			strength = strength.Incr()
-			switch i {
-			case 0:
-				fmt.Printf("uppercase charset is present, strength is now %s\n", strength.String())
-			case 1:
-				fmt.Printf("lowercase charset is present, strength is now %s\n", strength.String())
-			case 2:
-				fmt.Printf("numbers charset is present, strength is now %s\n", strength.String())
-			case 3:
-				fmt.Printf("symbols charset is present, strength is now %s\n", strength.String())
+			if opts.analyze {
+				switch i {
+				case 0:
+					opts.write("uppercase charset is present, strength is now %s", strength)
+				case 1:
+					opts.write("lowercase charset is present, strength is now %s", strength)
+				case 2:
+					opts.write("numbers charset is present, strength is now %s", strength)
+				case 3:
+					opts.write("symbols charset is present, strength is now %s", strength)
+				}
 			}
 		}
 	}
 	return strength
 }
+
+func Charset(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	return charsets[name]
+}
+
+// Returns true if the password contains at least one character from the specified
+// character set (exits early as soon as the first character is found).
+func Contains(password, charset string) bool {
+	for _, char := range password {
+		if strings.ContainsRune(charset, char) {
+			return true
+		}
+	}
+	return false
+}
+
+//============================================================================
+// Strength
+//============================================================================
 
 type Strength uint8
 
@@ -261,4 +227,46 @@ func (s Strength) Add(n int) Strength {
 	}
 
 	return Strength(t)
+}
+
+//============================================================================
+// Check Options
+//============================================================================
+
+type checkOptions struct {
+	analyze bool
+	writer  io.Writer
+}
+
+func newCheckOptions(opts ...CheckOption) *checkOptions {
+	o := &checkOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
+}
+
+func (o *checkOptions) write(format string, args ...any) {
+	if o.analyze {
+		if o.writer == nil {
+			o.writer = os.Stdout
+		}
+		fmt.Fprintf(o.writer, format, args...)
+		fmt.Fprint(o.writer, "\n")
+	}
+}
+
+type CheckOption func(*checkOptions)
+
+func WithAnalyze() CheckOption {
+	return func(o *checkOptions) {
+		o.analyze = true
+	}
+}
+
+func WithWriter(w io.Writer) CheckOption {
+	return func(o *checkOptions) {
+		o.analyze = true
+		o.writer = w
+	}
 }

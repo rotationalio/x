@@ -7,6 +7,7 @@ import (
 )
 
 type Policy struct {
+	Strength  Strength          `json:"strength,omitempty"`        // minimum strength of the passwords to match by this policy
 	Length    *Range            `json:"length,omitempty,omitzero"` // length of the password to generate
 	Charsets  []*CharSelect     `json:"charsets,omitempty"`        // character sets for the policy
 	Define    map[string]string `json:"define,omitempty"`          // define character sets for the policy
@@ -33,6 +34,35 @@ func (p *Policy) Charset(name string) string {
 	}
 	name = strings.ToLower(strings.TrimSpace(name))
 	return charsets[name]
+}
+
+// Returns an error if the password does not match the policy, otherwise nil.
+func (p *Policy) Check(password string) error {
+	// If the strength is set ensure the password is at least that strong.
+	if p.Strength > Insecure {
+		if strength := Check(password); strength < p.Strength {
+			return fmt.Errorf("password strength is %s, minimum required strength is %s", strength, p.Strength)
+		}
+	}
+
+	// If the length is set ensure the password is at least that long.
+	if p.Length != nil {
+		if p.Length.Min > 0 && len(password) < int(p.Length.Min) {
+			return fmt.Errorf("password length is %d, minimum required length is %d", len(password), p.Length.Min)
+		}
+		if p.Length.Max != 0 && p.Length.Max > p.Length.Min && len(password) > int(p.Length.Max) {
+			return fmt.Errorf("password length is %d, maximum allowed length is %d", len(password), p.Length.Max)
+		}
+	}
+
+	// Check that the password contains all the required character sets.
+	for _, charset := range p.Require {
+		if !Contains(password, p.Charset(charset)) {
+			return fmt.Errorf("password does not contain required character set %s", charset)
+		}
+	}
+
+	return nil
 }
 
 //============================================================================
@@ -78,4 +108,42 @@ func (r *Range) UnmarshalJSON(data []byte) error {
 	}
 
 	return fmt.Errorf("could not unmarshal range")
+}
+
+func (c *CharSelect) IsZero() bool {
+	return c.Name == "" && c.Prob == 0
+}
+
+func (c *CharSelect) MarshalJSON() ([]byte, error) {
+	if c.Prob == 0 {
+		return json.Marshal(c.Name)
+	}
+
+	cs := map[string]any{
+		"name": c.Name,
+		"prob": c.Prob,
+	}
+
+	return json.Marshal(cs)
+}
+
+func (c *CharSelect) UnmarshalJSON(data []byte) error {
+	var name string
+	if err := json.Unmarshal(data, &name); err == nil {
+		c.Name = name
+		return nil
+	}
+
+	var cs struct {
+		Name string  `json:"name"`
+		Prob float64 `json:"prob"`
+	}
+
+	if err := json.Unmarshal(data, &cs); err == nil {
+		c.Name = cs.Name
+		c.Prob = cs.Prob
+		return nil
+	}
+
+	return fmt.Errorf("could not unmarshal charselect")
 }

@@ -9,6 +9,73 @@ import (
 	. "go.rtnl.ai/x/password"
 )
 
+func TestPolicy_Charset(t *testing.T) {
+	p := &Policy{
+		Define: map[string]string{
+			"alphabet": "qrstuv",
+			"numbers":  "1234",
+		},
+	}
+	assert.Equal(t, p.Charset("alphabet"), "qrstuv", "policy defined charset")
+	assert.Equal(t, p.Charset("numbers"), "1234", "overridden charset")
+	assert.Equal(t, p.Charset("digits"), Charset("digits"), "default charset")
+	assert.Equal(t, p.Charset("zephyr"), "", "unknown charset")
+}
+
+func TestPolicy_Check(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		p := &Policy{
+			Strength: Moderate,
+			Length:   &Range{Min: 12},
+			Require:  []string{"lowercase", "uppercase", "digits", "symbols"},
+		}
+		err := p.Check("R4d!shRaNs0m3$")
+		assert.Ok(t, err, "expected the password to pass the policy check")
+	})
+
+	t.Run("Invalid", func(t *testing.T) {
+		t.Run("Strength", func(t *testing.T) {
+			p := &Policy{
+				Strength: Hard,
+			}
+			err := p.Check("supersecretpassword")
+			assert.Error(t, err, "expected the password to fail the policy check")
+			assert.Equal(t, "password strength is weak, minimum required strength is hard", err.Error(), "the expected error message did not match")
+		})
+
+		t.Run("TooShort", func(t *testing.T) {
+			p := &Policy{
+				Length: &Range{
+					Min: 10,
+				},
+			}
+			err := p.Check("123456789")
+			assert.Error(t, err, "expected the password to fail the policy check")
+			assert.Equal(t, "password length is 9, minimum required length is 10", err.Error(), "the expected error message did not match")
+		})
+
+		t.Run("TooLong", func(t *testing.T) {
+			p := &Policy{
+				Length: &Range{
+					Min: 5,
+					Max: 10,
+				},
+			}
+			err := p.Check("abcdef1234567890")
+			assert.Error(t, err, "expected the password to fail the policy check")
+			assert.Equal(t, "password length is 16, maximum allowed length is 10", err.Error(), "the expected error message did not match")
+		})
+
+		t.Run("MissingCharset", func(t *testing.T) {
+			p := &Policy{
+				Require: []string{"lowercase", "uppercase", "digits"},
+			}
+			err := p.Check("lower$123")
+			assert.Error(t, err, "expected the password to fail the policy check")
+		})
+	})
+}
+
 func TestRange_JSON(t *testing.T) {
 	tests := []struct {
 		rng      *Range
