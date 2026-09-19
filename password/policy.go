@@ -2,8 +2,22 @@ package password
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"strings"
+
+	"go.rtnl.ai/x/randstr"
+)
+
+const (
+	generationAttempts    = 8
+	defaultPasswordLength = 14
+)
+
+var (
+	ErrGenerationFailed = errors.New("failed to generate password that meets policy requirements")
 )
 
 type Policy struct {
@@ -64,6 +78,120 @@ func (p *Policy) Check(password string) error {
 
 	return nil
 }
+
+// Generates a password that matches the policy. Password generation attempts to at
+// most 8 attempts to generate a password that matches the policy, if it cannot it
+// returns an error.
+func (p *Policy) Generate() (string, error) {
+	// Determine the length of the password to generate.
+	var len int
+	if p.Length != nil {
+		len = p.Length.Get()
+	} else {
+		len = defaultPasswordLength
+	}
+
+	for range generationAttempts {
+		pw := randstr.Generate(len, Charset("alphasymbolic"))
+		if err := p.Check(pw); err == nil {
+			return pw, nil
+		}
+	}
+	return "", ErrGenerationFailed
+}
+
+//============================================================================
+// Password Generation Helpers
+//============================================================================
+
+func (r *Range) Get() int {
+	if r.Min == r.Max {
+		if r.Min == 0 {
+			return defaultPasswordLength
+		}
+		return int(r.Min)
+	}
+
+	if r.Max > r.Min {
+		return rand.Intn(int(r.Max-r.Min)+1) + int(r.Min)
+	}
+
+	return int(r.Min)
+}
+
+// Returns a character distribution with randomized probabilities that sum to 1.0 or
+// integer values that define the minimum number of characters for each charset.
+func NormalizeCharDist(dist []*CharSelect) []*CharSelect {
+	if len(dist) == 0 {
+		return defaultCharDist
+	}
+
+	// Check to ensure that the total probability of the charsets is 1.0
+	//cSpell:ignore nzero, nints
+	total := 0.0
+	nzero := 0
+	nints := 0
+	for _, charset := range dist {
+		total += charset.Prob
+		if round(charset.Prob) == 0.0 {
+			nzero++
+		} else if charset.Prob == math.Trunc(charset.Prob) {
+			nints++
+		}
+	}
+
+	// If the distribution adds up to 1.0 then it is normalized
+	total = round(total)
+	if total == 1.0 {
+		return dist
+	}
+
+	// if the distribution is all integers then return the distribution as is
+	if nints+nzero == len(dist) {
+		return dist
+	}
+
+	// If the total is less than 1.0 then distribute the rest of the
+	// probability across the zero probability charsets.
+	if nzero > 0 && total < 1.0 {
+		remainder := 1.0 - total
+		for _, charset := range dist {
+			if round(charset.Prob) == 0.0 {
+				charset.Prob = remainder / float64(nzero)
+			}
+		}
+		return dist
+	}
+
+	// If the total is less than 1.0 and there are no zero probability
+	// charsets then distribute the rest of the probability evenly across
+	// the charsets.
+	if nzero == 0 && total < 1.0 {
+		incr := (1.0 - total) / float64(len(dist))
+		for _, charset := range dist {
+			charset.Prob += incr
+		}
+		return dist
+	}
+
+	// Pathological case: convert to integers and change 0 to 1
+	for _, charset := range dist {
+		charset.Prob = math.Trunc(charset.Prob)
+		if charset.Prob == 0 {
+			charset.Prob = 1
+		}
+	}
+	return dist
+}
+
+var (
+	defaultCharDist = []*CharSelect{
+		{Name: "uppercase", Prob: 0.35},
+		{Name: "lowercase", Prob: 0.35},
+		{Name: "digits", Prob: 0.2},
+		{Name: "symbols", Prob: 0.1},
+	}
+)
 
 //============================================================================
 // JSON Marshal and Unmarshal Custom Types
@@ -146,4 +274,9 @@ func (c *CharSelect) UnmarshalJSON(data []byte) error {
 	}
 
 	return fmt.Errorf("could not unmarshal charselect")
+}
+
+func round(f float64) float64 {
+	ratio := math.Pow(10, 4)
+	return math.Round(f*ratio) / ratio
 }
