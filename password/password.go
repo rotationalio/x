@@ -135,6 +135,17 @@ func Check(password string, options ...CheckOption) Strength {
 	return strength
 }
 
+// Generate a password based on the specified policy. Empty string uses the default
+// policy. Policies are loaded from ~/.config/mkpasswd/policies.json or at the path
+// specified by the $PASSWORD_POLICIES environment variable.
+func Generate(policyName string) (_ string, err error) {
+	var policy *Policy
+	if policy, err = Load(policyName); err != nil {
+		return "", err
+	}
+	return policy.Generate()
+}
+
 func Charset(name string) string {
 	name = strings.ToLower(strings.TrimSpace(name))
 	return charsets[name]

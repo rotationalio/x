@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net/url"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
@@ -33,6 +34,17 @@ func TestPolicy_Check(t *testing.T) {
 			Require:  []string{"lowercase", "uppercase", "digits", "symbols"},
 		}
 		err := p.Check("R4d!shRaNs0m3$")
+		assert.Ok(t, err, "expected the password to pass the policy check")
+	})
+
+	t.Run("URLEncoded", func(t *testing.T) {
+		p := &Policy{
+			Strength:  Moderate,
+			Length:    &Range{Min: 12},
+			Require:   []string{"lowercase", "uppercase", "digits", "symbols"},
+			URLEncode: true,
+		}
+		err := p.Check("R4d%21shRaNs0m3%24")
 		assert.Ok(t, err, "expected the password to pass the policy check")
 	})
 
@@ -125,6 +137,26 @@ func TestPolicy_Generate(t *testing.T) {
 		assert.Equal(t, 14, len(password), "the password should be 14 characters long")
 	})
 
+	t.Run("URLEncoded", func(t *testing.T) {
+		p := &Policy{
+			URLEncode: true,
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.25},
+				{Name: "uppercase", Prob: 0.25},
+				{Name: "digits", Prob: 0.2},
+				{Name: "symbols", Prob: 0.3},
+			},
+			Length:  &Range{Min: 15, Max: 15},
+			Require: []string{"symbols"},
+		}
+		password, err := p.Generate()
+		assert.Ok(t, err, "expected the password to be generated")
+
+		decoded, err := url.PathUnescape(password)
+		assert.Ok(t, err, "expected the password to be unescaped")
+		assert.Len(t, decoded, 15, "the password should be 15 characters long")
+	})
+
 	t.Run("UndefinedCharset", func(t *testing.T) {
 		p := &Policy{
 			Charsets: []*CharSelect{
@@ -147,11 +179,11 @@ func TestPolicy_Generate(t *testing.T) {
 				{Name: "uppercase", Prob: 0.35},
 				{Name: "digits", Prob: 0.2},
 			},
-			Require: []string{"lowercase", "uppercase", "digits", "symbols"},
+			Require: []string{"lowercase", "uppercase", "zephyr", "symbols"},
 		}
 		_, err := p.Generate()
 		assert.Error(t, err, "expected the password to fail to be generated")
-		assert.Equal(t, "required character set \"symbols\" is not defined", err.Error(), "the expected error message did not match")
+		assert.Equal(t, "required character set \"zephyr\" is not defined", err.Error(), "the expected error message did not match")
 	})
 
 	t.Run("Pathological", func(t *testing.T) {

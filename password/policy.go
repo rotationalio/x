@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"go.rtnl.ai/x/randstr"
@@ -14,10 +17,36 @@ import (
 const (
 	generationAttempts    = 8
 	defaultPasswordLength = 14
+	configEnvVar          = "PASSWORD_POLICIES"
 )
 
 var (
 	ErrGenerationFailed = errors.New("failed to generate password that meets policy requirements")
+)
+
+var (
+	basicPolicy = &Policy{
+		Length: &Range{
+			Min: 9,
+			Max: 16,
+		},
+		Charsets: []*CharSelect{
+			{Name: "differentiable"},
+		},
+	}
+	strongPolicy = &Policy{
+		Length: &Range{
+			Min: 16,
+			Max: 16,
+		},
+		Charsets: []*CharSelect{
+			{Name: "uppercase", Prob: 0.35},
+			{Name: "lowercase", Prob: 0.35},
+			{Name: "digits", Prob: 0.2},
+			{Name: "symbols", Prob: 0.1},
+		},
+		Require: []string{"uppercase", "lowercase", "digits", "symbols"},
+	}
 )
 
 type Policy struct {
@@ -39,6 +68,78 @@ type CharSelect struct {
 	Prob float64 `json:"prob"` // probability of selecting the character set
 }
 
+// Loads a policy based on the specified name.
+func Load(name string) (_ *Policy, err error) {
+	var policies map[string]*Policy
+	if policies, err = LoadAll(); err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		name = "default"
+	}
+
+	if policy, ok := policies[name]; ok {
+		return policy, nil
+	}
+
+	return nil, fmt.Errorf("unknown or undefined policy %q", name)
+}
+
+func ConfigPath() string {
+	var configPath string
+	if configPath = os.Getenv(configEnvVar); configPath == "" {
+		if home, _ := os.UserHomeDir(); home != "" {
+			configPath = filepath.Join(home, ".config", "mkpasswd", "policies.json")
+		}
+	}
+
+	// Expand the environment variables in the config path.
+	configPath = os.ExpandEnv(configPath)
+	return configPath
+}
+
+// Loads all policies from the configuration, defaulting to the basic and strong
+// policies (and including the default policy if specified).
+func LoadAll() (policies map[string]*Policy, err error) {
+	if configPath := ConfigPath(); configPath != "" {
+		if policies, err = loadPolicies(configPath); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("could not load policies from %s: %w", configPath, err)
+			}
+		}
+	}
+
+	if policies == nil {
+		policies = make(map[string]*Policy)
+	}
+
+	// Register the built in policies
+	if _, ok := policies["basic"]; !ok {
+		policies["basic"] = basicPolicy
+	}
+
+	if _, ok := policies["default"]; !ok {
+		policies["default"] = strongPolicy
+	}
+
+	return policies, nil
+}
+
+func loadPolicies(path string) (policies map[string]*Policy, err error) {
+	var f *os.File
+	if f, err = os.Open(path); err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	policies = make(map[string]*Policy)
+	if err = json.NewDecoder(f).Decode(&policies); err != nil {
+		return nil, err
+	}
+	return policies, nil
+}
+
 // Charset returns the character set for the given name. If the character set is
 // defined in the policy it is returned, otherwise the default character set is
 // returned. If the name is unknown an empty string is returned.
@@ -51,7 +152,14 @@ func (p *Policy) Charset(name string) string {
 }
 
 // Returns an error if the password does not match the policy, otherwise nil.
-func (p *Policy) Check(password string) error {
+func (p *Policy) Check(password string) (err error) {
+	// If the policy requires URL encoding then decode the password.
+	if p.URLEncode {
+		if password, err = url.PathUnescape(password); err != nil {
+			return fmt.Errorf("failed to unescape password: %w", err)
+		}
+	}
+
 	// If the strength is set ensure the password is at least that strong.
 	if p.Strength > Insecure {
 		if strength := Check(password); strength < p.Strength {
@@ -92,15 +200,7 @@ func (p *Policy) Generate() (string, error) {
 
 	// Ensure that all of the required character sets are in the character sets.
 	for _, name := range p.Require {
-		found := false
-		for _, ch := range p.Charsets {
-			if ch.Name == name {
-				found = true
-				break
-			}
-		}
-
-		if !found {
+		if charset := p.Charset(name); charset == "" {
 			return "", fmt.Errorf("required character set %q is not defined", name)
 		}
 	}
@@ -142,6 +242,10 @@ attempts:
 		pw = Shuffle(pw)
 
 		if err := p.Check(pw); err == nil {
+			// URLEncode the password if required
+			if p.URLEncode {
+				return url.PathEscape(pw), nil
+			}
 			return pw, nil
 		}
 	}
