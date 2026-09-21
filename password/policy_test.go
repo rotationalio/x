@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
@@ -78,6 +79,101 @@ func TestPolicy_Check(t *testing.T) {
 	})
 }
 
+func TestPolicy_Generate(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		p := &Policy{
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.35},
+				{Name: "uppercase", Prob: 0.35},
+				{Name: "digits", Prob: 0.2},
+				{Name: "symbols", Prob: 0.1},
+			},
+			Length:  &Range{Min: 14, Max: 18},
+			Require: []string{"lowercase", "uppercase", "digits", "symbols"},
+		}
+
+		seen := make(map[string]struct{})
+		for range 32 {
+			password, err := p.Generate()
+			assert.Ok(t, err, "expected the password to be generated")
+			seen[password] = struct{}{}
+
+			// Expect the password to be between 14 and 18 characters long.
+			assert.GreaterEqual(t, 14, len(password))
+			assert.LessEqual(t, 18, len(password))
+
+			// Expect the password to contain all of the required character sets.
+			assert.True(t, Contains(password, Charset("lowercase")), "the password should contain lowercase characters")
+			assert.True(t, Contains(password, Charset("uppercase")), "the password should contain uppercase characters")
+			assert.True(t, Contains(password, Charset("digits")), "the password should contain digits")
+			assert.True(t, Contains(password, Charset("symbols")), "the password should contain symbols")
+		}
+		assert.Len(t, seen, 32, "it is incredibly unlikely that in 32 attempts we would generate the same password twice")
+	})
+
+	t.Run("DefaultLength", func(t *testing.T) {
+		p := &Policy{
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.35},
+				{Name: "uppercase", Prob: 0.35},
+				{Name: "digits", Prob: 0.2},
+				{Name: "symbols", Prob: 0.1},
+			},
+		}
+		password, err := p.Generate()
+		assert.Ok(t, err, "expected the password to be generated")
+		assert.Equal(t, 14, len(password), "the password should be 14 characters long")
+	})
+
+	t.Run("UndefinedCharset", func(t *testing.T) {
+		p := &Policy{
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.35},
+				{Name: "uppercase", Prob: 0.35},
+				{Name: "zephyr", Prob: 0.2},
+				{Name: "symbols", Prob: 0.1},
+			},
+		}
+
+		_, err := p.Generate()
+		assert.Error(t, err, "expected the password to fail to be generated")
+		assert.Equal(t, "unknown or undefined character set \"zephyr\" is not defined", err.Error(), "the expected error message did not match")
+	})
+
+	t.Run("MissingRequired", func(t *testing.T) {
+		p := &Policy{
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.35},
+				{Name: "uppercase", Prob: 0.35},
+				{Name: "digits", Prob: 0.2},
+			},
+			Require: []string{"lowercase", "uppercase", "digits", "symbols"},
+		}
+		_, err := p.Generate()
+		assert.Error(t, err, "expected the password to fail to be generated")
+		assert.Equal(t, "required character set \"symbols\" is not defined", err.Error(), "the expected error message did not match")
+	})
+
+	t.Run("Pathological", func(t *testing.T) {
+		p := &Policy{
+			Strength: Robust,
+			Length:   &Range{Min: 10, Max: 10},
+			Charsets: []*CharSelect{
+				{Name: "lowercase", Prob: 0.4985},
+				{Name: "uppercase", Prob: 0.4985},
+				{Name: "digits", Prob: 0.002},
+				{Name: "symbols", Prob: 0.001},
+			},
+			Require: []string{"lowercase", "uppercase", "digits", "symbols"},
+		}
+
+		// We assume it is very difficult to generate a password that meets the policy
+		// requirements -- so it will fail to generate a password in most cases.
+		_, err := p.Generate()
+		assert.Error(t, err, "expected the password to fail to be generated")
+	})
+}
+
 func TestRange_Get(t *testing.T) {
 	t.Run("Zero", func(t *testing.T) {
 		rng := &Range{}
@@ -112,6 +208,167 @@ func TestRange_Get(t *testing.T) {
 		assert.Equal(t, 15, rng.Get(), "the minimum length should be returned")
 	})
 
+}
+
+func TestCharsetCounts(t *testing.T) {
+	t.Run("Probabilities", func(t *testing.T) {
+		dist := []*CharSelect{
+			{Name: "uppercase", Prob: 0.35},
+			{Name: "lowercase", Prob: 0.35},
+			{Name: "digits", Prob: 0.2},
+			{Name: "symbols", Prob: 0.1},
+		}
+
+		for range 128 {
+			n := rand.Intn(32) + 1
+			counts := CharsetCounts(n, dist)
+
+			total := 0
+			for name, count := range counts {
+				assert.True(t, name == "uppercase" || name == "lowercase" || name == "digits" || name == "symbols", "the name should be a valid charset")
+				total += count
+			}
+			assert.Equal(t, n, total, "the total count should be the same as the input")
+		}
+	})
+
+	t.Run("Integers", func(t *testing.T) {
+		t.Run("Zero", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase", Prob: 0},
+				{Name: "lowercase", Prob: 0},
+				{Name: "digits", Prob: 0},
+				{Name: "symbols", Prob: 2},
+			}
+			counts := CharsetCounts(0, dist)
+			total := 0
+			for name, count := range counts {
+				assert.True(t, name == "uppercase" || name == "lowercase" || name == "digits" || name == "symbols", "the name should be a valid charset")
+				total += count
+			}
+			assert.Equal(t, 0, total, "the total count should be 0")
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase", Prob: 0},
+				{Name: "lowercase", Prob: 0},
+				{Name: "digits", Prob: 0},
+				{Name: "symbols", Prob: 0},
+			}
+			counts := CharsetCounts(14, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 4, counts["uppercase"], "the uppercase count should be 4")
+			assert.Equal(t, 4, counts["lowercase"], "the lowercase count should be 4")
+			assert.Equal(t, 3, counts["digits"], "the digits count should be 3")
+			assert.Equal(t, 3, counts["symbols"], "the symbols count should be 2")
+		})
+
+		t.Run("Fuzz", func(t *testing.T) {
+			for range 128 {
+				// Create random distributions of charactersets with integers.
+				dist := []*CharSelect{}
+				for _, name := range []string{"uppercase", "lowercase", "digits", "symbols"} {
+					if rand.Float64() < 0.2 {
+						// 20% chance of skipping the charset.
+						continue
+					}
+					dist = append(dist, &CharSelect{Name: name, Prob: float64(rand.Intn(7))})
+				}
+
+				if len(dist) == 0 {
+					continue
+				}
+
+				n := rand.Intn(32) + 1
+				counts := CharsetCounts(n, dist)
+
+				total := 0
+				for name, count := range counts {
+					assert.True(t, count > 0, "the count should be greater than 0 for each charset")
+					assert.True(t, name == "uppercase" || name == "lowercase" || name == "digits" || name == "symbols", "the name should be a valid charset")
+					total += count
+				}
+				assert.Equal(t, n, total, "the total count should be the same as the input")
+			}
+		})
+
+		t.Run("Exact", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase", Prob: 5.0},
+				{Name: "lowercase", Prob: 5.0},
+				{Name: "digits", Prob: 3.0},
+				{Name: "symbols", Prob: 2.0},
+			}
+
+			counts := CharsetCounts(15, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 5, counts["uppercase"], "the uppercase count should be 5")
+			assert.Equal(t, 5, counts["lowercase"], "the lowercase count should be 5")
+			assert.Equal(t, 3, counts["digits"], "the digits count should be 3")
+			assert.Equal(t, 2, counts["symbols"], "the symbols count should be 2")
+		})
+
+		t.Run("Unused", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase"},
+				{Name: "lowercase"},
+				{Name: "digits", Prob: 3.0},
+				{Name: "symbols", Prob: 2.0},
+			}
+			counts := CharsetCounts(15, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 5, counts["uppercase"], "the uppercase count should be 5")
+			assert.Equal(t, 5, counts["lowercase"], "the lowercase count should be 5")
+			assert.Equal(t, 3, counts["digits"], "the digits count should be 3")
+			assert.Equal(t, 2, counts["symbols"], "the symbols count should be 2")
+		})
+
+		t.Run("Overused", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase", Prob: 5.0},
+				{Name: "lowercase", Prob: 5.0},
+				{Name: "digits", Prob: 3.0},
+				{Name: "symbols", Prob: 2.0},
+			}
+			counts := CharsetCounts(14, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 5, counts["uppercase"], "the uppercase count should be 5")
+			assert.Equal(t, 5, counts["lowercase"], "the lowercase count should be 5")
+			assert.Equal(t, 3, counts["digits"], "the digits count should be 3")
+			assert.Equal(t, 1, counts["symbols"], "the symbols count should be 2")
+		})
+
+		t.Run("Underused", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase", Prob: 3.0},
+				{Name: "lowercase", Prob: 4.0},
+				{Name: "digits", Prob: 3.0},
+				{Name: "symbols", Prob: 2.0},
+			}
+			counts := CharsetCounts(16, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 4, counts["uppercase"], "the uppercase count should be 4")
+			assert.Equal(t, 5, counts["lowercase"], "the lowercase count should be 5")
+			assert.Equal(t, 4, counts["digits"], "the digits count should be 4")
+			assert.Equal(t, 3, counts["symbols"], "the symbols count should be 3")
+		})
+
+		t.Run("Remainder", func(t *testing.T) {
+			dist := []*CharSelect{
+				{Name: "uppercase"},
+				{Name: "lowercase"},
+				{Name: "digits", Prob: 3.0},
+				{Name: "symbols", Prob: 2.0},
+			}
+			counts := CharsetCounts(12, dist)
+			assert.Len(t, counts, len(dist), "the counts should be returned with the same length")
+			assert.Equal(t, 4, counts["uppercase"], "the uppercase count should be 4")
+			assert.Equal(t, 3, counts["lowercase"], "the lowercase count should be 4")
+			assert.Equal(t, 3, counts["digits"], "the digits count should be 3")
+			assert.Equal(t, 2, counts["symbols"], "the symbols count should be 1")
+		})
+	})
 }
 
 func TestNormalizeCharDist(t *testing.T) {

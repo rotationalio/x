@@ -83,16 +83,64 @@ func (p *Policy) Check(password string) error {
 // most 8 attempts to generate a password that matches the policy, if it cannot it
 // returns an error.
 func (p *Policy) Generate() (string, error) {
-	// Determine the length of the password to generate.
-	var len int
-	if p.Length != nil {
-		len = p.Length.Get()
-	} else {
-		len = defaultPasswordLength
+	// Ensure that all of the character sets are defined.
+	for _, ch := range p.Charsets {
+		if charset := p.Charset(ch.Name); charset == "" {
+			return "", fmt.Errorf("unknown or undefined character set %q is not defined", ch.Name)
+		}
 	}
 
+	// Ensure that all of the required character sets are in the character sets.
+	for _, name := range p.Require {
+		found := false
+		for _, ch := range p.Charsets {
+			if ch.Name == name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return "", fmt.Errorf("required character set %q is not defined", name)
+		}
+	}
+
+	// Normalize all of the character sets.
+	dist := NormalizeCharDist(p.Charsets)
+
+attempts:
 	for range generationAttempts {
-		pw := randstr.Generate(len, Charset("alphasymbolic"))
+		// Determine the length of the password to generate.
+		var len int
+		if p.Length != nil {
+			len = p.Length.Get()
+		} else {
+			len = defaultPasswordLength
+		}
+
+		if len == 0 {
+			// If the length is not set then skip this attempt.
+			continue attempts
+		}
+
+		// Generate the counts for each of the character sets.
+		counts := CharsetCounts(len, dist)
+		for _, name := range p.Require {
+			if counts[name] == 0 {
+				// If the required character set is not represented then skip this attempt.
+				continue attempts
+			}
+		}
+
+		pw := ""
+		for name, count := range counts {
+			charset := p.Charset(name)
+			pw += randstr.Generate(count, charset)
+		}
+
+		// Randomly shuffle the characters.
+		pw = Shuffle(pw)
+
 		if err := p.Check(pw); err == nil {
 			return pw, nil
 		}
@@ -117,6 +165,105 @@ func (r *Range) Get() int {
 	}
 
 	return int(r.Min)
+}
+
+// Returns the number of characters for each charset in the distribution.
+func CharsetCounts(n int, dist []*CharSelect) map[string]int {
+	dist = NormalizeCharDist(dist)
+
+	probs := 0.0
+	for _, charset := range dist {
+		probs += charset.Prob
+	}
+
+	// Two options: integers or probabilities.
+	probs = round(probs)
+	if probs == 1.0 {
+		// Use probabilities
+		return probabilityDistribution(n, dist)
+	}
+
+	// Otherwise use integers.
+	return integerDistribution(n, dist)
+}
+
+// Performs roulette wheel selection to distribute the characters across the charsets.
+func probabilityDistribution(n int, dist []*CharSelect) map[string]int {
+	counts := make(map[string]int)
+	cumulative := make([]float64, len(dist))
+	for i, charset := range dist {
+		if i == 0 {
+			cumulative[i] = charset.Prob
+		} else {
+			cumulative[i] = cumulative[i-1] + charset.Prob
+		}
+	}
+
+	for range n {
+		rand := rand.Float64()
+		for i, cum := range cumulative {
+			if rand < cum {
+				counts[dist[i].Name]++
+				break
+			}
+		}
+	}
+	return counts
+}
+
+// Distributes the characters across the charsets using the counts as weighted suggestions.
+func integerDistribution(n int, dist []*CharSelect) map[string]int {
+	remaining := n
+
+	counts := make(map[string]int)
+	unused := make([]string, 0, len(dist))
+
+	// Allocate the characters to the charsets based on the counts.
+	for _, charset := range dist {
+		count := int(math.Trunc(charset.Prob))
+		if count == 0 {
+			unused = append(unused, charset.Name)
+			continue
+		}
+
+		if count > remaining {
+			count = remaining
+		}
+
+		counts[charset.Name] = count
+		remaining -= count
+
+		if remaining == 0 {
+			return counts
+		}
+	}
+
+	if remaining > 0 {
+		if len(unused) > 0 {
+			for remaining > 0 {
+				for _, charset := range unused {
+					counts[charset]++
+					remaining--
+					if remaining == 0 {
+						return counts
+					}
+				}
+			}
+		} else {
+			for remaining > 0 {
+				for _, charset := range dist {
+					counts[charset.Name]++
+					remaining--
+					if remaining == 0 {
+						return counts
+					}
+				}
+			}
+		}
+	}
+
+	// Should never make it here.
+	return counts
 }
 
 // Returns a character distribution with randomized probabilities that sum to 1.0 or
