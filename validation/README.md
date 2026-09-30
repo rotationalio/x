@@ -16,14 +16,14 @@ There are two core types:
 A `FieldError` is constructed with one of the constructors below. Each renders with the
 form `<verb> <field>: <issue>`, for example `missing email: this field is required`.
 
-| Constructor | Verb | Meaning |
-| --- | --- | --- |
-| `Missing(field)` | `missing` | The field is required but zero-valued or empty. |
-| `Incorrect(field, issue)` | `invalid` | The field's value is invalid; `issue` describes why. |
-| `ReadOnly(field)` | `read-only` | The field cannot be modified by the user. |
-| `Duplicate(field, value)` | `duplicate` | The field must be unique and `value` already exists (pass `""` to omit the value). |
-| `OneOfMissing(fields...)` | `missing one of` | At least one of the listed fields is required but none are set. |
-| `OneOfTooMany(fields...)` | `specify only one of` | At most one of the listed fields may be set, but more than one is. |
+| Constructor               | Verb                  | Meaning                                                                            |
+| ------------------------- | --------------------- | ---------------------------------------------------------------------------------- |
+| `Missing(field)`          | `missing`             | The field is required but zero-valued or empty.                                    |
+| `Incorrect(field, issue)` | `invalid`             | The field's value is invalid; `issue` describes why.                               |
+| `ReadOnly(field)`         | `read-only`           | The field cannot be modified by the user.                                          |
+| `Duplicate(field, value)` | `duplicate`           | The field must be unique and `value` already exists (pass `""` to omit the value). |
+| `OneOfMissing(fields...)` | `missing one of`      | At least one of the listed fields is required but none are set.                    |
+| `OneOfTooMany(fields...)` | `specify only one of` | At most one of the listed fields may be set, but more than one is.                 |
 
 Each constructor has aliases so you can pick the name that reads best at the call site:
 
@@ -124,3 +124,21 @@ if err := user.Validate(); err != nil {
 issue, which is handy for table-driven tests that assert exact validation output.
 
 `Errors.Equal` reports if the two error chains have the same errors no matter the order. This method assumes that there are no duplicates in either error chain and that the error chains are the same length.
+
+## Testing Validation Errors
+
+The package provides assertion helpers for tests that need to check validation results:
+
+- `RequireValidationFields(t, err, fields...)` requires a non-nil error that unwraps to `validation.Errors`, with exactly the expected number of errors and each expected field present.
+- `RequireValidation(t, err, target, msgAndArgs...)` requires a non-nil error that unwraps to `validation.Errors` and contains a field error equal to `target`. Optional message arguments are included when an assertion fails.
+
+Both helpers call `t.Helper()` so test failures are reported at the assertion call site. They accept wrapped validation errors as well as direct `validation.Errors` values.
+
+```go
+func TestUserValidation(t *testing.T) {
+	err := (&User{}).Validate()
+
+	validation.RequireValidationFields(t, err, "email", "name")
+	validation.RequireValidation(t, err, validation.Missing("email"))
+}
+```
