@@ -31,6 +31,11 @@ func MakeSyncSet[T comparable](size int) *SyncSet[T] {
 func (s *SyncSet[T]) Add(items ...T) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.set == nil {
+		s.set = New(items...)
+		return true
+	}
 	return s.set.Add(items...)
 }
 
@@ -38,6 +43,10 @@ func (s *SyncSet[T]) Add(items ...T) bool {
 func (s *SyncSet[T]) Remove(items ...T) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.set == nil {
+		return false
+	}
 	return s.set.Remove(items...)
 }
 
@@ -45,6 +54,10 @@ func (s *SyncSet[T]) Remove(items ...T) bool {
 func (s *SyncSet[T]) Contains(items ...T) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return false
+	}
 	return s.set.Contains(items...)
 }
 
@@ -53,6 +66,10 @@ func (s *SyncSet[T]) Contains(items ...T) bool {
 func (s *SyncSet[T]) Update(src Container[T]) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.set == nil {
+		s.set = New[T]()
+	}
 
 	if safe, ok := src.(*SyncSet[T]); ok {
 		safe.mu.RLock()
@@ -67,6 +84,10 @@ func (s *SyncSet[T]) Update(src Container[T]) bool {
 func (s *SyncSet[T]) Size() int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return 0
+	}
 	return s.set.Size()
 }
 
@@ -74,6 +95,10 @@ func (s *SyncSet[T]) Size() int {
 func (s *SyncSet[T]) Empty() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return true
+	}
 	return s.set.Empty()
 }
 
@@ -81,6 +106,10 @@ func (s *SyncSet[T]) Empty() bool {
 func (s *SyncSet[T]) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.set == nil {
+		return
+	}
 	s.set.Clear()
 }
 
@@ -90,8 +119,10 @@ func (s *SyncSet[T]) Copy() Container[T] {
 	defer s.mu.RUnlock()
 
 	clone := &SyncSet[T]{}
-	clone.set = s.set.Copy().(*Set[T])
 
+	if s.set != nil {
+		clone.set = s.set.Copy().(*Set[T])
+	}
 	return clone
 }
 
@@ -100,6 +131,10 @@ func (s *SyncSet[T]) Copy() Container[T] {
 func (s *SyncSet[T]) Disjoint(other Container[T]) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		s.set = New[T]()
+	}
 
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
@@ -116,6 +151,10 @@ func (s *SyncSet[T]) Equal(other Container[T]) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.set == nil {
+		return other == nil || other.Empty()
+	}
+
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
 		defer safe.mu.RUnlock()
@@ -130,6 +169,10 @@ func (s *SyncSet[T]) Equal(other Container[T]) bool {
 func (s *SyncSet[T]) Subset(other Container[T]) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		s.set = New[T]()
+	}
 
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
@@ -146,6 +189,10 @@ func (s *SyncSet[T]) Superset(other Container[T]) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.set == nil {
+		s.set = New[T]()
+	}
+
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
 		defer safe.mu.RUnlock()
@@ -160,6 +207,10 @@ func (s *SyncSet[T]) Superset(other Container[T]) bool {
 func (s *SyncSet[T]) Union(other Container[T]) Container[T] {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return other.Copy()
+	}
 
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
@@ -176,6 +227,10 @@ func (s *SyncSet[T]) Intersection(other Container[T]) Container[T] {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.set == nil {
+		s.set = New[T]()
+	}
+
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
 		defer safe.mu.RUnlock()
@@ -190,6 +245,10 @@ func (s *SyncSet[T]) Intersection(other Container[T]) Container[T] {
 func (s *SyncSet[T]) Difference(other Container[T]) Container[T] {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		s.set = New[T]()
+	}
 
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
@@ -206,6 +265,10 @@ func (s *SyncSet[T]) SymmetricDifference(other Container[T]) Container[T] {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	if s.set == nil {
+		s.set = New[T]()
+	}
+
 	if safe, ok := other.(*SyncSet[T]); ok {
 		safe.mu.RLock()
 		defer safe.mu.RUnlock()
@@ -219,6 +282,11 @@ func (s *SyncSet[T]) SymmetricDifference(other Container[T]) Container[T] {
 func (s *SyncSet[T]) Slice() []T {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return nil
+	}
+
 	return s.set.Slice()
 }
 
@@ -227,6 +295,11 @@ func (s *SyncSet[T]) Items() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
+
+		if s.set == nil {
+			return
+		}
+
 		for item := range s.set.Items() {
 			if !yield(item) {
 				return
