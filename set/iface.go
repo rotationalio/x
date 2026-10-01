@@ -1,6 +1,9 @@
 package set
 
-import "iter"
+import (
+	"encoding/json"
+	"iter"
+)
 
 // Container represents a common interface that all sets in this package must implement,
 // it ensures that sets can be used interchangeably in the package and that external
@@ -172,4 +175,22 @@ func subset[T any](a, b Container[T]) bool {
 // Determine if a is a superset of b.
 func superset[T any](a, b Container[T]) bool {
 	return subset(b, a)
+}
+
+//============================================================================
+// Serialization
+//============================================================================
+
+func marshalJSON[T any](c Container[T]) ([]byte, error) {
+	return json.Marshal(c.Slice())
+}
+
+func unmarshalJSON[T any](data []byte, c Container[T]) (err error) {
+	slice := make([]T, 0)
+	if err = json.Unmarshal(data, &slice); err != nil {
+		return err
+	}
+
+	c.Add(slice...)
+	return nil
 }

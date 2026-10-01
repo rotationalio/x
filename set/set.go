@@ -187,3 +187,15 @@ func (s *Set[T]) Items() iter.Seq[T] {
 		}
 	}
 }
+
+//============================================================================
+// Serialization
+//============================================================================
+
+func (s *Set[T]) MarshalJSON() ([]byte, error) {
+	return marshalJSON(s)
+}
+
+func (s *Set[T]) UnmarshalJSON(data []byte) error {
+	return unmarshalJSON(data, s)
+}

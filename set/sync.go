@@ -307,3 +307,27 @@ func (s *SyncSet[T]) Items() iter.Seq[T] {
 		}
 	}
 }
+
+//============================================================================
+// Serialization
+//============================================================================
+
+func (s *SyncSet[T]) MarshalJSON() ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.set == nil {
+		return []byte("[]"), nil
+	}
+	return marshalJSON(s)
+}
+
+func (s *SyncSet[T]) UnmarshalJSON(data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.set == nil {
+		s.set = New[T]()
+	}
+	return unmarshalJSON(data, s.set)
+}

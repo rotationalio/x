@@ -1,6 +1,7 @@
 package set_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -234,6 +235,16 @@ func MakeColorTests(mk func([]Color) Container[Color]) func(t *testing.T) {
 			for v := range s.Items() {
 				assert.True(t, s.Contains(v))
 			}
+		})
+
+		t.Run("JSON", func(t *testing.T) {
+			e := mk(first)
+			data, err := json.Marshal(e)
+			assert.Ok(t, err)
+
+			f := mk([]Color{})
+			assert.Ok(t, json.Unmarshal(data, f))
+			assert.True(t, e.Equal(f))
 		})
 	}
 }

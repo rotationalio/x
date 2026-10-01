@@ -210,3 +210,15 @@ func (s *HashSet[T, H]) Items() iter.Seq[T] {
 		}
 	}
 }
+
+//============================================================================
+// Serialization
+//============================================================================
+
+func (s *HashSet[T, H]) MarshalJSON() ([]byte, error) {
+	return marshalJSON(s)
+}
+
+func (s *HashSet[T, H]) UnmarshalJSON(data []byte) error {
+	return unmarshalJSON(data, s)
+}
