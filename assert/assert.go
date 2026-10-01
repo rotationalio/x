@@ -261,6 +261,27 @@ func InDelta(tb testing.TB, expected, actual any, delta float64, msgAndArgs ...a
 	Assert(tb, !(d < -delta || d > delta), makeMessage(fmt.Sprintf("expected %v to be within %v of %v", actual, delta, expected), msgAndArgs...))
 }
 
+// ElementsMatch asserts that two slices contain the same elements even
+// if the order is different. It first checks the lengths of the slices,
+// then checks that each element in the first slice is in the second slice.
+func ElementsMatch[T comparable](tb testing.TB, exp, act []T, msgAndArgs ...any) {
+	tb.Helper()
+	Assert(tb, len(exp) == len(act), makeMessage("slices have different lengths", msgAndArgs...))
+
+	check := func(v T) bool {
+		for _, e := range exp {
+			if e == v {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, v := range act {
+		Assert(tb, check(v), makeMessage(fmt.Sprintf("%v not found in %v", v, exp), msgAndArgs...))
+	}
+}
+
 func makeMessage(msg string, msgAndArgs ...any) string {
 	switch len(msgAndArgs) {
 	case 0:

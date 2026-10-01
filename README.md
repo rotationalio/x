@@ -37,6 +37,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [region](https://go.rtnl.ai/x/region): enumerates the clouds and regions that Rotational services can be deployed to
 - [rlog](https://go.rtnl.ai/x/rlog): extends the `log/slog` logger with additional custom levels and features (the 'r' is for "Rotational"!)
 - [semver](https://go.rtnl.ai/x/semver): allows parsing and comparison of semantic versioning numbers
+- [set](https://go.rtnl.ai/x/set): set, syncset, hashset, and treeset implementations for mathematical set operations
 - [slugify](https://go.rtnl.ai/x/slugify): converts strings into a url-safe slug.
 - [stats](https://go.rtnl.ai/x/stats): a fast, compact online statistics computation module
 - [typecase](https://go.rtnl.ai/x/semver): convert strings to different variable cases such as camel or snake case
