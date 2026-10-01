@@ -1,6 +1,6 @@
 # Set
 
-Generic mathematical set types that replace `map[T]struct{}` with a small, readable API for membership and set algebra. Elements use shallow (`==`) equality, so `T` must be `comparable`.
+Generic mathematical set types that replace `map[T]struct{}` with a small, readable API for membership and set algebra. `Set`/`SyncSet` elements use shallow (`==`) equality, so `T` must be `comparable`; `HashSet` elements use `Hash()` equality for complex types needing deep equality.
 
 Import the package with:
 
@@ -8,9 +8,10 @@ Import the package with:
 import "go.rtnl.ai/x/set"
 ```
 
-All sets implement [`Container`](#container), so `Set` and `SyncSet` can be mixed in `Update`, `Union`, `Intersection`, and the other set operations.
+All sets implement [`Container`](#container), so `Set`, `HashSet`, and `SyncSet` can be mixed in `Update`, `Union`, `Intersection`, and the other set operations (the element type must satisfy all involved sets' constraints).
 
 - [`Set`](#set): single-threaded set backed by `map[T]struct{}`.
+- [`HashSet`](#hashset): single-threaded set backed by `map[H]T`, equality by `Hash()`.
 - [`SyncSet`](#syncset): concurrency-safe wrapper around `Set`, constructed with `NewSyncSet`/`MakeSyncSet`.
 - [`Container`](#container): interface shared by every set in this package.
 
@@ -47,6 +48,45 @@ for v := range s.Items() {
 }
 vals := s.Slice() // []T, unordered
 ```
+
+## HashSet
+
+`HashSet[T Hashable[H], H Hash]` is not thread-safe; do not share it across goroutines without external synchronization. It implements [`Container[T]`](#container) with the same membership and algebra API as [`Set`](#set), but determines equality by hash instead of `==`, so it works for complex types needing deep equality.
+
+Define `Hash()` on the element type. `H` must be a `Hash` (`~string` or an `int`/`uint` variant):
+
+```go
+type Color struct{ R, G, B uint8 }
+
+func (c Color) Hash() string {
+    return fmt.Sprintf("%02x%02x%02x", c.R, c.G, c.B)
+}
+```
+
+Create a set with `NewHashSet` (from elements) or `MakeHashSet` (with initial capacity):
+
+```go
+s := set.NewHashSet(Color{255, 0, 0}, Color{0, 255, 0})
+t := set.MakeHashSet[Color](16)
+t.Add(Color{0, 0, 255})
+```
+
+Membership, mutation, iteration, and algebra match `Set`:
+
+```go
+modified := s.Add(Color{0, 0, 255}) // true if the hash was absent
+ok := s.Contains(Color{255, 0, 0})  // hash lookup, not == comparison
+for v := range s.Items() {
+    use(v)
+}
+u := s.Union(t) // *set.HashSet[Color, string]
+```
+
+Three notes:
+
+- Unlike `Set`, the zero value is not usable: `Add` calls the stored hash func, so always construct with `NewHashSet`/`MakeHashSet`. (`Clear` keeps the hash func, so a cleared set remains usable.)
+- Hashes must uniquely identify values. Distinct values returning the same hash collide: `Add` keeps the first, `Contains`/`Remove` match by hash.
+- `Union`, `Intersection`, `Difference`, and `SymmetricDifference` return a plain, non-thread-safe `*HashSet`; `Copy` returns an independent `*HashSet` as a `Container[T]`.
 
 ## SyncSet
 
