@@ -2,17 +2,6 @@ package set
 
 import "iter"
 
-// Allows for custom comparison and ordering logic to be used with sets.
-type Comparable[T any] interface {
-	// The receiver of the method is the left operand of the comparison and the
-	// argument is the right operand. This method must return the following:
-	//
-	// - < 0 if the receiver is less than the argument
-	// - 0 if the receiver is equal to the argument
-	// - > 0 if the receiver is greater than the argument
-	Compare(T) int
-}
-
 // Container represents a common interface that all sets in this package must implement,
 // it ensures that sets can be used interchangeably in the package and that external
 // data types can be used with these sets.
