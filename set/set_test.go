@@ -1,6 +1,7 @@
 package set_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"go.rtnl.ai/x/assert"
@@ -220,6 +221,16 @@ func MakeIntTests(mk func([]int) Container[int]) func(t *testing.T) {
 			for v := range s.Items() {
 				assert.True(t, s.Contains(v))
 			}
+		})
+
+		t.Run("JSON", func(t *testing.T) {
+			e := mk(evens)
+			data, err := json.Marshal(e)
+			assert.Ok(t, err)
+
+			f := mk([]int{})
+			assert.Ok(t, json.Unmarshal(data, f))
+			assert.True(t, e.Equal(f))
 		})
 	}
 }
