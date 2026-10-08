@@ -52,6 +52,14 @@ func TestFieldError_SubfieldArray(t *testing.T) {
 	assert.Equal(t, "missing addresses[2].street: this field is required", err.Error())
 }
 
+func TestFieldError_Index(t *testing.T) {
+	err := validation.Missing("street")
+	got := err.Index(2)
+
+	assert.Equal(t, "street[2]", err.Field())
+	assert.Equal(t, "street[2]", got.Field())
+}
+
 func TestFieldError_Equal(t *testing.T) {
 	t.Run("Equal", func(t *testing.T) {
 		a := validation.Missing("email")

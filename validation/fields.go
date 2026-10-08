@@ -42,6 +42,12 @@ func (e *FieldError) SubfieldArray(parent string, index int) *FieldError {
 	return e
 }
 
+// Index apppends the index to the field name for valdiating a field that is a slice.
+func (e *FieldError) Index(index int) *FieldError {
+	e.field = fmt.Sprintf("%s[%d]", e.field, index)
+	return e
+}
+
 // Equal implements the Equaler interface.
 func (e *FieldError) Equal(other *FieldError) bool {
 	return e.verb == other.verb && e.field == other.field && e.issue == other.issue

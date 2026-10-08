@@ -6,7 +6,11 @@ import (
 )
 
 // Error appends field validation errors into a single error chain.
-func Error(err error, errs ...*FieldError) error {
+func Error(err error, errs ...error) error {
+	// Create the validation.Errors slice.
+	// If the first error is nil, then create a new Errors slice.
+	// Otherwise, type assert the first error as an Errors slice. If it is not,
+	// then create a new Errors slice and add the first error to it.
 	var verr Errors
 	if err == nil {
 		verr = make(Errors, 0, len(errs))
@@ -23,16 +27,26 @@ func Error(err error, errs ...*FieldError) error {
 		}
 	}
 
+	// Add all other errors to the Errors slice.
 	for _, e := range errs {
 		if e != nil {
-			verr = append(verr, e)
+			switch t := e.(type) {
+			case *FieldError:
+				verr = append(verr, t)
+			case Errors:
+				verr = append(verr, t...)
+			default:
+				verr = append(verr, Incorrect("input", e.Error()))
+			}
 		}
 	}
 
+	// If there are no errors, then return nil.
 	if len(verr) == 0 {
 		return nil
 	}
 
+	// Return the validation.Errors slice.
 	return verr
 }
 
