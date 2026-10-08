@@ -70,6 +70,32 @@ func TestError(t *testing.T) {
 		assert.True(t, verrs[0].Equal(validation.Incorrect("input", "something broke")))
 		assert.True(t, verrs[1].Equal(validation.Missing("email")))
 	})
+
+	t.Run("JoinsErrors", func(t *testing.T) {
+		erra := validation.Error(nil, validation.Missing("email"), validation.ReadOnly("id"))
+		errb := validation.Error(nil, validation.Missing("name"), validation.ReadOnly("age"))
+		err := validation.Error(erra, errb)
+
+		assert.NotNil(t, err)
+
+		verrs, ok := err.(validation.Errors)
+		assert.True(t, ok, "expected an Errors value")
+		assert.Len(t, verrs, 4)
+	})
+
+	t.Run("JoinGenericErrors", func(t *testing.T) {
+		erra := errors.New("something broke")
+		errb := errors.New("something else broke")
+		err := validation.Error(erra, errb)
+
+		assert.NotNil(t, err)
+
+		verrs, ok := err.(validation.Errors)
+		assert.True(t, ok, "expected an Errors value")
+		assert.Len(t, verrs, 2)
+		assert.True(t, verrs[0].Equal(validation.Incorrect("input", "something broke")))
+		assert.True(t, verrs[1].Equal(validation.Incorrect("input", "something else broke")))
+	})
 }
 
 func TestSubfieldError(t *testing.T) {
