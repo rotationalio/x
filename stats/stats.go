@@ -61,7 +61,7 @@ func (s *Statistics[T]) Update(samples ...T) {
 	for _, sample := range samples {
 		s.samples++
 		s.total += float64(sample)
-		s.squares += float64(sample * sample)
+		s.squares += float64(sample) * float64(sample)
 
 		// If this is our first sample, then this value is both our maximum and minimum
 		// value, otherwise perform comparisons.
