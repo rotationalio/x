@@ -118,6 +118,23 @@ func TestStatistics(t *testing.T) {
 	})
 }
 
+func TestNoOverflow(t *testing.T) {
+	// Test that stats computations do not overflow (e.g. variance should always be
+	// non-negative).
+	t.Run("time.Duration", func(t *testing.T) {
+		stats := new(stats.Statistics[time.Duration])
+		n := 1000
+		for i := range n {
+			stats.Update(time.Duration(i) * time.Second)
+		}
+		assert.Equal(t, int64(n), stats.N())
+		assert.GreaterEqual(t, 0.0, stats.Mean())
+		assert.GreaterEqual(t, 0.0, stats.StdDev())
+		assert.GreaterEqual(t, 0.0, stats.Variance())
+		assert.Equal(t, time.Duration(n-1)*time.Second, stats.Range())
+	})
+}
+
 func TestAppend(t *testing.T) {
 	loadTestData()
 
