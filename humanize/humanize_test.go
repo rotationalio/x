@@ -33,6 +33,8 @@ func TestSingular(t *testing.T) {
 
 	t.Run("Zero", makeTest(0, assert.False))
 
+	t.Run("Negative", makeTest(-1, assert.False))
+
 	t.Run("RandInt", func(t *testing.T) {
 		for i := 0; i < 32; i++ {
 			i := rand.IntN(1000000) + 2
