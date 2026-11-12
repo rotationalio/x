@@ -1,6 +1,6 @@
 module go.rtnl.ai/x
 
-go 1.26.0
+go 1.27.3
 
 require (
 	golang.org/x/crypto v0.57.0

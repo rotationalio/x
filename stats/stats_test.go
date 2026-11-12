@@ -362,7 +362,7 @@ func TestBadJSON(t *testing.T) {
 		{
 			in:       `{"foo":"NaN"}`,
 			obj:      new(stats.Statistics[float64]),
-			expected: `json: invalid number literal, trying to unmarshal "\"NaN\"" into Number`,
+			expected: `json: cannot unmarshal string "NaN" into Go value of type json.Number: invalid syntax`,
 		},
 		{
 			in:       `{"total": 9.813435956500003, "squares": 103.123456789, "maximum": 15.45832771, "minimum": 5.51224787}`,
