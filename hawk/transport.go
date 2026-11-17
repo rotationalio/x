@@ -20,9 +20,17 @@ var (
 // Injects an Authorization header into outgoing requests by implementing the
 // http.RoundTripper interface and can be used as client-side middleware.
 type Transport struct {
+	// Specify the credentials to use for request authentication.
 	Credentials Credentialing
-	Next        http.RoundTripper
-	Headers     []string
+
+	// Specify the next round tripper to use for the request. If none is specified,
+	// http.DefaultTransport is used to execute the request.
+	Next http.RoundTripper
+
+	// Specify the headers to add to the request. If none are specified, then
+	// X-Request-ID and X-Timestamp are used, if not present on the original request
+	// then they are added to the request without modifying the original request.
+	Headers []string
 }
 
 func (t *Transport) RoundTrip(req *http.Request) (rep *http.Response, err error) {

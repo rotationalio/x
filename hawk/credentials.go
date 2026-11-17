@@ -19,7 +19,8 @@ type Credentialing interface {
 }
 
 // Static credentials that that implement the Credentials interface. Note that the
-// secret should be store in base64 encoded form and should be 32 bytes long.
+// secret should be base64 encoded and should be at least 32 bytes long since no
+// hashing is performed on the secret.
 type Credential struct {
 	ClientID string `json:"client_id" yaml:"client_id" msgpack:"client_id" env:"HAWK_CLIENT_ID"`
 	Secret   string `json:"client_secret" yaml:"client_secret" msgpack:"client_secret" env:"HAWK_CLIENT_SECRET"`

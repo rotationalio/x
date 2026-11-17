@@ -45,6 +45,8 @@ Authorization: HMAC sig=A5CciwEllyejQhOIzrOhRZKSDQkiE01pRbfkzlV9EO8, nonce=lV-8i
 
 Create a new `HMAC` for every request so that each one is signed with its own nonce. The signature covers the name and the value of every header in the order they were appended (see [Signed Data](#signed-data)), so the values on the request must be exactly the values that were appended.
 
+To sign every request that an `http.Client` sends without doing this by hand, use a [Transport](#transport).
+
 ### Verifying a Request (Server)
 
 `Parse` the `Authorization` header into a `Token`, look up the secret for the token's `KeyID`, `Collect` the signed header values from the request, and `Verify` the signature:
@@ -138,6 +140,140 @@ if rep.Header.Get("X-Transfer-ID") != transferID {
     return errors.New("reply is for a different transfer")
 }
 ```
+
+### Credentials
+
+A `Credentialing` object supplies the key ID and the key that a request is signed with. The package has two implementations for a client that has one static set of credentials. You can also implement your own `Credentialing` interface to read the credentials from a database and/or to fetch the KeyID from the request or the context on the request.
+
+A `Credential` is a static single credential that holds the client ID and the secret as separate fields, and an `APIKey` is the same two values in one string, separated by a colon:
+
+```go
+creds := &hawk.Credential{
+    ClientID: "01JT4B3R5Z6AHJXV87QHPPKRBM",
+    Secret:   "z7q8RxW0dZ1FuiaVPdL8C/wjRO9wogBUMufxa1CBYQ0",
+}
+
+apiKey := hawk.APIKey("01JT4B3R5Z6AHJXV87QHPPKRBM:z7q8RxW0dZ1FuiaVPdL8C/wjRO9wogBUMufxa1CBYQ0")
+```
+
+The secret is the key encoded as base64 with the standard alphabet and no padding (`base64.RawStdEncoding`), and the key must be at least 32 bytes. Note that this is not the URL safe encoding that the token uses for the signature and the nonce. To create a secret:
+
+```go
+key := make([]byte, 32)
+if _, err := rand.Read(key); err != nil {
+    return err
+}
+
+secret := base64.RawStdEncoding.EncodeToString(key)
+```
+
+An `APIKey` is split on the first colon, so the client ID cannot contain one. A `Credential` has `client_id` and `client_secret` tags for JSON, YAML, and msgpack, and `env` tags that name `HAWK_CLIENT_ID` and `HAWK_CLIENT_SECRET` for a configuration loader that reads them; the package does not read the environment itself.
+
+Both are validated when the key is requested, which is when a request is signed and not when the credentials are created:
+
+| Error | Cause |
+| --- | --- |
+| `ErrMissingKeyID` | The client ID is empty. |
+| `ErrInvalidKeyID` | The key was requested for a key ID that is not the client ID. |
+| `ErrInvalidSecret` | The API key has no colon, or the key is shorter than 32 bytes. |
+| `base64.CorruptInputError` | The secret is not base64, is padded, or uses the URL safe alphabet. |
+
+The server verifies a token with the key, not with the encoded secret. A server that stores the same credentials can decode the key with them, which also checks that the token was signed with the expected key ID:
+
+```go
+key, err := creds.Key(token.KeyID())
+if err != nil {
+    http.Error(w, "unauthorized", http.StatusUnauthorized)
+    return
+}
+
+token.Collect(r.Header)
+if ok, err := token.Verify(key); err != nil || !ok {
+    http.Error(w, "unauthorized", http.StatusUnauthorized)
+    return
+}
+```
+
+Implement `Credentialing` to supply credentials any other way, for example to fetch the secret from a vault or to choose the credentials by request. `KeyID` is called with the request that is about to be signed and `Key` is then called with the key ID that it returned:
+
+```go
+// Signs a request with the API key of the host that the request is sent to.
+type HostKeys map[string]hawk.APIKey
+
+func (h HostKeys) KeyID(req *http.Request) string {
+    return h[req.URL.Host].KeyID(req)
+}
+
+func (h HostKeys) Key(keyID string) ([]byte, error) {
+    for _, apiKey := range h {
+        if apiKey.KeyID(nil) == keyID {
+            return apiKey.Key(keyID)
+        }
+    }
+    return nil, hawk.ErrMissingKeyID
+}
+```
+
+An implementation must be safe for concurrent use, must not modify the request, and must return an error from `Key` if it has no key so that the request is not sent.
+
+### Transport
+
+A `Transport` is an `http.RoundTripper` that signs every request with the key from its `Credentials` and sets the `Authorization` header, so that requests do not have to be signed individually:
+
+```go
+client := &http.Client{
+    Transport: &hawk.Transport{Credentials: creds},
+}
+
+rep, err := client.Post("https://example.com/v1/transfers", "application/json", body)
+```
+
+By default the transport signs the `X-Request-ID` and `X-Timestamp` headers. If the request does not have them, the transport sets the request ID to a new UUID and the timestamp to the current time in RFC 3339 format; values that are already on the request are signed as they are:
+
+```
+X-Request-ID: 0576d5e6-ac50-41e6-973d-55b5c1d678c3
+X-Timestamp: 2026-11-17T16:59:54-06:00
+Authorization: HMAC sig=1BN0yKHQ6uDRnQH5F-CcXPkxgjPXAeWlyFT8V3etOHg, nonce=XcB9zbSnpcip3lAR_qPgpA, headers=x-request-id;x-timestamp, kid=01JT4B3R5Z6AHJXV87QHPPKRBM
+```
+
+The transport has three fields:
+
+- `Credentials` is required; a transport without credentials panics when it is used.
+- `Headers` are the names of the headers to sign, in order, instead of the defaults.
+- `Next` is the round tripper that sends the signed request, which is `http.DefaultTransport` if it is not set. Use it to configure the connection or to chain other middleware.
+
+When `Headers` is set, the transport only signs: it does not add `X-Request-ID` or `X-Timestamp`, and it does not set a value for any header. Set the headers on the request before it is sent, since a header that is missing is signed with an empty value:
+
+```go
+client := &http.Client{
+    Transport: &hawk.Transport{
+        Credentials: creds,
+        Headers:     []string{"X-Transfer-ID", "X-Transfer-Timestamp"},
+        Next:        &http.Transport{TLSHandshakeTimeout: 5 * time.Second},
+    },
+}
+
+req, err := http.NewRequest(http.MethodPost, "https://example.com/v1/transfers", body)
+if err != nil {
+    return err
+}
+
+req.Header.Set("X-Transfer-ID", transferID)
+req.Header.Set("X-Transfer-Timestamp", time.Now().UTC().Format(time.RFC3339))
+
+rep, err := client.Do(req)
+```
+
+Some things to be aware of when using the transport:
+
+- The request that is passed to the client is not modified; the headers are added to a copy that is sent. To know the request ID, for example to log it, set `X-Request-ID` on the request instead of having the transport generate it.
+- An `Authorization` header that is already on the request is replaced on the request that is sent.
+- Every round trip is signed with a new nonce, so a request that is sent again gets a new token, and a new request ID and timestamp if they are generated by the transport.
+- If the credentials return an error then the request is not sent. The client wraps the error in a `*url.Error`, so test for it with `errors.Is(err, hawk.ErrInvalidSecret)`.
+- Only the listed headers are signed; the URL and the body of the request are not.
+- The transport does not verify the `Server-Authorization` header of the reply; see [Verifying the Reply](#verifying-the-reply-client).
+
+The server verifies a request from the transport as described in [Verifying a Request](#verifying-a-request-server). The client chooses which headers are signed, so the server must also check that `token.Headers()` contains every header that it relies on, such as `x-request-id` and `x-timestamp`, before it uses them to reject replays.
 
 ### Signed Data
 
