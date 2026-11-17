@@ -22,6 +22,7 @@ This is single repository that stores many, independent small subpackages. This 
 - [country](https://go.rtnl.ai/x/country): a helper package for resolving ISO-3166-1 country codes to country information
 - [dsn](https://go.rtnl.ai/x/dsn): parses data source names in order to connect to both server and embedded databases easily.
 - [gravatar](https://go.rtnl.ai/x/gravatar): helper to create Gravatar urls from email addresses
+- [hawk](https://go.rtnl.ai/x/hawk): signature based authentication scheme with a shared secret
 - [httpcc](https://go.rtnl.ai/x/httpcc): http cache control header parsing and directives management
 - [humanize](https://go.rtnl.ai/x/humanize): creates human readable strings from various types
 - [locks](https://go.rtnl.ai/x/locks): key-based lock mechanism to distribute keys across a fixed number of locks
