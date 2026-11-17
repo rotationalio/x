@@ -83,77 +83,77 @@ func TestBadTokens(t *testing.T) {
 	// cSpell: disable
 	tokens := []struct {
 		token string
-		err   string
+		err   error
 	}{
 		{
-			"foo", "invalid authorization hmac token",
+			"foo", hawk.ErrInvalidHMACToken,
 		},
 		{
-			"", "invalid authorization hmac token",
+			"", hawk.ErrInvalidHMACToken,
 		},
 		{
-			"HMAC", "invalid authorization hmac token",
+			"HMAC", hawk.ErrInvalidHMACToken,
 		},
 		{
-			"HMAC ", "invalid authorization hmac token",
+			"HMAC ", hawk.ErrInvalidHMACToken,
 		},
 		{
-			"HMAC foo", "invalid authorization hmac token",
+			"HMAC foo", hawk.ErrInvalidHMACToken,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"invalid authorization hmac token",
+			hawk.ErrInvalidHMACToken,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM,",
-			"invalid authorization hmac token",
+			hawk.ErrInvalidHMACToken,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=; ;;, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"could not decode headers in HMAC token",
+			hawk.ErrDecodeHeaders,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id:foo, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"could not decode headers in HMAC token",
+			hawk.ErrDecodeHeaders,
 		},
 		{
 			"HMAC sig=f+, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"could not decode signature: illegal base64 data at input byte 1",
+			hawk.ErrDecodeSignature,
 		},
 		{
 			"HMAC nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"missing signature in HMAC token",
+			hawk.ErrMissingSignature,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=f+, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"could not decode nonce: illegal base64 data at input byte 1",
+			hawk.ErrDecodeNonce,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, headers=host;x-transaction-id, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"missing nonce in HMAC token",
+			hawk.ErrMissingNonce,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"could not decode headers in HMAC token",
+			hawk.ErrDecodeHeaders,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, kid=01JT4B3R5Z6AHJXV87QHPPKRBM",
-			"missing headers in HMAC token",
+			hawk.ErrMissingHeaders,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id, kid=",
-			"could not decode key ID in HMAC token",
+			hawk.ErrDecodeKeyID,
 		},
 		{
 			"HMAC sig=zFeIxdyVnJtpMUExK7HoL37VN4tF6sMQZPEr58MBpMQ, nonce=wm0eHegl4lD0Uw_sSYYQCw, headers=host;x-transaction-id",
-			"missing key ID in HMAC token",
+			hawk.ErrMissingKeyID,
 		},
 	}
 	// cSpell: enable
 
 	for i, tc := range tokens {
 		tok, err := hawk.Parse(tc.token)
-		assert.EqualError(t, err, tc.err, "test case %d: expected error %q, got %q", i, tc.err, err)
+		assert.ErrorIs(t, err, tc.err, "test case %d: expected error %q, got %q", i, tc.err, err)
 		assert.Nil(t, tok, "test case %d: expected nil token, got %v", i, tok)
 	}
 }

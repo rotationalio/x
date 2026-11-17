@@ -13,7 +13,15 @@ import (
 )
 
 var (
-	ErrInvalidHMACToken = errors.New("invalid authorization hmac token")
+	ErrInvalidHMACToken = errors.New("hawk: invalid authorization token")
+	ErrMissingSignature = errors.New("hawk: missing signature")
+	ErrDecodeSignature  = errors.New("hawk: could not decode signature")
+	ErrMissingNonce     = errors.New("hawk: missing nonce")
+	ErrDecodeNonce      = errors.New("hawk: could not decode nonce")
+	ErrMissingHeaders   = errors.New("hawk: missing headers definition")
+	ErrDecodeHeaders    = errors.New("hawk: could not decode headers definition")
+	ErrMissingKeyID     = errors.New("hawk: missing key ID")
+	ErrDecodeKeyID      = errors.New("hawk: could not decode key ID")
 )
 
 // HMAC implements an authorization header to authenticate webhook requests using a
@@ -147,18 +155,18 @@ func Parse(token string) (tok *Token, err error) {
 	tok = &Token{}
 	if sig, ok := kv["sig"]; ok {
 		if tok.signature, err = base64.RawURLEncoding.DecodeString(sig); err != nil {
-			return nil, fmt.Errorf("could not decode signature: %w", err)
+			return nil, errors.Join(ErrDecodeSignature, err)
 		}
 	} else {
-		return nil, fmt.Errorf("missing signature in HMAC token")
+		return nil, ErrMissingSignature
 	}
 
 	if nonce, ok := kv["nonce"]; ok {
 		if tok.data, err = base64.RawURLEncoding.DecodeString(nonce); err != nil {
-			return nil, fmt.Errorf("could not decode nonce: %w", err)
+			return nil, errors.Join(ErrDecodeNonce, err)
 		}
 	} else {
-		return nil, fmt.Errorf("missing nonce in HMAC token")
+		return nil, ErrMissingNonce
 	}
 
 	if headers, ok := kv["headers"]; ok {
@@ -166,26 +174,26 @@ func Parse(token string) (tok *Token, err error) {
 			if header = strings.TrimSpace(header); header != "" {
 				// A colon in the name would make the signed "name:value" line ambiguous.
 				if strings.Contains(header, ":") {
-					return nil, fmt.Errorf("could not decode headers in HMAC token")
+					return nil, ErrDecodeHeaders
 				}
 				tok.headers = append(tok.headers, header)
 			}
 		}
 
 		if len(tok.headers) == 0 {
-			return nil, fmt.Errorf("could not decode headers in HMAC token")
+			return nil, ErrDecodeHeaders
 		}
 	} else {
-		return nil, fmt.Errorf("missing headers in HMAC token")
+		return nil, ErrMissingHeaders
 	}
 
 	if kid, ok := kv["kid"]; ok {
 		tok.keyID = kid
 		if tok.keyID == "" {
-			return nil, fmt.Errorf("could not decode key ID in HMAC token")
+			return nil, ErrDecodeKeyID
 		}
 	} else {
-		return nil, fmt.Errorf("missing key ID in HMAC token")
+		return nil, ErrMissingKeyID
 	}
 
 	return tok, nil
