@@ -147,11 +147,16 @@ func (d *DSN) Get(key string) (string, bool) {
 	return d.Options.Get(key)
 }
 
-// File URI returns a URI string with the file:// scheme and path for embedded or local databases.
+// FileURI returns a URI string with the file: scheme, path, and options for embedded or
+// local databases, e.g. file:path/to/test.db for a relative path or file:/path/to/test.db
+// for an absolute path. The authority (//) is always omitted because SQLite rejects any
+// authority other than empty or localhost, and the path is percent-encoded so that
+// characters such as ?, #, and % are not interpreted as URI syntax.
 // NOTE: the provider, driver, host, and userinfo are not included in the URI.
 func (d *DSN) FileURI() string {
 	u := &url.URL{
 		Scheme:   "file",
+		OmitHost: true,
 		Path:     d.Path,
 		RawQuery: d.rawquery(),
 	}
