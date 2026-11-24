@@ -7,6 +7,8 @@ import (
 	"go.rtnl.ai/x/dsn"
 )
 
+// cSpell: ignore jdoe, mydb, mypassword
+
 func TestParse(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		testCases := []struct {
@@ -215,7 +217,7 @@ func TestFileURI(t *testing.T) {
 				Provider: "sqlite3",
 				Path:     "path/to/test.db",
 			},
-			expected: "file://path/to/test.db",
+			expected: "file:path/to/test.db",
 			name:     "Relative",
 		},
 		{
@@ -223,7 +225,7 @@ func TestFileURI(t *testing.T) {
 				Provider: "sqlite",
 				Path:     "/data/db/test.db",
 			},
-			expected: "file:///data/db/test.db",
+			expected: "file:/data/db/test.db",
 			name:     "Absolute",
 		},
 		{
@@ -232,8 +234,34 @@ func TestFileURI(t *testing.T) {
 				Path:     "path/to/test.db",
 				Options:  dsn.Options{"readonly": "true", "_timezone": "UTC"},
 			},
-			expected: "file://path/to/test.db?_timezone=UTC&readonly=true",
+			expected: "file:path/to/test.db?_timezone=UTC&readonly=true",
 			name:     "Options",
+		},
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite",
+				Path:     "/data/db/test.db",
+				Options:  dsn.Options{"readonly": "true", "_timezone": "UTC"},
+			},
+			expected: "file:/data/db/test.db?_timezone=UTC&readonly=true",
+			name:     "AbsoluteOptions",
+		},
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite",
+				Path:     ":memory:",
+			},
+			expected: "file::memory:",
+			name:     "Memory",
+		},
+		{
+			uri: &dsn.DSN{
+				Provider: "sqlite",
+				Path:     "path/to/my db?#%.db",
+				Options:  dsn.Options{"_timezone": "UTC"},
+			},
+			expected: "file:path/to/my%20db%3F%23%25.db?_timezone=UTC",
+			name:     "Escaped",
 		},
 	}
 
